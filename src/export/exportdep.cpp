@@ -38,20 +38,16 @@ ExportDEP::~ExportDEP()
 
 void ExportDEP::Export()
 {
-    ExportDialog *dlg = new ExportDialog(true);
-    if (dlg->exec() == QDialog::Accepted ) {
-        QString filename = dlg->getFilename();
-        if (depExport(filename, dlg->getFrom(), dlg->getTo())) {
-            delete dlg;
+    ExportDialog dlg(true);
+    if (dlg.exec() == QDialog::Accepted ) {
+        QString filename = dlg.getFilename();
+        if (depExport(filename, dlg.getFrom(), dlg.getTo())) {
             SpreadSignal::setProgressBarValue(-1);
             QMessageBox::information(0, tr("Export"), tr("DEP (Daten-Erfassungs-Protokol) wurde nach %1 exportiert.").arg(filename));
         } else {
-            delete dlg;
             SpreadSignal::setProgressBarValue(-1);
             QMessageBox::warning(0, tr("Export"), tr("DEP (Daten-Erfassungs-Protokol) konnte nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
         }
-    } else {
-        delete dlg;
     }
 }
 
@@ -114,13 +110,13 @@ QJsonArray ExportDEP::getReceipts(int from, int to)
 
 bool ExportDEP::depExport(QString filename)
 {
-    QFile *outputFile = new QFile(filename);
+    QFile outputFile(filename);
 
     /* Try and open a file for output */
-    outputFile->open(QIODevice::WriteOnly | QIODevice::Text);
+    outputFile.open(QIODevice::WriteOnly | QIODevice::Text);
 
     /* Check it opened OK */
-    if(!outputFile->isOpen()){
+    if(!outputFile.isOpen()){
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << filename << "for output";
         return false;
     }
@@ -129,10 +125,10 @@ bool ExportDEP::depExport(QString filename)
     int endID = getLastMonthReceiptId();
 
     QJsonDocument dep = depExport(beginID, endID);
-    QTextStream outStreamDEP(outputFile);
+    QTextStream outStreamDEP(&outputFile);
     outStreamDEP << dep.toJson();
     /* Close the file */
-    outputFile->close();
+    outputFile.close();
 
     if (endID == -1)
         return false;
@@ -145,28 +141,28 @@ bool ExportDEP::depExport(QString outputDir, QString from, QString to)
     QString filenameDEPExport = QDir::toNativeSeparators(outputDir + "/dep-export.json");
     QString filenameMAPExport = QDir::toNativeSeparators(outputDir + "/cryptographicMaterialContainer.json");
 
-    m_outputFileDEP = new QFile(filenameDEPExport);
-    m_outputFileMAP = new QFile(filenameMAPExport);
+    QFile outputFileDEP(filenameDEPExport);
+    QFile outputFileMAP(filenameMAPExport);
 
     /* Try and open a file for output */
-    m_outputFileDEP->open(QIODevice::WriteOnly | QIODevice::Text);
-    m_outputFileMAP->open(QIODevice::WriteOnly | QIODevice::Text);
+    outputFileDEP.open(QIODevice::WriteOnly | QIODevice::Text);
+    outputFileMAP.open(QIODevice::WriteOnly | QIODevice::Text);
 
     /* Check it opened OK */
-    if(!m_outputFileDEP->isOpen()){
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << m_outputFileDEP->fileName() << "for output";
+    if(!outputFileDEP.isOpen()){
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << outputFileDEP.fileName() << "for output";
         return false;
     }
 
     /* Check it opened OK */
-    if(!m_outputFileMAP->isOpen()){
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << m_outputFileDEP->fileName() << "for output";
+    if(!outputFileMAP.isOpen()){
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << outputFileDEP.fileName() << "for output";
         return false;
     }
 
     /* Point a QTextStream object at the file */
-    QTextStream outStreamDEP(m_outputFileDEP);
-    QTextStream outStreamMAP(m_outputFileMAP);
+    QTextStream outStreamDEP(&outputFileDEP);
+    QTextStream outStreamMAP(&outputFileMAP);
 
     QSqlDatabase dbc = QSqlDatabase::database("CN");
     QSqlQuery query(dbc);
@@ -184,8 +180,8 @@ bool ExportDEP::depExport(QString outputDir, QString from, QString to)
     }
 
     /* Close the file */
-    m_outputFileDEP->close();
-    m_outputFileMAP->close();
+    outputFileDEP.close();
+    outputFileMAP.close();
 
     return true;
 }

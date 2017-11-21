@@ -21,8 +21,26 @@
 #
 
 VERSION 1.05 Build ????
+  * FIX Doppel Storno bei DoppelKlick
+  * FIX Datenbank alte/doppelte Einträge in "globals" angepasst
+  * FIX Wenn kein Drucker installiert ist wird automatisch auf PDF-Druck gestellt.
+  * FIX Fehlendes changeValue signal (QDoubleSpinBox)
+  * FIX HD Auflösungs Problem
+  * FIX HD Druck Problem
+  * FIX Ausgeschaltene Umsatzinfo wurde beim verlassen des
+        ServerModes (fullscreen) angezeigt
+  * FIX Kartenleser wurden doppelt angezeigt.
+  + NEU BON Nummer wird auf den Abholbon gedruckt
+  + NEU Plugin -> BarCodes Settings Dialog
+  + NEU Plugin -> WSDL Interface
 
-VERSION 1.05 Build 20170930
+VERSION 1.05 Build 171005
+  + Discount infos zu Reports dazugefügt
+  * Typos fix
+  * Report fix
+  * Umsatzinfo fix
+
+VERSION 1.05 Build 171001
   + Datum/Uhrzeit check
   + Rabatt pro Artikel in Prozenten (%) möglich
   + UmsatzInfo Dialog (Startschirm Buttons)

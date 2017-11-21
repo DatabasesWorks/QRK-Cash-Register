@@ -53,9 +53,9 @@ class QRK_EXPORT Reports : public ReceiptItemModel
     QMap<int, QDate> getEOFMap(QDate checkDate = QDate::currentDate());
 
 
-    void createEOD(int, QDate);
-    void createEOM(int, QDate);
-    void insert(QStringList, int, QDateTime);
+    bool createEOD(int, QDate);
+    bool createEOM(int, QDate);
+    bool insert(QStringList, int, QDateTime);
 
     QStringList createStat(int, QString, QDateTime, QDateTime);
     QStringList createYearStat(int, QDate);

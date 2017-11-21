@@ -23,15 +23,15 @@
 #ifndef QRKPROGRESS_H
 #define QRKPROGRESS_H
 
-#include <QWidget>
+#include <QDialog>
 #include "ui_qrkprogress.h"
 
-class QRKProgress : public QWidget
+class QRKProgress : public QDialog
 {
     Q_OBJECT
 
 public:
-    QRKProgress(QWidget *parent = 0);
+    QRKProgress(QDialog *parent = 0);
     ~QRKProgress();
 
     void setWaitMode(bool waitmode = true);
@@ -39,10 +39,9 @@ public:
 
 public slots:
     void progress ( int );
-    void close();
 
 private:
-    Ui::QRKProgress ui;
+    Ui::QRKProgress *ui;
 };
 
 #endif // QRKPROGRESS_H

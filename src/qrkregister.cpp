@@ -30,6 +30,7 @@
 #include "utils/utils.h"
 #include "reports.h"
 #include "pluginmanager/pluginmanager.h"
+#include "qrkprogress.h"
 
 #include <QSqlQuery>
 #include <QSqlError>
@@ -157,7 +158,6 @@ void QRKRegister::finishedItemChanged()
 
 void QRKRegister::init()
 {
-
     initPlugins();
 
     QrkSettings settings;
@@ -188,7 +188,6 @@ void QRKRegister::init()
 
 }
 
-
 void QRKRegister::safetyDevice(bool active)
 {
     if (active) {
@@ -203,7 +202,7 @@ void QRKRegister::safetyDevice(bool active)
 void QRKRegister::quickGroupButtons()
 {
 
-    m_buttonGroupGroups =  new QButtonGroup(this);
+    m_buttonGroupGroups = new QButtonGroup(this);
 
     QLayoutItem *child;
     while ((child = ui->scrollArea->widget()->layout()->takeAt(0)) != 0) {
@@ -225,11 +224,10 @@ void QRKRegister::quickGroupButtons()
     while (query.next())
     {
         QString pbText = query.value(1).toString();
-        QPushButton* pb = new QPushButton(pbText, ui->scrollArea);
+        QPushButton *pb = new QPushButton(pbText, ui->scrollArea);
         pb->setMinimumHeight(60);
 
-        QString backgroundColor =  (query.value(2).toString() == "")? "#808080":query.value(2).toString();
-
+        QString backgroundColor = (query.value(2).toString() == "")? "#808080":query.value(2).toString();
         QString best_contrast = Utils::color_best_contrast(backgroundColor);
 
         pb->setStyleSheet(
@@ -247,11 +245,8 @@ void QRKRegister::quickGroupButtons()
                     "}"
                     );
 
-        // connect(bt, SIGNAL(clicked()), this, SLOT(trigger()));
         ui->scrollArea->widget()->layout()->addWidget(pb);
-        //   scroll->widget()->resize(scroll->widget()->sizeHint());                           // <<<<<<<<<<<<<<<<<
         qApp->processEvents();                                                                         // <<<<<<<<<<<<<<<<<
-        //   scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
         m_buttonGroupGroups->addButton(pb,query.value(0).toInt());
     }
 
@@ -273,7 +268,7 @@ void QRKRegister::quickProductButtons(int id)
     query.exec();
     QString bordercolor = "#808080";
     if (query.next())
-        bordercolor = (query.value(0).toString() == "")?bordercolor: query.value(0).toString();
+        bordercolor = (query.value("color").toString() == "")?bordercolor: query.value(0).toString();
 
     ok = query.prepare(QString("SELECT id, name, gross, color FROM products WHERE `group`=%1 AND visible=1 ORDER by name").arg(id));
 
@@ -292,20 +287,20 @@ void QRKRegister::quickProductButtons(int id)
 
     while (query.next())
     {
-        QPushButton* pb = new QPushButton(widget);
+        QPushButton *pb = new QPushButton(widget);
 
         pb->setMinimumHeight(60);
         pb->setMaximumWidth(150);
-        QString pbText = Utils::wordWrap(query.value(1).toString(), pb->width(), pb->font());
+        QString pbText = Utils::wordWrap(query.value("name").toString(), pb->width(), pb->font());
         pbText = QString("%1\n %2 %3")
                 .arg(pbText)
-                .arg(QString::number( query.value(2).toDouble(),'f',2))
+                .arg(QString::number( query.value("gross").toDouble(),'f',2))
                 .arg(Database::getShortCurrency());
 
         pb->setText(pbText);
         pb->setMinimumSize(pb->sizeHint());
 
-        QString backgroundcolor = (query.value(3).toString() == "")?bordercolor: query.value(3).toString();
+        QString backgroundcolor = (query.value("color").toString() == "")?bordercolor: query.value(3).toString();
 
         QString best_contrast = Utils::color_best_contrast(backgroundcolor);
 
@@ -324,7 +319,7 @@ void QRKRegister::quickProductButtons(int id)
                     "}"
                     );
 
-        m_buttonGroupProducts->addButton(pb,query.value(0).toInt());
+        m_buttonGroupProducts->addButton(pb,query.value("id").toInt());
 
         gridLayout->addWidget(pb,row,col);
         col++;
@@ -365,7 +360,7 @@ void QRKRegister::addProductToOrderList(int id)
     }
 
     if (query.next()) {
-        QString name = query.value(0).toString();
+        QString name = query.value("name").toString();
         QList<QStandardItem*> list = m_orderListModel->findItems(name, Qt::MatchExactly,REGISTER_COL_PRODUCT);
         if (list.count() > 0 && !forceOverwrite) {
             foreach( QStandardItem *item, list )
@@ -390,9 +385,9 @@ void QRKRegister::addProductToOrderList(int id)
         }
 
         m_orderListModel->item(rc -1, REGISTER_COL_COUNT)->setText( "1" );
-        m_orderListModel->item(rc -1, REGISTER_COL_PRODUCT)->setText( query.value(0).toString() );
-        m_orderListModel->item(rc -1, REGISTER_COL_TAX)->setText( query.value(1).toString() );
-        m_orderListModel->item(rc -1, REGISTER_COL_SINGLE)->setText( query.value(2).toString() );
+        m_orderListModel->item(rc -1, REGISTER_COL_PRODUCT)->setText( query.value("name").toString() );
+        m_orderListModel->item(rc -1, REGISTER_COL_TAX)->setText( query.value("tax").toString() );
+        m_orderListModel->item(rc -1, REGISTER_COL_SINGLE)->setText( query.value("gross").toString() );
 
         QModelIndex idx = m_orderListModel->index(rc -1, REGISTER_COL_COUNT);
         ui->orderList->selectionModel()->setCurrentIndex(idx, QItemSelectionModel::NoUpdate);
@@ -409,7 +404,6 @@ void QRKRegister::updateOrderSum()
     int rows = m_orderListModel->rowCount();
     if (rows == 0)
         setButtonGroupEnabled(false);
-
 
     for (int row = 0; row < rows; row++)
     {
@@ -433,6 +427,12 @@ void QRKRegister::updateOrderSum()
 //--------------------------------------------------------------------------------
 bool QRKRegister::finishReceipts(int payedBy, int id, bool isReport)
 {
+    QRKProgress waitBar;
+
+    waitBar.setText(tr("Beleg wird erstellt."));
+    waitBar.setWaitMode();
+    waitBar.show();
+
     QDateTime dt = QDateTime::currentDateTime();;
     if (m_totallyup) {
         dt.setDate(ui->dateEdit->date());
@@ -446,14 +446,16 @@ bool QRKRegister::finishReceipts(int payedBy, int id, bool isReport)
     m_orderListModel->setReceiptTime(dt);
     bool ret = m_orderListModel->finishReceipts(payedBy, id, isReport);
 
+    waitBar.close();
+
     if (m_receiptPrintDialog) {
-        QMessageBox *msgBox  = new QMessageBox();
-        msgBox->setWindowTitle(tr("Drucker"));
-        msgBox->setText(tr("Beleg %1 wurde gedruckt. Nächster Vorgang wird gestartet.").arg(m_orderListModel->getReceiptNum()));
+        QMessageBox msgBox;
+        msgBox.setWindowTitle(tr("Drucker"));
+        msgBox.setText(tr("Beleg %1 wurde gedruckt. Nächster Vorgang wird gestartet.").arg(m_orderListModel->getReceiptNum()));
 
-        QTimer::singleShot(10000, msgBox, SLOT(reject()));
+        QTimer::singleShot(10000, &msgBox, SLOT(reject()));
 
-        msgBox->exec();
+        msgBox.exec();
     }
 
     return ret;
@@ -516,30 +518,40 @@ void QRKRegister::newOrder()
     ui->orderList->setColumnHidden(REGISTER_COL_DISCOUNT, !m_useDiscount);
     ui->orderList->setColumnHidden(REGISTER_COL_SAVE, true); /* TODO: Make usable and add code to Settings */
 
-    // updateOrderSum();
     plusSlot();
 
 }
 
 void QRKRegister::createCheckReceipt(bool)
 {
-    Reports *rep = new Reports(this);
-    bool ret = rep->checkEOAny();
-    delete rep;
+
+    QRKProgress waitBar;
+    waitBar.setText(tr("Beleg wird erstellt."));
+    waitBar.setWaitMode();
+    waitBar.show();
+
+    Reports rep;
+    bool ret = rep.checkEOAny();
     if (!ret) {
+        waitBar.close();
         return;
     }
 
     if (m_orderListModel->createNullReceipt(CONTROL_RECEIPT)) {
         emit finishedReceipt();
-        if (m_receiptPrintDialog) {
-            QMessageBox *msgBox  = new QMessageBox();
-            msgBox->setWindowTitle(tr("Drucker"));
-            msgBox->setText(tr("Kontrollbeleg (Beleg %1) wurde gedruckt. Nächster Vorgang wird gestartet.").arg(m_currentReceipt));
+        waitBar.close();
 
-            QTimer::singleShot(10000, msgBox, SLOT(reject()));
-            msgBox->exec();
+        if (m_receiptPrintDialog) {
+            QMessageBox msgBox;
+            msgBox.setWindowTitle(tr("Drucker"));
+            msgBox.setText(tr("Kontrollbeleg wurde gedruckt. Nächster Vorgang wird gestartet."));
+
+            QTimer::singleShot(10000, &msgBox, SLOT(reject()));
+            msgBox.exec();
         }
+    } else {
+        qCritical() << "Function Name: " << Q_FUNC_INFO << " Error: can't create CheckReceipt";
+        waitBar.close();
     }
 }
 
@@ -673,9 +685,8 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
     else
         date = QDate::currentDate();
 
-    Reports *rep = new Reports(this);
-    bool ret = rep->checkEOAny(date);
-    delete rep;
+    Reports rep;
+    bool ret = rep.checkEOAny(date);
     if (!ret) {
         setButtonGroupEnabled(true);
         return;
@@ -683,8 +694,8 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
 
     if (m_useGivenDialog && payedBy == PAYED_BY_CASH) {
         double sum = ui->sumLabel->text().replace(Database::getCurrency() ,"").toDouble();
-        GivenDialog *given = new GivenDialog(sum, this);
-        if (given->exec() == 0) {
+        GivenDialog given(sum, this);
+        if (given.exec() == 0) {
             setButtonGroupEnabled(true);
             return;
         }
@@ -717,8 +728,7 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
 
     m_currentReceipt = m_orderListModel->createReceipts();
     bool sql_ok = true;
-    if ( m_currentReceipt )
-    {
+    if ( m_currentReceipt ) {
         if (!ui->customerText->text().isEmpty())
             sql_ok = Database::addCustomerText(m_currentReceipt, ui->customerText->text());
 
@@ -732,16 +742,14 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
             sql_ok = false;
         }
     }
-    setButtonGroupEnabled(true);
 
     if (sql_ok) {
         dbc.commit();
     } else {
         sql_ok = dbc.rollback();
-        QMessageBox::warning(this, "QRK::onButtonGroup_payNow_click", tr("Datenbank Fehler: Aktueller BON kann nicht erstellt werden. (Rollback: %1").arg(sql_ok));
+        QMessageBox::warning(this, "QRK::onButtonGroup_payNow_click", tr("Datenbank Fehler: Aktueller BON kann nicht erstellt werden. (Rollback: %1)").arg(sql_ok));
         qCritical() << "Function Name: " << Q_FUNC_INFO << " Error: " << dbc.lastError().text();
     }
-
 }
 
 //--------------------------------------------------------------------------------
@@ -765,6 +773,11 @@ void QRKRegister::totallyupExitSlot()
 
 void QRKRegister::receiptToInvoiceSlot()
 {
+
+    bool checkReceiptButtonSaved = ui->checkReceiptButton->isEnabled();
+    bool receiptToInvoiceSaved = ui->receiptToInvoice->isEnabled();
+    ui->checkReceiptButton->setEnabled(false);
+    ui->receiptToInvoice->setEnabled(false);
 
     R2BDialog r2b(this);
     if ( r2b.exec() == QDialog::Accepted )
@@ -805,6 +818,9 @@ void QRKRegister::receiptToInvoiceSlot()
 
         }
     }
+    ui->checkReceiptButton->setEnabled(checkReceiptButtonSaved);
+    ui->receiptToInvoice->setEnabled(receiptToInvoiceSaved);
+
 }
 
 //--------------------------------------------------------------------------------

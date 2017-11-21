@@ -40,9 +40,10 @@ public:
     ~Barcodes();
 
     bool process(ReceiptItemModel *model, int index, QString barcode);
-    QWidget *SettingsWidget();
+    QDialog *SettingsDialog();
 
 private:
+    void setupUi();
     void initBarcodes();
     void printReceipt();
     void stornoReceipt();
@@ -52,6 +53,7 @@ private:
     void initAppendType();
     void resetAmount();
     void appendToPrice(QString digits);
+    void appendToDiscount(QString digits);
     void init(int col, QString val);
 
     ReceiptItemModel *m_model = 0;
@@ -81,8 +83,9 @@ private:
     QString m_barcode_amount_000;
     QString m_barcode_amount_250;
     QString m_barcode_amount_500;
+    bool discount;
 
-    QWidget *m_root;
+    QDialog *m_root;
 };
 
 #endif

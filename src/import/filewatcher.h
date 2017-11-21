@@ -24,6 +24,7 @@
 #define FILEWATCHER_H
 
 #include <QWidget>
+#include <QQueue>
 
 class Import;
 class ImportWorker;
@@ -50,7 +51,7 @@ private:
     static bool compareNames(const QString& s1,const QString& s2);
     void start();
 
-    QQueue<QString> *m_queue;
+    QQueue<QString> m_queue;
     QStringList m_watchingPathList;
     bool m_isBlocked;
 };

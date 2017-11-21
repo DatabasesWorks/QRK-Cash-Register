@@ -5,6 +5,8 @@
 
 #include <QDialog>
 
+#include <QModelIndex>
+
 namespace Ui {
 class QRK_EXPORT PluginView;
 }
@@ -17,6 +19,9 @@ class QRK_EXPORT PluginView : public QDialog
 public:
     explicit PluginView(QWidget *parent = 0);
     ~PluginView();
+
+private slots:
+    void itemDoubleClicked(QModelIndex idx);
 
 private:
     Ui::PluginView *ui;

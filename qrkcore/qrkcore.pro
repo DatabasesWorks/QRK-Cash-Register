@@ -93,7 +93,8 @@ HEADERS = database.h \
     pluginmanager/Interfaces/plugininterface.h \
     pluginmanager/treeitem.h \
     pluginmanager/treemodel.h \
-    pluginmanager/pluginview.h
+    pluginmanager/pluginview.h \
+    pluginmanager/Interfaces/wsdlinterface.h
 
 FORMS = databasedefinition.ui \
     pluginmanager/pluginview.ui

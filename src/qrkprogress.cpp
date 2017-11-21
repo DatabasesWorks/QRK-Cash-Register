@@ -22,41 +22,34 @@
 
 #include "qrkprogress.h"
 
-QRKProgress::QRKProgress(QWidget *parent)
-	: QWidget(parent, Qt::SplashScreen)
+QRKProgress::QRKProgress(QDialog *parent)
+    : QDialog(parent, Qt::SplashScreen), ui(new Ui::QRKProgress)
 {
-	ui.setupUi(this);
-
-	ui.progress->setValue(0);
-
+    setModal(true);
+    ui->setupUi(this);
+    ui->progress->setValue(0);
 }
 
 QRKProgress::~QRKProgress()
 {
-
+    delete ui;
 }
 
 void QRKProgress::progress ( int value )
 {
-        ui.progress->setValue( value );
+        ui->progress->setValue( value );
 }
 
 void QRKProgress::setWaitMode(bool waitmode)
 {
-    ui.progress->setMinimum(0);
+    ui->progress->setMinimum(0);
     if (waitmode)
-        ui.progress->setMaximum(0);
+        ui->progress->setMaximum(0);
     else
-        ui.progress->setMaximum(100);
+        ui->progress->setMaximum(100);
 }
 
 void QRKProgress::setText(QString text)
 {
-    ui.label->setText(text);
-}
-
-void QRKProgress::close()
-{
-	this->deleteLater();
-	QWidget::close();
+    ui->label->setText(text);
 }

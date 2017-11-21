@@ -45,36 +45,32 @@ ExportJournal::~ExportJournal()
 
 void ExportJournal::Export()
 {
-    ExportDialog *dlg = new ExportDialog(false);
-    if (dlg->exec() == QDialog::Accepted ) {
-        QString filename = dlg->getFilename();
-        if (journalExport(filename, dlg->getFrom(), dlg->getTo())) {
-            delete dlg;
+    ExportDialog dlg(false);
+    if (dlg.exec() == QDialog::Accepted ) {
+        QString filename = dlg.getFilename();
+        if (journalExport(filename, dlg.getFrom(), dlg.getTo())) {
             QMessageBox::information(0, tr("Export"), tr("Journal wurde nach %1 exportiert.").arg(filename));
         } else {
-            delete dlg;
             QMessageBox::warning(0, tr("Export"), tr("Journal konnte nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
         }
-    } else {
-        delete dlg;
     }
 }
 
 bool ExportJournal::journalExport(QString outputFilename, QString from, QString to)
 {
 
-    m_outputFile = new QFile(outputFilename);
+    QFile outputFile(outputFilename);
     // Try and open a file for output
-    m_outputFile->open(QIODevice::WriteOnly | QIODevice::Text);
+    outputFile.open(QIODevice::WriteOnly | QIODevice::Text);
 
     // Check it opened OK
-    if(!m_outputFile->isOpen()){
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << m_outputFile->fileName() << "for output";
+    if(!outputFile.isOpen()){
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error, unable to open" << outputFile.fileName() << "for output";
         return false;
     }
 
     // Point a QTextStream object at the file
-    QTextStream outStream(m_outputFile);
+    QTextStream outStream(&outputFile);
 
     QSqlDatabase dbc = QSqlDatabase::database("CN");
     QSqlQuery query(dbc);
@@ -110,7 +106,7 @@ bool ExportJournal::journalExport(QString outputFilename, QString from, QString 
     }
     outStream.flush();
     // Close the file
-    m_outputFile->close();
+    outputFile.close();
     SpreadSignal::setProgressBarValue(-1);
     return true;
 }

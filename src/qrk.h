@@ -42,7 +42,7 @@ class QRK : public QMainWindow
 
 public:
 
-    QRK(bool servermode = false);
+    QRK(bool servermode = false, QWidget *parent = 0);
     ~QRK();
 
     void setShopName();

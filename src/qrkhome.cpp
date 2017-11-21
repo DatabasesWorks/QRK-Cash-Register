@@ -149,8 +149,8 @@ void QRKHome::dayPushButton_clicked(bool)
     to.setDate(QDate::currentDate());
     to.setTime(QTime::fromString("23:59:59"));
 
-    SalesInfo *info = new SalesInfo(from.toString(Qt::ISODate), to.toString(Qt::ISODate), this);
-    info->show();
+    SalesInfo info(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    info.exec();
 }
 
 void QRKHome::monthPushButton_clicked(bool)
@@ -164,8 +164,8 @@ void QRKHome::monthPushButton_clicked(bool)
     to.setDate(QDate::fromString(QDate::currentDate().toString()));
     to.setTime(QTime::fromString("23:59:59"));
 
-    SalesInfo *info = new SalesInfo(from.toString(Qt::ISODate), to.toString(Qt::ISODate), this);
-    info->show();
+    SalesInfo info(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    info.exec();
 }
 
 void QRKHome::yearPushButton_clicked(bool)
@@ -179,8 +179,8 @@ void QRKHome::yearPushButton_clicked(bool)
     to.setDate(QDate::fromString(QDate::currentDate().toString()));
     to.setTime(QTime::fromString("23:59:59"));
 
-    SalesInfo *info = new SalesInfo(from.toString(Qt::ISODate), to.toString(Qt::ISODate), this);
-    info->show();
+    SalesInfo info(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    info.exec();
 }
 
 void QRKHome::safetyDevice(bool active)
@@ -335,13 +335,12 @@ void QRKHome::menuSlot()
 
 void QRKHome::settingsSlot()
 {
-    SettingsDialog *tab = new SettingsDialog();
-    if (tab->exec() == QDialog::Accepted )
+    SettingsDialog tab;
+    if (tab.exec() == QDialog::Accepted )
     {
         init();
         emit refreshMain();
     }
-    delete tab;
 }
 
 //--------------------------------------------------------------------------------
@@ -363,7 +362,7 @@ void QRKHome::serverModeCheckBox_clicked(bool checked)
 
     QrkSettings settings;
     if (settings.value("importServerFullscreen", false).toBool()) {
-        ui->salesFrame->setHidden(checked);
+        ui->salesFrame->setHidden(checked?checked: !settings.value("showSalesWidget", true).toBool());
         ui->pathFrame->setHidden(checked);
     } else {
         ui->salesFrame->setHidden(!settings.value("showSalesWidget", true).toBool());
@@ -393,8 +392,8 @@ void QRKHome::serverModeCheckBox_clicked(bool checked)
         connect(this, SIGNAL(stopWatcher()), m_fw, SIGNAL(stopWorker()));
         emit stopWatcher();
 
-        QRKProgress *p = new QRKProgress(this);
-        connect(m_fw, SIGNAL(workerStopped()), p, SLOT(close()));
+        QRKProgress *p = new QRKProgress();
+        connect(m_fw, SIGNAL(workerStopped()), p, SLOT(deleteLater()));
 
         p->setText(tr("Warte auf die Fertigstellung der aktuellen Importdatei."));
         p->setWaitMode();

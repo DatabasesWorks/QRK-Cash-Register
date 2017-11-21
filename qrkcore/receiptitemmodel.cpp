@@ -29,6 +29,7 @@
 #include "reports.h"
 #include "RK/rk_signaturemodulefactory.h"
 #include "utils/demomode.h"
+#include "pluginmanager/pluginmanager.h"
 #include "preferences/qrksettings.h"
 #include "3rdparty/qbcmath/bcmath.h"
 
@@ -51,6 +52,8 @@ ReceiptItemModel::ReceiptItemModel(QObject* parent)
     m_totallyup = false;
 
     connect(this, SIGNAL(dataChanged(const QModelIndex&, const QModelIndex&)), this, SLOT(itemChangedSlot(const QModelIndex&, const QModelIndex&)));
+
+    initPlugins();
 }
 
 void ReceiptItemModel::clear()
@@ -129,6 +132,7 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
             gross.round(2);
             sum += gross;
             net += gross / (1.0 + tax / 100.0);
+            qApp->processEvents();
         }
     }
 
@@ -153,9 +157,8 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
     }
 
     if (RKSignatureModule::isDEPactive()) {
-        Utils *utils = new Utils();
-        QString signature =  utils->getSignature(data);
-        delete utils;
+        Utils utils;
+        QString signature =  utils.getSignature(data);
 
         query.prepare(QString("INSERT INTO dep (receiptNum, data) VALUES (:receiptNum, :data)"));
         query.bindValue(":receiptNum", m_currentReceipt);
@@ -175,13 +178,11 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
     if (id)
         Database::setStornoId(m_currentReceipt, id);
 
-    DocumentPrinter *p = new DocumentPrinter();
-    p->printReceipt(data);
-    delete p;
+    DocumentPrinter p;
+    p.printReceipt(data);
 
-    Journal *journal = new Journal();
-    journal->journalInsertReceipt(data);
-    delete journal;
+    Journal journal;
+    journal.journalInsertReceipt(data);
 
     return true;
 
@@ -321,7 +322,7 @@ QJsonObject ReceiptItemModel::compileData(int id)
 
         QString taxType = Database::getTaxType(tax);
         Root[taxType] = Root[taxType].toDouble() + gross; /* last Info: we need GROSS :)*/
-
+        qApp->processEvents();
     }
 
     QJsonArray Taxes;
@@ -374,7 +375,7 @@ void ReceiptItemModel::plus()
 
     QString defaultTax = Database::getDefaultTax();
 
-//    setColumnCount(8);
+    setColumnCount(8);
     setItem(row, REGISTER_COL_COUNT, new QStandardItem(QString("1")));
     setItem(row, REGISTER_COL_PRODUCT, new QStandardItem(QString("")));
     setItem(row, REGISTER_COL_TAX, new QStandardItem(defaultTax));
@@ -423,7 +424,7 @@ bool ReceiptItemModel::createNullReceipt(int type)
         break;
     case CONTROL_RECEIPT:
         typeText = "Kontroll NULL Beleg";
-        payType = PAYED_BY_COLLECTING_RECEIPT;
+        payType = PAYED_BY_CONTROL_RECEIPT;
         break;
     case CONCLUSION_RECEIPT:
         typeText = "SchlussBeleg";
@@ -502,14 +503,20 @@ int ReceiptItemModel::createReceipts()
         int certificateSerial = sigModule->getCertificateSerial(false).toInt();
         delete sigModule;
         if (certificateSerial != 0) {
-            ReceiptItemModel *receipt = new ReceiptItemModel();
-            receipt->createNullReceipt(COLLECTING_RECEIPT);
-            delete receipt;
+            ReceiptItemModel receipt;
+            receipt.createNullReceipt(COLLECTING_RECEIPT);
         }
     }
 
     QSqlDatabase dbc = QSqlDatabase::database("CN");
     QSqlQuery query(dbc);
+
+    bool processed = false;
+    if (wsdlInterface) {
+        processed = wsdlInterface->process(m_currentReceipt);
+        if (!processed)
+            qWarning() << "Function Name: " << Q_FUNC_INFO << " WSDL: " << processed;
+    }
 
     int ok = query.exec(QString("INSERT INTO receipts (timestamp, infodate) VALUES('%1','%2')")
                         .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
@@ -820,4 +827,11 @@ bool ReceiptItemModel::storno(int id)
     }
 
     return ret;
+}
+
+void ReceiptItemModel::initPlugins()
+{
+    wsdlInterface = qobject_cast<WsdlInterface *>(PluginManager::instance()->getObjectByName("Wsdl*"));
+    if (!wsdlInterface)
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " WSDL: not available";
 }

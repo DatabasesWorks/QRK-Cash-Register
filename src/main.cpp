@@ -167,9 +167,11 @@ int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
     QApplication::setStyle(QStyleFactory::create("Fusion"));
-    app.setProperty("debugMsg", true);
+    app.setProperty("debugMsg", false);
 
+#ifndef QT_DEBUG
     qInstallMessageHandler(QRKMessageHandler);
+#endif
 
     QApplication::setOrganizationName("ckvsoft");
     QApplication::setOrganizationDomain("ckvsoft.at");
@@ -258,6 +260,9 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    // Cleanup unused old globals Database entries
+    Database::cleanup();
+
     // DateTime check
     if (Database::getLastJournalEntryDate().secsTo(QDateTime::currentDateTime()) < 0) {
         QMessageBox messageBox(QMessageBox::Critical,
@@ -277,14 +282,14 @@ int main(int argc, char *argv[])
         }
     }
 
-    QRK *mainWidget = new QRK(servermode);
-    mainWidget->show();
+    QRK mainWidget(servermode);
+    mainWidget.show();
 
     // DEP Check
     if (!Database::isCashRegisterInAktive() && !DemoMode::isDemoMode() && RKSignatureModule::isDEPactive() && !Utils::checkTurnOverCounter()) {
         QMessageBox messageBox(QMessageBox::Critical,
                                QObject::tr("DEP Fehler"),
-                               QObject::tr("ACHTUNG! Leider sind Sie von einem seltenen Rundungsfehler betroffen.\nBitte sichern Sie Ihre Daten. Melden Sie die Kasse bei FON ab und nochmals neu an.\nInformationen im Forum (http://www.ckvsoft.at/forum/qrk-fragen-und-antworten/fehlerhafter-code-im-a-sit-registrierkassen-beispielcode/).\nBis dahin müssen Sie Belege per Hand erstellen und in der neuen Kasse erfassen."),
+                               QObject::tr("ACHTUNG! Der verschlüsselte Umsatzzähler stimmt nicht mit dem DEP überein.\nEvtl. hat Ihre Datenbank einen Fehler.\nBitte sichern Sie Ihre Daten. Melden Sie die Kasse bei FON ab und nochmals neu an.\nBis dahin müssen Sie Belege per Hand erstellen und in der neuen Kasse erfassen."),
                                QMessageBox::Yes | QMessageBox::No,
                                0);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Kasse außer Betrieb nehmen?"));
@@ -292,14 +297,14 @@ int main(int argc, char *argv[])
 
         if (messageBox.exec() == QMessageBox::Yes )
         {
-            mainWidget->closeCashRegister();
+            mainWidget.closeCashRegister();
             return 0;
         }
     }
 
-    mainWidget->setResuscitationCashRegister(Database::isCashRegisterInAktive());
+    mainWidget.setResuscitationCashRegister(Database::isCashRegisterInAktive());
 
-    mainWidget->statusBar()->setStyleSheet(
+    mainWidget.statusBar()->setStyleSheet(
                 "QStatusBar { border-top: 1px solid lightgrey; border-radius: 1px;"
                 "background: lightgrey; spacing: 3px; /* spacing between items in the tool bar */ }"
                 );
@@ -312,9 +317,9 @@ int main(int argc, char *argv[])
     app.setProperty("debugMsg", debugMsg);
 
     if (fullScreen && !minimize)
-        mainWidget->setWindowState(mainWidget->windowState() ^ Qt::WindowFullScreen);
+        mainWidget.setWindowState(mainWidget.windowState() ^ Qt::WindowFullScreen);
     else if (minimize && !fullScreen)
-        mainWidget->setWindowState(mainWidget->windowState() ^ Qt::WindowMinimized);
+        mainWidget.setWindowState(mainWidget.windowState() ^ Qt::WindowMinimized);
 
     /*check if we have SET Demomode*/
     if (DemoMode::isModeNotSet()) {
@@ -344,7 +349,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    mainWidget->setShopName();
+    mainWidget.setShopName();
 
 #if defined(_WIN32) || defined(__APPLE__)
     // Set feed URL before doing anything else

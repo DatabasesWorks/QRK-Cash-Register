@@ -45,10 +45,6 @@ private:
     QJsonDocument mapExport();
     QJsonArray getReceipts(int from, int to);
 
-    QString *m_directory;
-    QFile *m_outputFileDEP;
-    QFile *m_outputFileMAP;
-
 };
 
 #endif // EXPORTDEP_H

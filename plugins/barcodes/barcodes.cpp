@@ -29,19 +29,16 @@
 #include "reports.h"
 #include "preferences/qrksettings.h"
 #include "defines.h"
+#include "barcodessettings.h"
 
 #include "barcodes.h"
 
 Barcodes::Barcodes()
 {
     initBarcodes();
+    discount = false;
 
-    m_root = new QWidget();
-    QVBoxLayout *vl =new QVBoxLayout(m_root);
-    QPushButton *genBtn = new QPushButton(m_root);
-    genBtn->setText(tr("Save"));
-    vl->addWidget(genBtn);
-    m_root->setLayout(vl);
+    m_root = new QDialog();
 
 }
 
@@ -51,73 +48,73 @@ Barcodes::~Barcodes()
 
 void Barcodes::initBarcodes() {
 
-    QrkSettings *settings = new QrkSettings(this);
-    settings->beginGroup("BarCodesPlugin");
+    QrkSettings settings;
+    settings.beginGroup("BarCodesPlugin");
 
-    m_barcode_finishReceipt = settings->value("barcodeFinishReceipt", "100009000001").toString();
+    m_barcode_finishReceipt = settings.value("barcodeFinishReceipt", "100009000001").toString();
     barcodes << m_barcode_finishReceipt;
 
-    m_barcode_removeLastPosition = settings->value("barcodeRemoveLastPosition", "100009000002").toString();
+    m_barcode_removeLastPosition = settings.value("barcodeRemoveLastPosition", "100009000002").toString();
     barcodes << m_barcode_removeLastPosition;
 
-    m_barcode_endOfDay = settings->value("barcodeEndOfDay", "100009000003").toString();
+    m_barcode_endOfDay = settings.value("barcodeEndOfDay", "100009000003").toString();
     barcodes << m_barcode_endOfDay;
 
-    m_barcode_discount = settings->value("barcodeDiscount", "100009000007").toString();
+    m_barcode_discount = settings.value("barcodeDiscount", "100009000007").toString();
     barcodes << m_barcode_discount;
 
-    m_barcode_editPrice = settings->value("barcodeEditPrice", "100009000010").toString();
+    m_barcode_editPrice = settings.value("barcodeEditPrice", "100009000010").toString();
     barcodes << m_barcode_editPrice;
 
-    m_barcode_printLastReceiptAgain = settings->value("barcodePrintLastReceiptAgain", "100009000005").toString();
+    m_barcode_printLastReceiptAgain = settings.value("barcodePrintLastReceiptAgain", "100009000005").toString();
     barcodes << m_barcode_printLastReceiptAgain;
 
-    m_barcode_cancelLastReceipt = settings->value("barcodeCancelReceipt", "100009000006").toString();
+    m_barcode_cancelLastReceipt = settings.value("barcodeCancelReceipt", "100009000006").toString();
     barcodes << m_barcode_cancelLastReceipt;
 
-    m_barcode_amount_0 = settings->value("barcodeAmount_0", "100008000000").toString();
+    m_barcode_amount_0 = settings.value("barcodeAmount_0", "100008000000").toString();
     barcodes << m_barcode_amount_0;
 
-    m_barcode_amount_1 = settings->value("barcodeAmount_1", "100008000001").toString();
+    m_barcode_amount_1 = settings.value("barcodeAmount_1", "100008000001").toString();
     barcodes << m_barcode_amount_1;
 
-    m_barcode_amount_2 = settings->value("barcodeAmount_2", "100008000002").toString();
+    m_barcode_amount_2 = settings.value("barcodeAmount_2", "100008000002").toString();
     barcodes << m_barcode_amount_2;
 
-    m_barcode_amount_3 = settings->value("barcodeAmount_3", "100008000003").toString();
+    m_barcode_amount_3 = settings.value("barcodeAmount_3", "100008000003").toString();
     barcodes << m_barcode_amount_3;
 
-    m_barcode_amount_4 = settings->value("barcodeAmount_4", "100008000004").toString();
+    m_barcode_amount_4 = settings.value("barcodeAmount_4", "100008000004").toString();
     barcodes << m_barcode_amount_4;
 
-    m_barcode_amount_5 = settings->value("barcodeAmount_5", "100008000005").toString();
+    m_barcode_amount_5 = settings.value("barcodeAmount_5", "100008000005").toString();
     barcodes << m_barcode_amount_5;
 
-    m_barcode_amount_6 = settings->value("barcodeAmount_6", "100008000006").toString();
+    m_barcode_amount_6 = settings.value("barcodeAmount_6", "100008000006").toString();
     barcodes << m_barcode_amount_6;
 
-    m_barcode_amount_7 = settings->value("barcodeAmount_7", "100008000007").toString();
+    m_barcode_amount_7 = settings.value("barcodeAmount_7", "100008000007").toString();
     barcodes << m_barcode_amount_7;
 
-    m_barcode_amount_8 = settings->value("barcodeAmount_8", "100008000008").toString();
+    m_barcode_amount_8 = settings.value("barcodeAmount_8", "100008000008").toString();
     barcodes << m_barcode_amount_8;
 
-    m_barcode_amount_9 = settings->value("barcodeAmount_9", "100008000009").toString();
+    m_barcode_amount_9 = settings.value("barcodeAmount_9", "100008000009").toString();
     barcodes << m_barcode_amount_9;
 
-    m_barcode_amount_00 = settings->value("barcodeAmount_00", "100008000020").toString();
+    m_barcode_amount_00 = settings.value("barcodeAmount_00", "100008000020").toString();
     barcodes << m_barcode_amount_00;
 
-    m_barcode_amount_000 = settings->value("barcodeAmount_000", "100008000030").toString();
+    m_barcode_amount_000 = settings.value("barcodeAmount_000", "100008000030").toString();
     barcodes << m_barcode_amount_000;
 
-    m_barcode_amount_250 = settings->value("barcodeAmount_250", "100008000250").toString();
+    m_barcode_amount_250 = settings.value("barcodeAmount_250", "100008000250").toString();
     barcodes << m_barcode_amount_250;
 
-    m_barcode_amount_500 = settings->value("barcodeAmount_500", "100008000500").toString();
+    m_barcode_amount_500 = settings.value("barcodeAmount_500", "100008000500").toString();
     barcodes << m_barcode_amount_500;
 
-    settings->endGroup();
+    settings.endGroup();
 
 }
 
@@ -134,11 +131,17 @@ bool Barcodes::process(ReceiptItemModel *model, int currIndex, QString barcode)
             break;
         if (m_model->rowCount() == 0)
             break;
-        if (int id = m_model->createReceipts()) {
-            m_model->setCurrentReceiptNum(id);
-            if (m_model->createOrder()) {
-                m_model->finishReceipts(PAYED_BY_CASH);
-                emit finishedReceipt();
+
+        Reports rep;
+        bool ret = rep.checkEOAny();
+
+        if (ret) {
+            if (int id = m_model->createReceipts()) {
+                m_model->setCurrentReceiptNum(id);
+                if (m_model->createOrder()) {
+                    m_model->finishReceipts(PAYED_BY_CASH);
+                    emit finishedReceipt();
+                }
             }
         }
         break;
@@ -148,15 +151,20 @@ bool Barcodes::process(ReceiptItemModel *model, int currIndex, QString barcode)
         break;
     }
     case 2:  {//m_barcode_endOfDay
-        Reports *rep = new Reports(this);
-        rep->endOfDay(false);
-        delete rep;
+        Reports rep;
+        rep.endOfDay(false);
         break;
     }
     case 3:  {//m_barcode_discount
+        discount = true;
+        initAmount();
+        initAppendType();
+        m_model->item(m_index, REGISTER_COL_COUNT_TYPE_STR)->setText("1");
+        resetAmount();
         break;
     }
     case 4:  {//m_barcode_editPrice
+        discount = false;
         initAmount();
         initAppendType();
         m_model->item(m_index, REGISTER_COL_COUNT_TYPE_STR)->setText("1");
@@ -168,6 +176,7 @@ bool Barcodes::process(ReceiptItemModel *model, int currIndex, QString barcode)
         break;
     }
     case 6:  {//m_barcode_cancelLastReceipt
+        stornoReceipt();
         break;
     }
     case 7:  {//m_barcode_amount_0
@@ -239,11 +248,11 @@ void Barcodes::printReceipt()
 {
     int id = Database::getLastReceiptNum(true);
 
-    ReceiptItemModel *reg = new ReceiptItemModel(this);
-    reg->setCurrentReceiptNum(id);
+    ReceiptItemModel reg;
+    reg.setCurrentReceiptNum(id);
 
     QrkSettings settings;
-    QJsonObject data = reg->compileData();
+    QJsonObject data = reg.compileData();
     data["isCopy"] = true;
     int storno = Database::getStorno(id);
     if (storno == 2) {
@@ -253,10 +262,8 @@ void Barcodes::printReceipt()
 
     data["headerText"] = Database::getCustomerText(id);
 
-//    QApplication::setOverrideCursor(Qt::WaitCursor);
-    DocumentPrinter *p = new DocumentPrinter(this);
-    p->printReceipt(data);
-    delete p;
+    DocumentPrinter p;
+    p.printReceipt(data);
     QApplication::restoreOverrideCursor();
 
 }
@@ -271,28 +278,25 @@ void Barcodes::stornoReceipt()
         return; // kann nicht storniert werden. wurde schon storniert oder ist ein storno Beleg
 
     // Hier wird gecheckt ob ein Tags/Monatsabschluss gemacht werden muss
-    Reports *rep = new Reports(this,true);
-    bool ret = rep->checkEOAnyServerMode();
-    delete rep;
+    Reports rep;
+    bool ret = rep.checkEOAnyServerMode();
     if (! ret) {
         return; // Fehler ???
     }
 
-    ReceiptItemModel *reg = new ReceiptItemModel(this);
-    reg->newOrder();
-    reg->storno(id);
+    ReceiptItemModel reg;
+    reg.newOrder();
+    reg.storno(id);
 
-    int currentReceipt = reg->createReceipts();
+    int currentReceipt = reg.createReceipts();
     if ( currentReceipt ) {
-        reg->setCurrentReceiptNum(currentReceipt);
-        if ( reg->createOrder(true) ) {
-            if ( reg->finishReceipts(payedBy, id) ) {
-                delete reg;
+        reg.setCurrentReceiptNum(currentReceipt);
+        if ( reg.createOrder(true) ) {
+            if ( reg.finishReceipts(payedBy, id) ) {
                 return;
             }
         }
     }
-    delete reg;
 }
 
 void Barcodes::handleAmount(QString amount) {
@@ -306,15 +310,22 @@ void Barcodes::handleAmount(QString amount) {
         if(QString::compare(item->text(), "0", Qt::CaseInsensitive)==0) {
             appendToAmount(amount);
         } else {
-            appendToPrice(amount);
+            if (discount)
+                appendToDiscount(amount);
+            else
+                appendToPrice(amount);
         }
-
     }
 }
 
 void Barcodes::appendToAmount(QString digits) {
 
-    QString val = m_model->item(m_index, REGISTER_COL_COUNT_STR)->text()+digits;
+    QString val;
+    if (digits.length() == 1 || digits.startsWith("0"))
+        val = m_model->item(m_index, REGISTER_COL_COUNT_STR)->text() + digits;
+    else
+        val = digits;
+
     m_model->item(m_index, REGISTER_COL_COUNT_STR)->setText(val);
 
     QString valueAsString = QString::number(val.toFloat()/1000.0);
@@ -336,11 +347,30 @@ void Barcodes::resetAmount() {
 
 void Barcodes::appendToPrice(QString digits) {
 
-    QString val = m_model->item(m_index, REGISTER_COL_COUNT_STR)->text()+digits;
+    QString val;
+    if (digits.length() == 1 || digits.startsWith("0"))
+        val = m_model->item(m_index, REGISTER_COL_COUNT_STR)->text() + digits;
+    else
+        val = digits;
+
     m_model->item(m_index, REGISTER_COL_COUNT_STR)->setText(val);
 
     QString valueAsString = QString::number(val.toFloat()/100.0);
     m_model->item(m_index, REGISTER_COL_SINGLE)->setText(valueAsString);
+}
+
+void Barcodes::appendToDiscount(QString digits) {
+
+    QString val;
+    if (digits.length() == 1 || digits.startsWith("0"))
+        val = m_model->item(m_index, REGISTER_COL_COUNT_STR)->text() + digits;
+    else
+        val = digits;
+
+    m_model->item(m_index, REGISTER_COL_COUNT_STR)->setText(val);
+
+    QString valueAsString = QString::number(val.toFloat()/100.0);
+    m_model->item(m_index, REGISTER_COL_DISCOUNT)->setText(valueAsString);
 }
 
 void Barcodes::init(int col, QString val) {
@@ -353,7 +383,48 @@ void Barcodes::init(int col, QString val) {
     }
 }
 
-QWidget *Barcodes::SettingsWidget()
+void Barcodes::setupUi()
 {
+    BarcodesSettings *barcodesettings = new BarcodesSettings();
+
+    QPushButton *pushButton = new QPushButton;
+    pushButton->setMinimumHeight(60);
+    pushButton->setMinimumWidth(0);
+
+    QIcon icon = QIcon(":icons/ok.png");
+    QSize size = QSize(24,24);
+    pushButton->setIcon(icon);
+    pushButton->setIconSize(size);
+    pushButton->setText(tr("OK"));
+
+    QHBoxLayout *buttonLayout = new QHBoxLayout;
+    QSpacerItem* spacer = new QSpacerItem( 0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding );
+    buttonLayout->addItem(spacer);
+    buttonLayout->addWidget(pushButton);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(barcodesettings);
+    mainLayout->addLayout(buttonLayout);
+    mainLayout->addStretch(1);
+    mainLayout->addSpacing(12);
+    m_root->setLayout(mainLayout);
+
+    m_root->setWindowTitle(tr("Barcodes"));
+    m_root->setMinimumWidth(700);
+
+    if ( QApplication::desktop()->height() < 650 )
+    {
+        pushButton->setMinimumHeight(0);
+        m_root->setFixedHeight(550);
+    }
+
+    pushButton->setMinimumHeight(0);
+
+    connect(pushButton, SIGNAL(clicked()), m_root, SLOT(accept()));
+}
+
+QDialog *Barcodes::SettingsDialog()
+{
+    setupUi();
     return m_root;
 }

@@ -24,6 +24,7 @@
 #define DOCUMENTPRINTER_H
 
 #include <QObject>
+#include <QFont>
 #include "qrkcore_global.h"
 
 class QPrinter;
@@ -48,6 +49,7 @@ class QRK_EXPORT DocumentPrinter : public QObject
     bool initInvoiceCompanyPrinter(QPrinter &printer);
     void printI(QJsonObject data, QPrinter &printer);
     void printCollectionReceipt(QJsonObject data, QPrinter &printer);
+    double getFactor(int pixel, QPrinter &printer);
 
     bool m_noPrinter;
     QString m_pdfPrinterPath;
@@ -65,8 +67,8 @@ class QRK_EXPORT DocumentPrinter : public QObject
     QString m_logoFileName;
     QString m_advertisingFileName;
     bool m_printCompanyNameBold;
-    QFont *m_receiptPrinterFont;
-    QFont *m_printerFont;
+    QFont m_receiptPrinterFont;
+    QFont m_printerFont;
 
     int m_feedProdukt;
     int m_feedCompanyHeader;
@@ -78,6 +80,7 @@ class QRK_EXPORT DocumentPrinter : public QObject
     int m_feedHeaderText;
     bool m_printQrCodeLeft;
     bool m_useDecimalQuantity;
+    int m_defaultPaperWidth;
 
 };
 

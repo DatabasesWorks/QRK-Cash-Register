@@ -168,7 +168,7 @@ bool ImportWorker::importR2B(QJsonObject data)
             if (int id = createReceipts()) {
                 setCurrentReceiptNum(id);
                 if (createOrder()) {
-                    if (finishReceipts(obj.value("payedBy").toString().toInt(0))) {
+                    if (finishReceipts(obj.value("payedBy").toString().toInt())) {
                     }
                 }
             }
@@ -199,7 +199,7 @@ bool ImportWorker::importReceipt(QJsonObject data)
             if (int id = createReceipts()) {
                 setCurrentReceiptNum(id);
                 if (createOrder()) {
-                    if (finishReceipts(obj.value("payedBy").toString().toInt(0))) {
+                    if (finishReceipts(obj.value("payedBy").toString().toInt())) {
                         return true;
                     }
                 }

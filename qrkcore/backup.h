@@ -32,6 +32,7 @@ class QRK_EXPORT Backup
   public:
     static void create(QString dataDir);
     static void create();
+    static void restore(QString filename, bool restart = false);
     static void pakLogFile();
 
   private:

@@ -174,12 +174,26 @@ QStringList PluginManager::plugins(void)
 
 QObject* PluginManager::getObjectByName(QString name)
 {
+    if (name.contains("*"))
+        name = getHashValue(name);
     if (!d->names.key((QVariant)name).isNull()) {
         if (d->loaders.value(d->names.key((QVariant)name))) {
             return d->loaders.value(d->names.key((QVariant)name))->instance();
         }
     }
     return NULL;
+}
+
+QString PluginManager::getHashValue(QString strVal)
+{
+    strVal.replace("*", "");
+    QList<QVariant> values = d->names.values();
+    foreach(QVariant value, values)
+    {
+        if(value.toString().contains(strVal))
+            return value.toString();
+    }
+    return strVal;
 }
 
 PluginManager::PluginManager(void) : d(new PluginManagerPrivate)

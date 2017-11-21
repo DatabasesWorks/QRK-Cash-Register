@@ -55,10 +55,13 @@ void Journal::journalInsertReceipt(QJsonObject &data)
     var.clear();
     QJsonObject o = value.toObject();
     var.append(QString("'Produktposition\t"));
-    var.append(QString("%1\t").arg(o["product"].toString()));
+    if (o["discount"].toDouble() != 0.0)
+        var.append(QString("%1 Rabatt: -%2%\t").arg(o["product"].toString()).arg(QString::number(o["discount"].toDouble(),'f', 2)));
+    else
+        var.append(QString("%1\t").arg(o["product"].toString()));
     var.append(QString("%1\t").arg(QString::number(o["count"].toDouble(),'f', 2)));
     var.append(QString("%1\t").arg(QString::number(o["singleprice"].toDouble(),'f', 2)));
-    var.append(QString("%1\t").arg(QString::number(o["gross"].toDouble(),'f', 2)));
+    var.append(QString("%1\t").arg(QString::number(o["gross"].toDouble() - (o["gross"].toDouble() / 100) * o["discount"].toDouble(),'f', 2)));
     var.append(QString("%1\t").arg(o["tax"].toDouble()));
     var.append(QString("%1'").arg(data.value("receiptTime").toString()));
 

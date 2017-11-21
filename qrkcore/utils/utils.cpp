@@ -340,7 +340,7 @@ bool Utils::checkTurnOverCounter()
         counter += counter2;
         QString newEncTOC = sm->encryptTurnoverCounter(con,counter,key);
 
-        if (newEncTOC.compare(encTOC)) {
+        if (newEncTOC.compare(encTOC) != 0) {
             if (encTOC != "U1RP")
                 ret = false;
         }
@@ -448,9 +448,8 @@ QPixmap Utils::getQRCode(int id, bool &isDamaged )
         if (signature.split('.').at(2) == RKSignatureModule::base64Url_encode("Sicherheitseinrichtung ausgefallen"))
             isDamaged = true;
     }
-    QRCode *qr = new QRCode;
-    QPixmap QR = qr->encodeTextToPixmap(qr_code_rep);
-    delete qr;
+    QRCode qr;
+    QPixmap QR = qr.encodeTextToPixmap(qr_code_rep);
 
     return QR;
 }

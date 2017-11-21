@@ -67,13 +67,15 @@ class QRK_EXPORT Database : public QObject
     static QString getDayCounter();
     static QString getMonthCounter();
     static QString getYearCounter();
+    static QString getSalesPerPaymentSQLQueryString();
     static void updateProductSold(double, QString);
     static QStringList getMaximumItemSold();
     static void setCashRegisterInAktive();
     static bool isCashRegisterInAktive();
     static void resetAllData();
     static QString getLastVersionInfo();
-
+    static void cleanup();
+    static QString updateGlobals(QString name, QString defaultvalue, QString defaultStrValue);
 
   private:
     static QString getDatabaseType();

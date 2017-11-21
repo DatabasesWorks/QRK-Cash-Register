@@ -70,5 +70,6 @@
         <file>sql/QRK-sqlite-update-15.sql</file>
         <file>sql/QRK-sqlite-update-16.sql</file>
         <file>sql/QRK-mysql-update-16.sql</file>
+        <file>icons/restore.png</file>
     </qresource>
 </RCC>

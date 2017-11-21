@@ -263,31 +263,15 @@ public:
     bool getPrintQRCodeLeft();
     QString getLogo();
     bool getUseLogo();
-    QString getAdvertising();
-    bool getUseAdvertising();
-
-    QString getAdvertisingText();
-    QString getHeader();
-    QString getFooter();
 
 private slots:
     void logoButton_clicked();
     void useLogoCheck_toggled(bool);
-    void advertisingButton_clicked();
-    void useAdvertisingCheck_toggled(bool);
 
 private:
-    QTextEdit *m_printAdvertisingEdit;
-    QTextEdit *m_printHeaderEdit;
-    QTextEdit *m_printFooterEdit;
-
     QLineEdit *m_logoEdit;
     QCheckBox *m_useLogo;
     QPushButton *m_logoButton;
-
-    QLineEdit *m_advertisingEdit;
-    QCheckBox *m_useAdvertising;
-    QPushButton *m_advertisingButton;
 
     QComboBox *m_receiptPrinterHeading;
     QCheckBox *m_printCompanyNameBoldCheck;
@@ -297,6 +281,34 @@ private:
     QCheckBox *m_useLogoRightCheck;
     QCheckBox *m_printQRCodeCheck;
     QCheckBox *m_printQRCodeLeftCheck;
+};
+
+class ReceiptEnhancedTab : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit ReceiptEnhancedTab(QWidget *parent = 0);
+
+    QString getAdvertising();
+    bool getUseAdvertising();
+
+    QString getAdvertisingText();
+    QString getHeader();
+    QString getFooter();
+
+private slots:
+    void advertisingButton_clicked();
+    void useAdvertisingCheck_toggled(bool);
+
+private:
+    QTextEdit *m_printAdvertisingEdit;
+    QTextEdit *m_printHeaderEdit;
+    QTextEdit *m_printFooterEdit;
+
+    QLineEdit *m_advertisingEdit;
+    QCheckBox *m_useAdvertising;
+    QPushButton *m_advertisingButton;
 };
 
 class MasterDataTab : public QWidget
@@ -372,6 +384,9 @@ class SettingsDialog : public QDialog
 public:
     explicit SettingsDialog(QWidget *parent = 0);
 
+signals:
+    void loaded();
+
 private slots:
     void masterTaxChanged(QString);
     void accept();
@@ -385,6 +400,7 @@ private:
     PrinterTab *m_printer;
     ReceiptPrinterTab *m_receiptprinter;
     ReceiptTab *m_receipt;
+    ReceiptEnhancedTab *m_receiptenhanced;
     ExtraTab *m_extra;
     ServerTab *m_server;
     SCardReaderTab *m_scardreader;

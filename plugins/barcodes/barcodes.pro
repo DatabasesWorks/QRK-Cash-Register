@@ -25,8 +25,10 @@ include(../plugins.pri)
 QT += widgets
 QT += sql
 
-HEADERS         = barcodes.h
-SOURCES         = barcodes.cpp
+HEADERS         = barcodes.h \
+    barcodessettings.h
+SOURCES         = barcodes.cpp \
+    barcodessettings.cpp
 TARGET          = $$qtLibraryTarget(barcodes)
 
 BARCODES_FILES = barcodes.json

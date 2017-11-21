@@ -26,6 +26,7 @@
 #include "qrkcore_global.h"
 
 #include <QObject>
+#include <QDialog>
 
 class QRK_EXPORT PluginInterface : public QObject
 {
@@ -33,7 +34,7 @@ class QRK_EXPORT PluginInterface : public QObject
 
 public:
     virtual ~PluginInterface() {}
-    virtual QWidget *SettingsWidget() = 0;
+    virtual QDialog *SettingsDialog() = 0;
 
 };
 

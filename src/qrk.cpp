@@ -57,8 +57,8 @@
 
 //-----------------------------------------------------------------------
 
-QRK::QRK(bool servermode)
-    : ui(new Ui::MainWindow), m_servermode(servermode)
+QRK::QRK(bool servermode, QWidget *parent)
+    : QMainWindow(parent), ui(new Ui::MainWindow), m_servermode(servermode)
 
 {
     connect(Spread::Instance(),SIGNAL(updateProgressBar(int,bool)), this,SLOT(setStatusBarProgressBar(int,bool)));
@@ -107,6 +107,8 @@ QRK::QRK(bool servermode)
 
     // setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
 
+    PluginManager::instance()->initialize();
+
     //Stacked Widget
     m_stackedWidget = new QStackedWidget(this);
     this->setCentralWidget(m_stackedWidget);
@@ -154,8 +156,6 @@ QRK::QRK(bool servermode)
     QrkSettings settings;
     restoreGeometry(settings.value("mainWindowGeometry").toByteArray());
     restoreState(settings.value("mainWindowState").toByteArray());
-
-    PluginManager::instance()->initialize();
 
 }
 
@@ -206,9 +206,10 @@ void QRK::DateTimeCheck()
                                QObject::tr("Eventueller Datum/Uhrzeit Fehler"),
                                QObject::tr("ACHTUNG! Die Uhrzeit des Computers ist eventuell falsch.\n\nLetzter Datenbankeintrag: %1\nDatum/Uhrzeit: %2").arg(Database::getLastJournalEntryDate().toString()).arg(QDateTime::currentDateTime().toString()),
                                QMessageBox::Yes | QMessageBox::No,
-                               0);
+                               this);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("QRK beenden?"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Weiter machen"));
+        messageBox.setWindowFlags(messageBox.windowFlags() | Qt::WindowStaysOnTopHint);
 
         if (messageBox.exec() == QMessageBox::Yes )
         {
@@ -369,12 +370,8 @@ void QRK::setShopName()
 
 void QRK::actionAbout_QRK()
 {
-    AboutDlg *dlg = new AboutDlg(this);
-
-    dlg->exec();
-    dlg->close();
-
-    delete dlg;
+    AboutDlg dlg;
+    dlg.exec();
 }
 
 void QRK::actionQRK_Forum()
@@ -386,51 +383,46 @@ void QRK::actionQRK_Forum()
 //--------------------------------------------------------------------------------
 void QRK::import_CSV()
 {
-    CsvImportWizard *importWizard = new CsvImportWizard(this);
-    importWizard->exec();
+    CsvImportWizard importWizard;
+    importWizard.exec();
 }
 
 void QRK::export_CSV()
 {
-    ExportJournal *xport = new ExportJournal(this);
-    xport->Export();
-    delete xport;
+    ExportJournal xport;
+    xport.Export();
 }
 
 void QRK::export_JSON()
 {
-    ExportDEP *xport = new ExportDEP(this);
-    xport->Export();
-    delete xport;
+    ExportDEP xport;
+    xport.Export();
 }
 
 void QRK::infoFON()
 {
     setStatusBarProgressBarWait(true);
     ui->menubar->setEnabled(false);
-    FONInfo *finfo = new FONInfo(this);
+    FONInfo finfo;
     setStatusBarProgressBarWait(false);
     ui->menubar->setEnabled(true);
-    finfo->exec();
-    delete finfo;
+    finfo.exec();
 }
 
 //--------------------------------------------------------------------------------
 
 void QRK::endOfDaySlot()
 {
-    Reports *rep = new Reports(this);
-    rep->endOfDay();
-    delete rep;
+    Reports rep;
+    rep.endOfDay();
 }
 
 //--------------------------------------------------------------------------------
 
 void QRK::endOfMonthSlot()
 {
-    Reports *rep = new Reports(this);
-    rep->endOfMonth();
-    delete rep;
+    Reports rep;
+    rep.endOfMonth();
 }
 
 void QRK::onCancelDocumentButton_clicked()
@@ -449,8 +441,8 @@ void QRK::onRegisterButton_clicked()
 
 void QRK::onManagerButton_clicked()
 {
-    ManagerDialog *manager = new ManagerDialog(this);
-    manager->exec();
+    ManagerDialog manager;
+    manager.exec();
 }
 
 //--------------------------------------------------------------------------------
@@ -466,7 +458,7 @@ void QRK::finishedReceipt()
 {
     m_qrk_register->clearModel();
     m_qrk_home->init();
-    m_qrk_register->init();
+//    m_qrk_register->init();
     m_qrk_register->newOrder();
 }
 
@@ -551,9 +543,9 @@ void QRK::actionResetDemoData()
 
 void QRK::closeCashRegister()
 {
-    Reports *rep = new Reports(this, true);
-    rep->endOfMonth();
-    rep->createNullReceipt(PAYED_BY_CONCLUSION_RECEIPT);
+    Reports rep(this, true);
+    rep.endOfMonth();
+    rep.createNullReceipt(PAYED_BY_CONCLUSION_RECEIPT);
     Database::setCashRegisterInAktive();
     backupDEP();
     restartApplication();
@@ -592,9 +584,8 @@ void QRK::backupDEP()
     }
 
     if (Utils::isDirectoryWritable(directoryname)) {
-        ExportDEP *xDep = new ExportDEP();
-        bool ok = xDep->createBackup();
-        delete xDep;
+        ExportDEP xDep;
+        bool ok = xDep.createBackup();
         if (ok) {
             QMessageBox::information(this, tr("DEP Datensicherung"), tr("DEP Datensicherung abgeschlossen."));
             return;

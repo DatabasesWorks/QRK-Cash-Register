@@ -20,26 +20,26 @@
  *
 */
 
-#ifndef EXPORTJOURNAL_H
-#define EXPORTJOURNAL_H
+#ifndef WSDLINTERFACE_H
+#define WSDLINTERFACE_H
 
-#include <QDialog>
+#include "plugininterface.h"
 
-class QFile;
-
-class ExportJournal : public QDialog
+class QRK_EXPORT WsdlInterface : public PluginInterface
 {
+
     Q_OBJECT
+    Q_INTERFACES(PluginInterface)
 
 public:
-    explicit ExportJournal(QWidget *parent = 0);
-    ~ExportJournal();
+    virtual ~WsdlInterface() {}
+    virtual bool process(int index) = 0;
 
-    void Export();
-
-private:
-    bool journalExport(QString outputFilename, QString from, QString to);
-
+signals:
 };
 
-#endif // EXPORTJOURNAL_H
+#define WsdlInterface_iid "at.ckvsoft.WsdlInterface"
+
+Q_DECLARE_INTERFACE(WsdlInterface, WsdlInterface_iid)
+
+#endif // WSDLINTERFACE_H

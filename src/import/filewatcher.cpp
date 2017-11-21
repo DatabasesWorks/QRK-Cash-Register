@@ -34,12 +34,11 @@ FileWatcher::FileWatcher (QWidget* parent)
     : QWidget(parent)
 {
     m_isBlocked = false;
-    m_queue = new QQueue<QString>;
+    m_queue.clear();
 }
 
 FileWatcher::~FileWatcher ()
 {
-
 }
 
 void FileWatcher::directoryChanged(const QString &path)
@@ -71,16 +70,16 @@ void FileWatcher::directoryChanged(const QString &path)
 
     foreach (const QString str, fileList) {
         QFile f(path + "/" + str);
-        if (!m_queue->contains(path + "/" + str) && f.exists()) {
+        if (!m_queue.contains(path + "/" + str) && f.exists()) {
 
-            m_queue->append(path + "/" + str);
+            m_queue.append(path + "/" + str);
         }
 
-        if (m_queue->size() > 50)
+        if (m_queue.size() > 50)
             break;
     }
 
-    if (m_isBlocked && !m_queue->isEmpty())
+    if (m_isBlocked && !m_queue.isEmpty())
         start();
     else
         m_isBlocked = false;
@@ -89,7 +88,7 @@ void FileWatcher::directoryChanged(const QString &path)
 void FileWatcher::removeDirectories()
 {
     m_watchingPathList.clear();
-    if (m_queue->isEmpty())
+    if (m_queue.isEmpty())
         emit workerStopped();
 }
 
@@ -175,7 +174,7 @@ void FileWatcher::start()
 
     QThread *thread = new QThread;
     thread->sleep(1); // Sometimes the File was not finished
-    m_worker = new ImportWorker(*m_queue);
+    m_worker = new ImportWorker(m_queue);
     m_worker->clear();
     m_worker->moveToThread(thread);
 

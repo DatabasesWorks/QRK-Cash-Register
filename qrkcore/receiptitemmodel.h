@@ -23,6 +23,8 @@
 #ifndef RECEIPTITEMMODEL_H
 #define RECEIPTITEMMODEL_H
 
+#include "pluginmanager/Interfaces/wsdlinterface.h"
+
 #include <QStandardItemModel>
 #include <QDateTime>
 #include "qrkcore_global.h"
@@ -80,6 +82,9 @@ private slots:
 private:
     void setTotallyUp(bool totallyup);
     bool doEndOfDay(QDate date);
+    void initPlugins();
+
+    WsdlInterface *wsdlInterface;
 
     QDate m_lastEOD;
     QString m_currency;

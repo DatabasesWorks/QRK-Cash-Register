@@ -83,8 +83,8 @@ void FONInfo::printFonInfo()
 
     doc.setHtml(html);
     QPrinter printer;
-    QPrintDialog *dlg = new QPrintDialog(&printer, this);
-    if (dlg->exec() != QDialog::Accepted)
+    QPrintDialog dlg(&printer);
+    if (dlg.exec() != QDialog::Accepted)
         return;
 
     doc.print(&printer);

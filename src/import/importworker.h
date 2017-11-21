@@ -46,7 +46,7 @@ private:
     bool importReceipt(QJsonObject data);
     bool fileMover(QString filename, QString ext);
 
-    QQueue<QString> *m_queue;
+    QQueue<QString> *m_queue = 0;
     bool m_isStopped;
 
 };

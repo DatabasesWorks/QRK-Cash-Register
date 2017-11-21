@@ -25,7 +25,7 @@
 
 #define MIN_HEIGHT 60
 #define QRK_VERSION_MAJOR "1.05"
-#define QRK_VERSION_MINOR "Build-171001"
+#define QRK_VERSION_MINOR "Build-171109"
 
 enum REGISTER_COL
 {

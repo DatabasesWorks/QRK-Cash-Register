@@ -49,6 +49,8 @@ protected:
 
 private:
     static PluginManager *s_instance;
+    QString getHashValue(QString strKey);
+
 
 private:
     PluginManagerPrivate *d;

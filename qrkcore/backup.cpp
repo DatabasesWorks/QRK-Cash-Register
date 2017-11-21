@@ -25,6 +25,8 @@
 #include "preferences/qrksettings.h"
 
 #include <QStandardPaths>
+#include <QApplication>
+#include <QProcess>
 #include <QDebug>
 
 void Backup::create()
@@ -47,6 +49,29 @@ void Backup::create(QString dataDir)
     if (!ok)
         qWarning() << "Function Name: " << Q_FUNC_INFO << " JlCompress::compressFile:" << ok;
 
+}
+
+void Backup::restore(QString filename, bool restart)
+{
+    QrkSettings settings;
+    QString dataDir = settings.value("sqliteDataDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/data").toString();
+    QString backupDir = settings.value("backupDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/backup").toString();
+
+    QString zipfile = QString("%1/%2").arg(backupDir).arg(filename);
+    QStringList files = JlCompress::getFileList(zipfile);
+    files = JlCompress::extractFiles(zipfile, files, dataDir);
+
+    if (files.isEmpty()) {
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " JlCompress::extractFiles: none";
+    } else if (restart) {
+        // Spawn a new instance of myApplication:
+        QString app = QApplication::applicationFilePath();
+        QStringList arguments = QApplication::arguments();
+        arguments << "-r";
+        QString wd = QDir::currentPath();
+        QProcess::startDetached(app, arguments, wd);
+        QApplication::exit();
+    }
 }
 
 void Backup::pakLogFile()

@@ -48,7 +48,7 @@ static const char* const BASE32_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567=";
  */
 size_t Base32Encode::GetLength(size_t srcBytes)
 {
-  return (((srcBytes + BASE32_INPUT - 1) / BASE32_INPUT) * BASE32_OUTPUT) + 1; /*plus terminator*/
+    return (((srcBytes + BASE32_INPUT - 1) / BASE32_INPUT) * BASE32_OUTPUT) + 1; /*plus terminator*/
 }
 
 /**
@@ -60,88 +60,108 @@ size_t Base32Encode::GetLength(size_t srcBytes)
  */
 size_t Base32Encode::Encode(char* dest, const void* src, size_t srcBytes)
 {
-  if (dest && src)
-  {
-    unsigned char* pSrc = (unsigned char*)src;
-    char* pDest = dest;
-    size_t dwSrcSize = srcBytes;
-    size_t dwDestSize = 0;
-    size_t dwBlockSize;
-    unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
-
-    while (dwSrcSize >= 1)
+    if (dest && src)
     {
-      /* Encode inputs */
-      dwBlockSize = (dwSrcSize < BASE32_INPUT ? dwSrcSize : BASE32_INPUT);
-      n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = 0;
-      switch (dwBlockSize)
-      {
-        case 5:
-          n8 = (pSrc[4] & 0x1f);
-          n7 = ((pSrc[4] & 0xe0) >> 5);
-        case 4:
-          n7 |= ((pSrc[3] & 0x03) << 3);
-          n6 = ((pSrc[3] & 0x7c) >> 2);
-          n5 = ((pSrc[3] & 0x80) >> 7);
-        case 3:
-          n5 |= ((pSrc[2] & 0x0f) << 1);
-          n4 = ((pSrc[2] & 0xf0) >> 4);
-        case 2:
-          n4 |= ((pSrc[1] & 0x01) << 4);
-          n3 = ((pSrc[1] & 0x3e) >> 1);
-          n2 = ((pSrc[1] & 0xc0) >> 6);
-        case 1:
-          n2 |= ((pSrc[0] & 0x07) << 2);
-          n1 = ((pSrc[0] & 0xf8) >> 3);
-          break;
+        unsigned char* pSrc = (unsigned char*)src;
+        char* pDest = dest;
+        size_t dwSrcSize = srcBytes;
+        size_t dwDestSize = 0;
+        size_t dwBlockSize;
+        unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
 
-        default:
-          assert(0);
-      }
-      pSrc += dwBlockSize;
-      dwSrcSize -= dwBlockSize;
+        while (dwSrcSize >= 1)
+        {
+            /* Encode inputs */
+            dwBlockSize = (dwSrcSize < BASE32_INPUT ? dwSrcSize : BASE32_INPUT);
+            n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = 0;
+            switch (dwBlockSize)
+            {
+            case 5:
+                n8 = (pSrc[4] & 0x1f);
+                n7 = ((pSrc[4] & 0xe0) >> 5);
+                Q_FALLTHROUGH();
 
-      /* Validate */
-      assert(n1 <= 31);
-      assert(n2 <= 31);
-      assert(n3 <= 31);
-      assert(n4 <= 31);
-      assert(n5 <= 31);
-      assert(n6 <= 31);
-      assert(n7 <= 31);
-      assert(n8 <= 31);
+            case 4:
+                n7 |= ((pSrc[3] & 0x03) << 3);
+                n6 = ((pSrc[3] & 0x7c) >> 2);
+                n5 = ((pSrc[3] & 0x80) >> 7);
+                Q_FALLTHROUGH();
 
-      /* Padding */
-      switch (dwBlockSize)
-      {
-        case 1: n3 = n4 = 32;
-        case 2: n5 = 32;
-        case 3: n6 = n7 = 32;
-        case 4: n8 = 32;
-        case 5:
-          break;
+            case 3:
+                n5 |= ((pSrc[2] & 0x0f) << 1);
+                n4 = ((pSrc[2] & 0xf0) >> 4);
+                Q_FALLTHROUGH();
 
-        default:
-          assert(0);
-      }
+            case 2:
+                n4 |= ((pSrc[1] & 0x01) << 4);
+                n3 = ((pSrc[1] & 0x3e) >> 1);
+                n2 = ((pSrc[1] & 0xc0) >> 6);
+                Q_FALLTHROUGH();
 
-      /* 8 outputs */
-      *pDest++ = BASE32_TABLE[n1];
-      *pDest++ = BASE32_TABLE[n2];
-      *pDest++ = BASE32_TABLE[n3];
-      *pDest++ = BASE32_TABLE[n4];
-      *pDest++ = BASE32_TABLE[n5];
-      *pDest++ = BASE32_TABLE[n6];
-      *pDest++ = BASE32_TABLE[n7];
-      *pDest++ = BASE32_TABLE[n8];
-      dwDestSize += BASE32_OUTPUT;
+            case 1:
+                n2 |= ((pSrc[0] & 0x07) << 2);
+                n1 = ((pSrc[0] & 0xf8) >> 3);
+                break;
+
+            default:
+                assert(0);
+            }
+            pSrc += dwBlockSize;
+            dwSrcSize -= dwBlockSize;
+
+            /* Validate */
+            assert(n1 <= 31);
+            assert(n2 <= 31);
+            assert(n3 <= 31);
+            assert(n4 <= 31);
+            assert(n5 <= 31);
+            assert(n6 <= 31);
+            assert(n7 <= 31);
+            assert(n8 <= 31);
+
+            /* Padding */
+            switch (dwBlockSize)
+            {
+            case 1:
+                n3 = n4 = 32;
+                Q_FALLTHROUGH();
+
+            case 2:
+                n5 = 32;
+                Q_FALLTHROUGH();
+
+            case 3:
+                n6 = n7 = 32;
+                Q_FALLTHROUGH();
+
+            case 4:
+                n8 = 32;
+                Q_FALLTHROUGH();
+
+            case 5:
+                break;
+
+            default:
+                assert(0);
+            }
+
+            /* 8 outputs */
+            *pDest++ = BASE32_TABLE[n1];
+            *pDest++ = BASE32_TABLE[n2];
+            *pDest++ = BASE32_TABLE[n3];
+            *pDest++ = BASE32_TABLE[n4];
+            *pDest++ = BASE32_TABLE[n5];
+            *pDest++ = BASE32_TABLE[n6];
+            *pDest++ = BASE32_TABLE[n7];
+            *pDest++ = BASE32_TABLE[n8];
+            dwDestSize += BASE32_OUTPUT;
+        }
+        *pDest++ = '\x0'; /*append terminator*/
+
+        return dwDestSize;
     }
-    *pDest++ = '\x0'; /*append terminator*/
-
-    return dwDestSize;
-  }
-  else
-    return 0; /*ERROR - null pointer*/
+    else
+        return 0; /*ERROR - null pointer*/
 }
 
 /**
@@ -153,88 +173,96 @@ size_t Base32Encode::Encode(char* dest, const void* src, size_t srcBytes)
  */
 size_t Base32Encode::Encode(wchar_t* dest, const void* src, size_t srcBytes)
 {
-  if (dest && src)
-  {
-    unsigned char* pSrc = (unsigned char*)src;
-    wchar_t* pDest = dest;
-    size_t dwSrcSize = srcBytes;
-    size_t dwDestSize = 0;
-    size_t dwBlockSize;
-    unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
-
-    while (dwSrcSize >= 1)
+    if (dest && src)
     {
-      /* Encode inputs */
-      dwBlockSize = (dwSrcSize < BASE32_INPUT ? dwSrcSize : BASE32_INPUT);
-      n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = 0;
-      switch (dwBlockSize)
-      {
-        case 5:
-          n8 = (pSrc[4] & 0x1f);
-          n7 = ((pSrc[4] & 0xe0) >> 5);
-        case 4:
-          n7 |= ((pSrc[3] & 0x03) << 3);
-          n6 = ((pSrc[3] & 0x7c) >> 2);
-          n5 = ((pSrc[3] & 0x80) >> 7);
-        case 3:
-          n5 |= ((pSrc[2] & 0x0f) << 1);
-          n4 = ((pSrc[2] & 0xf0) >> 4);
-        case 2:
-          n4 |= ((pSrc[1] & 0x01) << 4);
-          n3 = ((pSrc[1] & 0x3e) >> 1);
-          n2 = ((pSrc[1] & 0xc0) >> 6);
-        case 1:
-          n2 |= ((pSrc[0] & 0x07) << 2);
-          n1 = ((pSrc[0] & 0xf8) >> 3);
-          break;
+        unsigned char* pSrc = (unsigned char*)src;
+        wchar_t* pDest = dest;
+        size_t dwSrcSize = srcBytes;
+        size_t dwDestSize = 0;
+        size_t dwBlockSize;
+        unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
 
-        default:
-          assert(0);
-      }
-      pSrc += dwBlockSize;
-      dwSrcSize -= dwBlockSize;
+        while (dwSrcSize >= 1)
+        {
+            /* Encode inputs */
+            dwBlockSize = (dwSrcSize < BASE32_INPUT ? dwSrcSize : BASE32_INPUT);
+            n1 = n2 = n3 = n4 = n5 = n6 = n7 = n8 = 0;
+            switch (dwBlockSize)
+            {
+            case 5:
+                n8 = (pSrc[4] & 0x1f);
+                n7 = ((pSrc[4] & 0xe0) >> 5);
+                Q_FALLTHROUGH();
 
-      /* Validate */
-      assert(n1 <= 31);
-      assert(n2 <= 31);
-      assert(n3 <= 31);
-      assert(n4 <= 31);
-      assert(n5 <= 31);
-      assert(n6 <= 31);
-      assert(n7 <= 31);
-      assert(n8 <= 31);
+            case 4:
+                n7 |= ((pSrc[3] & 0x03) << 3);
+                n6 = ((pSrc[3] & 0x7c) >> 2);
+                n5 = ((pSrc[3] & 0x80) >> 7);
+                Q_FALLTHROUGH();
 
-      /* Padding */
-      switch (dwBlockSize)
-      {
-        case 1: n3 = n4 = 32;
-        case 2: n5 = 32;
-        case 3: n6 = n7 = 32;
-        case 4: n8 = 32;
-        case 5:
-          break;
+            case 3:
+                n5 |= ((pSrc[2] & 0x0f) << 1);
+                n4 = ((pSrc[2] & 0xf0) >> 4);
+                Q_FALLTHROUGH();
 
-        default:
-          assert(0);
-      }
+            case 2:
+                n4 |= ((pSrc[1] & 0x01) << 4);
+                n3 = ((pSrc[1] & 0x3e) >> 1);
+                n2 = ((pSrc[1] & 0xc0) >> 6);
+                Q_FALLTHROUGH();
 
-      /* 8 outputs */
-      *pDest++ = BASE32_TABLE[n1];
-      *pDest++ = BASE32_TABLE[n2];
-      *pDest++ = BASE32_TABLE[n3];
-      *pDest++ = BASE32_TABLE[n4];
-      *pDest++ = BASE32_TABLE[n5];
-      *pDest++ = BASE32_TABLE[n6];
-      *pDest++ = BASE32_TABLE[n7];
-      *pDest++ = BASE32_TABLE[n8];
-      dwDestSize += BASE32_OUTPUT;
+            case 1:
+                n2 |= ((pSrc[0] & 0x07) << 2);
+                n1 = ((pSrc[0] & 0xf8) >> 3);
+                break;
+
+            default:
+                assert(0);
+            }
+            pSrc += dwBlockSize;
+            dwSrcSize -= dwBlockSize;
+
+            /* Validate */
+            assert(n1 <= 31);
+            assert(n2 <= 31);
+            assert(n3 <= 31);
+            assert(n4 <= 31);
+            assert(n5 <= 31);
+            assert(n6 <= 31);
+            assert(n7 <= 31);
+            assert(n8 <= 31);
+
+            /* Padding */
+            switch (dwBlockSize)
+            {
+            case 1: n3 = n4 = 32; Q_FALLTHROUGH();
+            case 2: n5 = 32; Q_FALLTHROUGH();
+            case 3: n6 = n7 = 32; Q_FALLTHROUGH();
+            case 4: n8 = 32; Q_FALLTHROUGH();
+            case 5:
+                break;
+
+            default:
+                assert(0);
+            }
+
+            /* 8 outputs */
+            *pDest++ = BASE32_TABLE[n1];
+            *pDest++ = BASE32_TABLE[n2];
+            *pDest++ = BASE32_TABLE[n3];
+            *pDest++ = BASE32_TABLE[n4];
+            *pDest++ = BASE32_TABLE[n5];
+            *pDest++ = BASE32_TABLE[n6];
+            *pDest++ = BASE32_TABLE[n7];
+            *pDest++ = BASE32_TABLE[n8];
+            dwDestSize += BASE32_OUTPUT;
+        }
+        *pDest++ = L'\x0'; /*append terminator*/
+
+        return dwDestSize;
     }
-    *pDest++ = L'\x0'; /*append terminator*/
-
-    return dwDestSize;
-  }
-  else
-    return 0; /*ERROR - null pointer*/
+    else
+        return 0; /*ERROR - null pointer*/
 }
 
 /**
@@ -245,50 +273,50 @@ size_t Base32Encode::Encode(wchar_t* dest, const void* src, size_t srcBytes)
  */
 size_t Base32Encode::EncodeBlock(char* dest, const void* src)
 {
-  if (dest && src)
-  {
-    unsigned char* pSrc = (unsigned char*)src;
-    char* pDest = dest;
-    unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
+    if (dest && src)
+    {
+        unsigned char* pSrc = (unsigned char*)src;
+        char* pDest = dest;
+        unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
 
-    /* Encode inputs */
-    n8 = (pSrc[4] & 0x1f);
-    n7 = ((pSrc[4] & 0xe0) >> 5);
-    n7 |= ((pSrc[3] & 0x03) << 3);
-    n6 = ((pSrc[3] & 0x7c) >> 2);
-    n5 = ((pSrc[3] & 0x80) >> 7);
-    n5 |= ((pSrc[2] & 0x0f) << 1);
-    n4 = ((pSrc[2] & 0xf0) >> 4);
-    n4 |= ((pSrc[1] & 0x01) << 4);
-    n3 = ((pSrc[1] & 0x3e) >> 1);
-    n2 = ((pSrc[1] & 0xc0) >> 6);
-    n2 |= ((pSrc[0] & 0x07) << 2);
-    n1 = ((pSrc[0] & 0xf8) >> 3);
+        /* Encode inputs */
+        n8 = (pSrc[4] & 0x1f);
+        n7 = ((pSrc[4] & 0xe0) >> 5);
+        n7 |= ((pSrc[3] & 0x03) << 3);
+        n6 = ((pSrc[3] & 0x7c) >> 2);
+        n5 = ((pSrc[3] & 0x80) >> 7);
+        n5 |= ((pSrc[2] & 0x0f) << 1);
+        n4 = ((pSrc[2] & 0xf0) >> 4);
+        n4 |= ((pSrc[1] & 0x01) << 4);
+        n3 = ((pSrc[1] & 0x3e) >> 1);
+        n2 = ((pSrc[1] & 0xc0) >> 6);
+        n2 |= ((pSrc[0] & 0x07) << 2);
+        n1 = ((pSrc[0] & 0xf8) >> 3);
 
-    /* Validate */
-    assert(n1 <= 31);
-    assert(n2 <= 31);
-    assert(n3 <= 31);
-    assert(n4 <= 31);
-    assert(n5 <= 31);
-    assert(n6 <= 31);
-    assert(n7 <= 31);
-    assert(n8 <= 31);
+        /* Validate */
+        assert(n1 <= 31);
+        assert(n2 <= 31);
+        assert(n3 <= 31);
+        assert(n4 <= 31);
+        assert(n5 <= 31);
+        assert(n6 <= 31);
+        assert(n7 <= 31);
+        assert(n8 <= 31);
 
-    /* 8 outputs */
-    *pDest++ = BASE32_TABLE[n1];
-    *pDest++ = BASE32_TABLE[n2];
-    *pDest++ = BASE32_TABLE[n3];
-    *pDest++ = BASE32_TABLE[n4];
-    *pDest++ = BASE32_TABLE[n5];
-    *pDest++ = BASE32_TABLE[n6];
-    *pDest++ = BASE32_TABLE[n7];
-    *pDest++ = BASE32_TABLE[n8];
+        /* 8 outputs */
+        *pDest++ = BASE32_TABLE[n1];
+        *pDest++ = BASE32_TABLE[n2];
+        *pDest++ = BASE32_TABLE[n3];
+        *pDest++ = BASE32_TABLE[n4];
+        *pDest++ = BASE32_TABLE[n5];
+        *pDest++ = BASE32_TABLE[n6];
+        *pDest++ = BASE32_TABLE[n7];
+        *pDest++ = BASE32_TABLE[n8];
 
-    return BASE32_OUTPUT;
-  }
-  else
-    return 0; /*ERROR - null pointer*/
+        return BASE32_OUTPUT;
+    }
+    else
+        return 0; /*ERROR - null pointer*/
 }
 
 /**
@@ -299,48 +327,48 @@ size_t Base32Encode::EncodeBlock(char* dest, const void* src)
  */
 size_t Base32Encode::EncodeBlock(wchar_t* dest, const void* src)
 {
-  if (dest && src)
-  {
-    unsigned char* pSrc = (unsigned char*)src;
-    wchar_t* pDest = dest;
-    unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
+    if (dest && src)
+    {
+        unsigned char* pSrc = (unsigned char*)src;
+        wchar_t* pDest = dest;
+        unsigned char n1, n2, n3, n4, n5, n6, n7, n8;
 
-    /* Encode inputs */
-    n8 = (pSrc[4] & 0x1f);
-    n7 = ((pSrc[4] & 0xe0) >> 5);
-    n7 |= ((pSrc[3] & 0x03) << 3);
-    n6 = ((pSrc[3] & 0x7c) >> 2);
-    n5 = ((pSrc[3] & 0x80) >> 7);
-    n5 |= ((pSrc[2] & 0x0f) << 1);
-    n4 = ((pSrc[2] & 0xf0) >> 4);
-    n4 |= ((pSrc[1] & 0x01) << 4);
-    n3 = ((pSrc[1] & 0x3e) >> 1);
-    n2 = ((pSrc[1] & 0xc0) >> 6);
-    n2 |= ((pSrc[0] & 0x07) << 2);
-    n1 = ((pSrc[0] & 0xf8) >> 3);
+        /* Encode inputs */
+        n8 = (pSrc[4] & 0x1f);
+        n7 = ((pSrc[4] & 0xe0) >> 5);
+        n7 |= ((pSrc[3] & 0x03) << 3);
+        n6 = ((pSrc[3] & 0x7c) >> 2);
+        n5 = ((pSrc[3] & 0x80) >> 7);
+        n5 |= ((pSrc[2] & 0x0f) << 1);
+        n4 = ((pSrc[2] & 0xf0) >> 4);
+        n4 |= ((pSrc[1] & 0x01) << 4);
+        n3 = ((pSrc[1] & 0x3e) >> 1);
+        n2 = ((pSrc[1] & 0xc0) >> 6);
+        n2 |= ((pSrc[0] & 0x07) << 2);
+        n1 = ((pSrc[0] & 0xf8) >> 3);
 
-    /* Validate */
-    assert(n1 <= 31);
-    assert(n2 <= 31);
-    assert(n3 <= 31);
-    assert(n4 <= 31);
-    assert(n5 <= 31);
-    assert(n6 <= 31);
-    assert(n7 <= 31);
-    assert(n8 <= 31);
+        /* Validate */
+        assert(n1 <= 31);
+        assert(n2 <= 31);
+        assert(n3 <= 31);
+        assert(n4 <= 31);
+        assert(n5 <= 31);
+        assert(n6 <= 31);
+        assert(n7 <= 31);
+        assert(n8 <= 31);
 
-    /* 8 outputs */
-    *pDest++ = BASE32_TABLE[n1];
-    *pDest++ = BASE32_TABLE[n2];
-    *pDest++ = BASE32_TABLE[n3];
-    *pDest++ = BASE32_TABLE[n4];
-    *pDest++ = BASE32_TABLE[n5];
-    *pDest++ = BASE32_TABLE[n6];
-    *pDest++ = BASE32_TABLE[n7];
-    *pDest++ = BASE32_TABLE[n8];
+        /* 8 outputs */
+        *pDest++ = BASE32_TABLE[n1];
+        *pDest++ = BASE32_TABLE[n2];
+        *pDest++ = BASE32_TABLE[n3];
+        *pDest++ = BASE32_TABLE[n4];
+        *pDest++ = BASE32_TABLE[n5];
+        *pDest++ = BASE32_TABLE[n6];
+        *pDest++ = BASE32_TABLE[n7];
+        *pDest++ = BASE32_TABLE[n8];
 
-    return BASE32_OUTPUT;
-  }
-  else
-    return 0; /*ERROR - null pointer*/
+        return BASE32_OUTPUT;
+    }
+    else
+        return 0; /*ERROR - null pointer*/
 }
