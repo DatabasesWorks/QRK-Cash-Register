@@ -23,27 +23,17 @@
 #ifndef EXPORTDEP_H
 #define EXPORTDEP_H
 
-#include <QDialog>
+#include "export.h"
 
 class QFile;
 
-class ExportDEP : public QDialog
+class ExportDEP : private Export
 {
     Q_OBJECT
 public:
-    explicit ExportDEP(QWidget *parent = 0);
-    ~ExportDEP();
+    explicit ExportDEP(QObject *parent = 0);
 
-    void Export();
-    bool depExport(QString filename);
-    bool createBackup();
-    static int getLastMonthReceiptId();
-
-private:
-    bool depExport(QString outputFile, QString from, QString to);
-    QJsonDocument depExport(int from, int to);
-    QJsonDocument mapExport();
-    QJsonArray getReceipts(int from, int to);
+    void dExport();
 
 };
 
