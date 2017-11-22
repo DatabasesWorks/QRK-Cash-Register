@@ -60,7 +60,8 @@ SOURCES = database.cpp \
     pluginmanager/pluginmanager.cpp \
     pluginmanager/treeitem.cpp \
     pluginmanager/treemodel.cpp \
-    pluginmanager/pluginview.cpp
+    pluginmanager/pluginview.cpp \
+    export.cpp
 
 HEADERS = database.h \
     databasedefinition.h \
@@ -94,7 +95,8 @@ HEADERS = database.h \
     pluginmanager/treeitem.h \
     pluginmanager/treemodel.h \
     pluginmanager/pluginview.h \
-    pluginmanager/Interfaces/wsdlinterface.h
+    pluginmanager/Interfaces/wsdlinterface.h \
+    export.h
 
 FORMS = databasedefinition.ui \
     pluginmanager/pluginview.ui
