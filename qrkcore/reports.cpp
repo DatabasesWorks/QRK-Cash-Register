@@ -25,6 +25,7 @@
 #include "reports.h"
 #include "documentprinter.h"
 #include "backup.h"
+#include "export.h"
 #include "singleton/spreadsignal.h"
 #include "RK/rk_signaturemodule.h"
 #include "defines.h"
@@ -403,6 +404,14 @@ bool Reports::doEndOfMonth(QDate date)
             createNullReceipt(YEAR_RECEIPT);
         else
             createNullReceipt(MONTH_RECEIPT);
+
+        int counter = -1;
+        Export xport;
+        bool exp = xport.createBackup(counter);
+        if (!exp && counter < 1) {
+            QString text = tr("Das automatische DEP-Backup konnte nicht durchgeführt werden.\nStellen Sie sicher das Ihr externes Medium zu Verfügung steht und sichern Sie das DEP manuell.");
+            checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
+        }
     }
 
     return ret;

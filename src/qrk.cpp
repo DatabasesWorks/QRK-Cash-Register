@@ -396,7 +396,7 @@ void QRK::export_CSV()
 void QRK::export_JSON()
 {
     ExportDEP xport;
-    xport.Export();
+    xport.dExport();
 }
 
 void QRK::infoFON()
@@ -561,7 +561,7 @@ void QRK::actionResuscitationCashRegister()
 
 void QRK::backupDEP()
 {
-    if (ExportDEP::getLastMonthReceiptId() == -1) {
+    if (Export::getLastMonthReceiptId() == -1) {
         QMessageBox::information(this, tr("DEP Datensicherung"), tr("Es wurde kein Monatsbeleg gefunden. Versuchen Sie die Sicherung nach einen Monatsabschlusses erneut."));
         return;
     }
@@ -584,8 +584,9 @@ void QRK::backupDEP()
     }
 
     if (Utils::isDirectoryWritable(directoryname)) {
-        ExportDEP xDep;
+        Export xDep;
         bool ok = xDep.createBackup();
+        SpreadSignal::setProgressBarValue(-1);
         if (ok) {
             QMessageBox::information(this, tr("DEP Datensicherung"), tr("DEP Datensicherung abgeschlossen."));
             return;
