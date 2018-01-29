@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@
 #include <QDialog>
 #include <QSqlQueryModel>
 
-#include <ui_groupedit.h>
-
 namespace Ui {
   class GroupEdit;
 }
@@ -38,6 +36,7 @@ class GroupEdit : public QDialog
 
   public:
     GroupEdit(QWidget *parent, int id = -1);  // -1 ... neu
+    ~GroupEdit();
 
   public slots:
     virtual void accept();

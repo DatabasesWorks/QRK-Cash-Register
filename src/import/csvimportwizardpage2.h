@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,15 @@
 
 #include <QStandardItem>
 #include <QWizardPage>
-#include "ui_csvimportwizardpage2.h"
 
 enum{
   IMPORT_PRODUCTS = 0,
   IMPORT_CUSTOMER,
 };
+
+namespace Ui {
+  class CsvImportWizardPage2;
+}
 
 class CsvImportWizardPage2 : public QWizardPage
 {

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,12 @@
 
 #include "qsortfiltersqlquerymodel.h"
 
-#include "ui_qrkdocument.h"
+#include <QWidget>
+#include <QItemSelection>
+
+namespace Ui {
+  class QRKDocument;
+}
 
 class QRKDocument : public QWidget
 {
@@ -58,6 +63,7 @@ class QRKDocument : public QWidget
     QSortFilterSqlQueryModel *m_documentListModel;
 
     int m_currentReceipt;
+    bool m_receiptPrintDialog;
 };
 
 #endif // QRKDOCUMENT_H

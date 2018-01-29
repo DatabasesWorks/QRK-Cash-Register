@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,16 @@
 #ifndef QRKHOME_H
 #define QRKHOME_H
 
+#include <QWidget>
 #include <QFileInfoList>
 #include <QFileSystemWatcher>
 
-#include "ui_qrkhome.h"
-
 class FileWatcher;
+class QFrame;
+
+namespace Ui {
+  class QRKHome;
+}
 
 class QRKHome : public QWidget
 {
@@ -44,7 +48,8 @@ class QRKHome : public QWidget
   signals:
     void registerButton_clicked();
     void documentButton_clicked();
-    void managerButton_clicked();
+    void productmanagerButton_clicked();
+    void usermanagerButton_clicked();
     void fullScreenButton_clicked();
     void exitButton_clicked();
     void stopWatcher();
@@ -52,6 +57,7 @@ class QRKHome : public QWidget
 
     void endOfDay();
     void endOfMonth();
+    void logOnOff(bool);
 
   public slots:
     void safetyDevice(bool);
@@ -59,7 +65,8 @@ class QRKHome : public QWidget
   private slots:
     void menuSlot();
     void taskSlot();
-    void settingsSlot();
+    void managerSlot();
+    void settingsSlot();    
     void serverModeCheckBox_clicked(bool checked);
     void importInfo(QString str, bool isError);
     void dayPushButton_clicked(bool);
@@ -68,12 +75,13 @@ class QRKHome : public QWidget
 
   private:
     Ui::QRKHome *ui;
-    QWidget *m_menu;
+    QFrame *m_menu;
+    QFrame *m_manager;
     QFrame *m_task;
     QFileSystemWatcher m_watcher;
     FileWatcher *m_fw;
     QString m_watcherpath;
-    bool m_previousSafetyDeviceState;
+    bool m_previousSafetyDeviceState = true;
 
 };
 

@@ -1,8 +1,31 @@
+/*
+ * This file is part of QRK - Qt Registrier Kasse
+ *
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * Button Design, and Idea for the Layout are lean out from LillePOS, Copyright 2010, Martin Koller, kollix@aon.at
+ *
+*/
+
 #include "export.h"
 
 #include "RK/rk_signaturemodule.h"
 #include "utils/utils.h"
 #include "preferences/qrksettings.h"
+#include "database.h"
 
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -21,7 +44,7 @@ Export::Export(QObject *parent) : QObject(parent)
 
 Export::~Export()
 {
-    SpreadSignal::setProgressBarValue(-1);
+    Spread::Instance()->setProgressBarValue(-1);
 }
 
 QJsonDocument Export::depExport(int from, int to)
@@ -60,7 +83,7 @@ QJsonDocument Export::mapExport()
 QJsonArray Export::getReceipts(int from, int to)
 {
     QJsonArray receipts;
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT data FROM dep WHERE receiptNum BETWEEN :from AND :to ORDER by id"));
@@ -74,7 +97,7 @@ QJsonArray Export::getReceipts(int from, int to)
 
     while (query.next()) {
         i++;
-        SpreadSignal::setProgressBarValue(((float)i / (float)count) * 100);
+        Spread::Instance()->setProgressBarValue(((float)i / (float)count) * 100);
         receipts.append(query.value(0).toString());
     }
 
@@ -111,8 +134,8 @@ bool Export::depExport(QString filename)
 
 bool Export::depExport(QString outputDir, QString from, QString to)
 {
-    QString filenameDEPExport = QDir::toNativeSeparators(outputDir + "/dep-export.json");
-    QString filenameMAPExport = QDir::toNativeSeparators(outputDir + "/cryptographicMaterialContainer.json");
+    QString filenameDEPExport = QDir::toNativeSeparators("%1/dep-export.json").arg(outputDir);
+    QString filenameMAPExport = QDir::toNativeSeparators("%1/cryptographicMaterialContainer.json").arg(outputDir);
 
     QFile outputFileDEP(filenameDEPExport);
     QFile outputFileMAP(filenameMAPExport);
@@ -137,7 +160,7 @@ bool Export::depExport(QString outputDir, QString from, QString to)
     QTextStream outStreamDEP(&outputFileDEP);
     QTextStream outStreamMAP(&outputFileMAP);
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT MIN(receiptNum) as begin, MAX(receiptNum) as end FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate"));
@@ -161,7 +184,7 @@ bool Export::depExport(QString outputDir, QString from, QString to)
 
 int Export::getLastMonthReceiptId()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT MAX(receiptNum) as maxID FROM receipts WHERE payedBy=4"));
@@ -185,7 +208,7 @@ bool Export::createBackup()
     QString directoryname = settings.value("externalDepDirectory", "").toString();
 
     if (Utils::isDirectoryWritable(directoryname)) {
-        QString filename = QDir::toNativeSeparators(directoryname + "/DEP_backup_" + QDateTime::currentDateTime().toString(Qt::ISODate).replace(':',"").replace('-',"") + ".json");
+        QString filename = QDir::toNativeSeparators("%1/DEP-%2_backup_%3.json").arg(directoryname).arg(Database::getCashRegisterId()).arg(QDateTime::currentDateTime().toString(Qt::ISODate).replace(':',"").replace('-',""));
         if (depExport(filename))
             return true;
     }
@@ -195,7 +218,7 @@ bool Export::createBackup()
 
 bool Export::createBackup(int &counter)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT value FROM globals WHERE name='DepCounter')");
@@ -211,7 +234,7 @@ bool Export::createBackup(int &counter)
     bool ret = createBackup();
     if (ret) {
         query.prepare("UPDATE globals SET value=:value WHERE name='DepCounter'");
-        query.bindValue(":value", (counter == 0)?3:counter -1);
+        query.bindValue(":value", (counter == 0)?2:counter -1);
         query.exec();
     }
 

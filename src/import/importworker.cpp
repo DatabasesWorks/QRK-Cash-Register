@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "importworker.h"
 #include "singleton/spreadsignal.h"
 #include "preferences/qrksettings.h"
+#include "RK/rk_signaturemodule.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -44,7 +45,7 @@ ImportWorker::ImportWorker(QQueue<QString> &queue, QWidget *parent)
 
 ImportWorker::~ImportWorker()
 {
-    qDebug() << "Destructor from Worker thread: "<<QThread::currentThreadId();
+    qDebug() << "Destructor from Worker thread: " << QThread::currentThreadId();
 }
 
 void ImportWorker::stopProcess()
@@ -67,8 +68,12 @@ void ImportWorker::process()
             while (!m_isStopped && !m_queue->isEmpty())
                 fileMover(m_queue->dequeue(), ".false");
 
-            QString info = tr("Import Fehler -> Tages/Monatsabschluß wurde schon erstellt. Es wurden %1 Dateien umbenannt.").arg(qsize);
-            SpreadSignal::setImportInfo(info, true);
+            QString info;
+            if (!RKSignatureModule::isSignatureModuleSetDamaged())
+                info = tr("Import Fehler -> Tages/Monatsabschluss wurde schon erstellt. Es wurden %1 Dateien umbenannt.").arg(qsize);
+            else
+                info = tr("Import Fehler -> Es wurden %1 Dateien umbenannt. (siehe Logdatei)").arg(qsize);
+            Spread::Instance()->setImportInfo(info, true);
             break;
         }
     }
@@ -78,7 +83,6 @@ void ImportWorker::process()
 bool ImportWorker::loadJSonFile(QString filename)
 {
 
-//    QString receiptInfo;
     QByteArray receiptInfo;
     QFile file(filename);
 
@@ -88,7 +92,7 @@ bool ImportWorker::loadJSonFile(QString filename)
             break;
         }
         if (i == 3) {
-            SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht geöffnet werden.").arg(filename), true);
+            Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht geöffnet werden.").arg(filename), true);
             return false;
         }
         QThread::msleep(300);
@@ -115,14 +119,14 @@ bool ImportWorker::loadJSonFile(QString filename)
     if (data.contains("r2b")) {
         data["filename"] = file.fileName();
         if (importR2B(data)) {
-            SpreadSignal::setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
+            Spread::Instance()->setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
             if (!fileMover(filename, ".old"))
-                SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden").arg(data.value("filename").toString()), true);
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden").arg(data.value("filename").toString()), true);
 
             return true;
 
         } else {
-            SpreadSignal::setImportInfo(tr("Import Fehler -> Falsches Dateiformat (%1).").arg(filename), true);
+            Spread::Instance()->setImportInfo(tr("Import Fehler -> Falsches Dateiformat (%1).").arg(filename), true);
             fileMover(filename, ".false");
             return false;
         }
@@ -130,19 +134,19 @@ bool ImportWorker::loadJSonFile(QString filename)
     } else if (data.contains("receipt")) {
         data["filename"] = file.fileName();
         if (importReceipt(data)) {
-            SpreadSignal::setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
+            Spread::Instance()->setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
             if (!fileMover(filename, ".old"))
-                SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
 
             return true;
 
         } else {
             if (!fileMover(filename, ".old"))
-                SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
         }
 
     } else {
-        SpreadSignal::setImportInfo(tr("Import Fehler -> %1 [Offset: %2] (%3)").arg(jerror.errorString()).arg(jerror.offset).arg(filename), true);
+        Spread::Instance()->setImportInfo(tr("Import Fehler -> %1 [Offset: %2] (%3)").arg(jerror.errorString()).arg(jerror.offset).arg(filename), true);
         fileMover(filename, ".false");
     }
 
@@ -161,7 +165,7 @@ bool ImportWorker::importR2B(QJsonObject data)
             newOrder();
             if (! setR2BServerMode(obj)) {
                 QString info = tr("Import Fehler -> Rechnungsnummer: %1 aus Importdatei %2 wird schon verwendet!").arg(obj.value("receiptNum").toString()).arg(data.value("filename").toString());
-                SpreadSignal::setImportInfo(info, true);
+                Spread::Instance()->setImportInfo(info, true);
                 return false;
             }
 
@@ -174,7 +178,7 @@ bool ImportWorker::importR2B(QJsonObject data)
             }
         } else {
             QString info = tr("Import Fehler -> Falsches JSON Format, Dateiname: %1").arg(data.value("filename").toString());
-            SpreadSignal::setImportInfo(info, true);
+            Spread::Instance()->setImportInfo(info, true);
             return false;
         }
     }
@@ -193,7 +197,7 @@ bool ImportWorker::importReceipt(QJsonObject data)
             newOrder();
             if (! setReceiptServerMode(obj)) {
                 QString info = tr("Import Fehler -> Importdatei %1!").arg(data.value("filename").toString());
-                SpreadSignal::setImportInfo(info, true);
+                Spread::Instance()->setImportInfo(info, true);
                 return false;
             }
             if (int id = createReceipts()) {
@@ -206,7 +210,7 @@ bool ImportWorker::importReceipt(QJsonObject data)
             }
         } else {
             QString info = tr("Import Fehler -> Falsches JSON Format, Dateiname: %1").arg(data.value("filename").toString());
-            SpreadSignal::setImportInfo(info, true);
+            Spread::Instance()->setImportInfo(info, true);
             return false;
         }
 

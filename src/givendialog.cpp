@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,9 +35,9 @@ GivenDialog::GivenDialog(double &sum, QWidget *parent) :
     m_sum = sum;
     ui->toPayLabel->setText(tr("Zu bezahlen: %1 %2").arg(QString::number(sum,'f',2)).arg(Database::getCurrency()));
 
-    connect (ui->givenEdit, SIGNAL(textChanged(QString)), SLOT(textChanged(QString)));
-    connect (ui->pushButton, SIGNAL(clicked(bool)), SLOT(accept()));
-    connect (ui->cancelButton, SIGNAL(clicked(bool)), SLOT(close()));
+    connect (ui->givenEdit, &QLineEdit::textChanged, this, &GivenDialog::textChanged);
+    connect (ui->pushButton, &QPushButton::clicked, this, &GivenDialog::accept);
+    connect (ui->cancelButton, &QPushButton::clicked, this, &GivenDialog::close);
 
 }
 

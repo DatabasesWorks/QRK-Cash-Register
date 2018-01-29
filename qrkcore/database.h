@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,11 @@
 #ifndef DATABASE
 #define DATABASE
 
-
 #include <QObject>
 #include "qrkcore_global.h"
 
 class QSqlQuery;
+class QSqlDatabase;
 
 class QRK_EXPORT Database : public QObject
 {
@@ -76,11 +76,16 @@ class QRK_EXPORT Database : public QObject
     static QString getLastVersionInfo();
     static void cleanup();
     static QString updateGlobals(QString name, QString defaultvalue, QString defaultStrValue);
+    static QSqlDatabase database();
+    static bool isAnyValueFunctionAvailable();
+    static QString getDatabaseVersion();
 
   private:
     static QString getDatabaseType();
     static void setStorno(int,int = 1);
 
 };
+
+extern QMap<QString, QString> globalStringValues;
 
 #endif // DATABASE

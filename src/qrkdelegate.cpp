@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         spinbox->setMaximum(99999);
         spinbox->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 
-        connect( spinbox , SIGNAL( valueChanged(int) ), this , SLOT( commitAndCloseEditor() ) ) ;
+        connect( spinbox , static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &QrkDelegate::commitAndCloseEditor) ;
 
         return spinbox;
 
@@ -61,7 +61,7 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         doublespinbox->setMaximum(99999.99);
         doublespinbox->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 
-        connect( doublespinbox , SIGNAL( valueChanged(double) ), this , SLOT( commitAndCloseEditor() ) ) ;
+        connect( doublespinbox , static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &QrkDelegate::commitAndCloseEditor) ;
 
         return doublespinbox;
 
@@ -70,7 +70,7 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         combo->setEditable(false);
         combo->setInsertPolicy(QComboBox::InsertAfterCurrent);
         combo->setDuplicatesEnabled(false);
-        QSqlDatabase dbc= QSqlDatabase::database("CN");
+        QSqlDatabase dbc= Database::database();
         QSqlQuery query(dbc);
         query.prepare(QString("SELECT tax FROM taxTypes WHERE taxlocation=:taxlocation ORDER BY id"));
         query.bindValue(":taxlocation", m_taxlocation);
@@ -87,25 +87,24 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
     } else if (m_type == PRODUCTS) {
         QLineEdit *editor = new QLineEdit( parent );
         editor->setPlaceholderText(tr("Artikelname"));
-        QSqlDatabase dbc = QSqlDatabase::database("CN");
+        QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
         query.prepare("SELECT name FROM products WHERE visible = 1");
         query.exec();
 
-        QStringList* list = new QStringList();
+        QStringList list;
 
         while(query.next()){
             QString value = query.value("name").toString();
-            *list   << value;
+            list << value;
         }
 
-        QCompleter * editorCompleter = new QCompleter( *list ) ;
+        QCompleter *editorCompleter = new QCompleter( list ) ;
         editorCompleter->setCaseSensitivity( Qt::CaseInsensitive ) ;
         editorCompleter->setFilterMode( Qt::MatchContains );
         editor->setCompleter( editorCompleter );
 
-        //    connect( editor , SIGNAL( editingFinished() ), this , SLOT( commitAndCloseEditor() ) ) ;
-        connect( editor , SIGNAL(textChanged(QString)), this , SLOT( commitAndCloseEditor() ) ) ;
+        connect( editor , &QLineEdit::textChanged, this, &QrkDelegate::commitAndCloseEditor) ;
 
         return editor ;
     } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
@@ -165,7 +164,6 @@ QString QrkDelegate::displayText(const QVariant &value, const QLocale &locale) c
 
     return QStyledItemDelegate::displayText(value, locale);
 }
-
 
 void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
 {

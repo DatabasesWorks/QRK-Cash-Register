@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ class QRK_EXPORT Reports : public ReceiptItemModel
     bool canCreateEOD(QDate);
     bool canCreateEOM(QDate);
     int getReportType();
+    bool nullReceipt(QDate date);
     QDate getLastEOD();
     QMap<int, QDate> getEOFMap(QDate checkDate = QDate::currentDate());
 
@@ -64,7 +65,6 @@ class QRK_EXPORT Reports : public ReceiptItemModel
     bool doEndOfDay(QDate date);
     bool doEndOfMonth(QDate date);
 
-    Journal *m_journal;
     QString m_yearsales;
     int m_currentReceipt;
     bool m_servermode;

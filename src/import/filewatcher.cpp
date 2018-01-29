@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ void FileWatcher::directoryChanged(const QString &path)
     fileList.clear();
     fileList = directory.entryList(filter);
 
-    qSort(
+    std::sort(
         fileList.begin(),
         fileList.end(), compareNames);
 
@@ -178,13 +178,12 @@ void FileWatcher::start()
     m_worker->clear();
     m_worker->moveToThread(thread);
 
-    connect(thread, SIGNAL(started()), m_worker, SLOT(process()));
-    connect(this, SIGNAL(stopWorker()), m_worker, SLOT(stopProcess()), Qt::DirectConnection);
-    connect(m_worker, SIGNAL(finished()), this, SLOT(finished()));
-    connect(m_worker, SIGNAL (finished()), thread, SLOT (quit()));
-    connect(m_worker, SIGNAL (finished()), m_worker, SLOT (deleteLater()));
-    connect(thread, SIGNAL (finished()), thread, SLOT (deleteLater()));
+    connect(thread, &QThread::started, m_worker, &ImportWorker::process);
+    connect(this, &FileWatcher::stopWorker, m_worker, &ImportWorker::stopProcess, Qt::DirectConnection);
+    connect(m_worker, &ImportWorker::finished, this, &FileWatcher::finished);
+    connect(m_worker, &ImportWorker::finished, thread, &QThread::quit);
+    connect(m_worker, &ImportWorker::finished, m_worker, &ImportWorker::deleteLater);
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
 
     thread->start();
-//    worker->process();
 }

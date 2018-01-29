@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ protected:
     bool logout();
     QString getZDA();
 
-    QNetworkAccessManager *m_manager;
+    QNetworkAccessManager *m_manager = 0;
     QString m_connection;
     QString m_username;
     QString m_password;

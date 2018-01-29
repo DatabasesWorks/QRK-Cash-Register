@@ -1,6 +1,29 @@
+/*
+ * This file is part of QRK - Qt Registrier Kasse
+ *
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * Button Design, and Idea for the Layout are lean out from LillePOS, Copyright 2010, Martin Koller, kollix@aon.at
+ *
+*/
+
 #include "treeitem.h"
 #include "treemodel.h"
 #include "pluginmanager.h"
+#include "pluginmanager/Interfaces/plugininterface.h"
 
 #include <QStringList>
 #include <QPluginLoader>
@@ -9,7 +32,7 @@ TreeModel::TreeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {
     QList<QVariant> rootData;
-    rootData << "Name" << "Version" << "Author";
+    rootData << tr("Name") << tr("Version") << tr("Author") << "code";
     rootItem = new TreeItem(rootData);
     QStringList data = PluginManager::instance()->plugins();
     setupModelData(data, rootItem);
@@ -123,9 +146,20 @@ void TreeModel::setupModelData(const QStringList &lines, TreeItem *parent)
 
         QPluginLoader *loader = new QPluginLoader(lines[number]);
         QStringList columnStrings;
-        columnStrings << loader->metaData().value("MetaData").toObject().value("name").toString();
+
+        QString pluginname = loader->metaData().value("MetaData").toObject().value("name").toString();
+        /* The only way to get the Translated Pluginname is to load the Plugin */
+        PluginInterface *plugin = qobject_cast<PluginInterface *>(PluginManager::instance()->getObjectByName(pluginname));
+        if (plugin) {
+            pluginname = plugin->getPluginName();
+            delete plugin;
+            plugin = 0;
+        }
+
+        columnStrings << pluginname;
         columnStrings << loader->metaData().value("MetaData").toObject().value("version").toString();
         columnStrings << loader->metaData().value("MetaData").toObject().value("author").toString();
+        columnStrings << loader->metaData().value("MetaData").toObject().value("name").toString();
 
         QList<QVariant> columnData;
         for (int column = 0; column < columnStrings.count(); ++column)

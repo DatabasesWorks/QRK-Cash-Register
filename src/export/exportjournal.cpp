@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,9 @@
 
 #include "exportjournal.h"
 #include "exportdialog.h"
-
+#include "database.h"
 #include "singleton/spreadsignal.h"
+
 #include <QTextStream>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -40,7 +41,7 @@ ExportJournal::ExportJournal(QWidget *parent)
 
 ExportJournal::~ExportJournal()
 {
-   SpreadSignal::setProgressBarValue(-1);
+   Spread::Instance()->setProgressBarValue(-1);
 }
 
 void ExportJournal::Export()
@@ -72,7 +73,7 @@ bool ExportJournal::journalExport(QString outputFilename, QString from, QString 
     // Point a QTextStream object at the file
     QTextStream outStream(&outputFile);
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT text FROM journal WHERE id < 5"));
@@ -100,13 +101,13 @@ bool ExportJournal::journalExport(QString outputFilename, QString from, QString 
     while (query.next())
     {
         i++;
-        SpreadSignal::setProgressBarValue(((float)i / (float)numberOfRows) * 100);
+        Spread::Instance()->setProgressBarValue(((float)i / (float)numberOfRows) * 100);
         QString s = QString("%1\t%2\t%3\t%4\n").arg(i).arg(query.value(0).toString()).arg(query.value(1).toString()).arg(query.value(2).toString());
         outStream << s;
     }
     outStream.flush();
     // Close the file
     outputFile.close();
-    SpreadSignal::setProgressBarValue(-1);
+    Spread::Instance()->setProgressBarValue(-1);
     return true;
 }

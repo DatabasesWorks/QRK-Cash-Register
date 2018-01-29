@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ private:
     bool importReceipt(QJsonObject data);
     bool fileMover(QString filename, QString ext);
 
-    QQueue<QString> *m_queue = 0;
+    QQueue<QString> *m_queue;
     bool m_isStopped;
 
 };

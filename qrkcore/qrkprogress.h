@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,36 +20,32 @@
  *
 */
 
-#include "qrkprogress.h"
+#ifndef QRKPROGRESS_H
+#define QRKPROGRESS_H
 
-QRKProgress::QRKProgress(QDialog *parent)
-    : QDialog(parent, Qt::SplashScreen), ui(new Ui::QRKProgress)
-{
-    setModal(true);
-    ui->setupUi(this);
-    ui->progress->setValue(0);
+#include "qrkcore_global.h"
+#include <QDialog>
+
+namespace Ui {
+    class QRKProgress;
 }
 
-QRKProgress::~QRKProgress()
+class QRK_EXPORT QRKProgress : public QDialog
 {
-    delete ui;
-}
+    Q_OBJECT
 
-void QRKProgress::progress ( int value )
-{
-        ui->progress->setValue( value );
-}
+public:
+    QRKProgress(QDialog *parent = 0);
+    ~QRKProgress();
 
-void QRKProgress::setWaitMode(bool waitmode)
-{
-    ui->progress->setMinimum(0);
-    if (waitmode)
-        ui->progress->setMaximum(0);
-    else
-        ui->progress->setMaximum(100);
-}
+    void setWaitMode(bool waitmode = true);
+    void setText(QString text);
 
-void QRKProgress::setText(QString text)
-{
-    ui->label->setText(text);
-}
+public slots:
+    void progress ( int );
+
+private:
+    Ui::QRKProgress *ui;
+};
+
+#endif // QRKPROGRESS_H

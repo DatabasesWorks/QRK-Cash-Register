@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,15 @@
 class QRK_EXPORT WsdlInterface : public PluginInterface
 {
 
-    Q_OBJECT
-    Q_INTERFACES(PluginInterface)
+        Q_OBJECT
+        Q_INTERFACES(PluginInterface)
 
-public:
-    virtual ~WsdlInterface() {}
-    virtual bool process(int index) = 0;
+    public:
+        virtual ~WsdlInterface() {}
+        virtual bool process(int index) = 0;
+        virtual QString getPluginName() = 0;
 
-signals:
+    signals:
 };
 
 #define WsdlInterface_iid "at.ckvsoft.WsdlInterface"

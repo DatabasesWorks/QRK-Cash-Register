@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ class CsvImportWizardPage1 : public QWizardPage
     bool isComplete() const;
     void setModel(QStandardItemModel *model);
 
-  private slots:
+ public:
     void csvPathTextChanged(QString text);
     void textDelimiterChanged(QString text);
     void otherDelimiterChanged();
@@ -95,7 +95,7 @@ class LoadCsvFile : public QObject
     LoadCsvFile(QString filename, QString delimiter, QString textDelimiter, bool firstRowIsHeader, int fromLine, int toLine, const QString codec);
     ~LoadCsvFile();
 
-  private slots:
+  public slots:
     void run();
 
   signals:

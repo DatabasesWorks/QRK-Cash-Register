@@ -104,8 +104,8 @@
           <string>Exportieren</string>
          </property>
          <property name="icon">
-          <iconset resource="../qrk.qrc">
-           <normaloff>:/icons/ok.png</normaloff>:/icons/ok.png</iconset>
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:src/icons/ok.png</normaloff>:src/icons/ok.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -133,8 +133,8 @@
           <string>Abbrechen</string>
          </property>
          <property name="icon">
-          <iconset resource="../qrk.qrc">
-           <normaloff>:/icons/cancel.png</normaloff>:/icons/cancel.png</iconset>
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:src/icons/cancel.png</normaloff>:src/icons/cancel.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -151,7 +151,8 @@
   </layout>
  </widget>
  <resources>
-  <include location="../qrk.qrc"/>
+  <include location="../../qrk.qrc"/>
+  <include location="../../qrk.qrc"/>
  </resources>
  <connections/>
 </ui>

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "groupedit.h"
 #include "database.h"
+#include <ui_groupedit.h>
 
 #include <QSqlQuery>
 #include <QSqlError>
@@ -49,7 +50,7 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
 
   if ( m_id != -1 )
   {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
 
     QSqlQuery query(QString("SELECT name,visible,color FROM groups WHERE id=%1").arg(id), dbc);
     query.next();
@@ -77,16 +78,21 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
 
   }
 
-  connect (ui->okButton, SIGNAL(clicked(bool)),this,SLOT(accept()));
-  connect (ui->cancelButton, SIGNAL(clicked(bool)),this,SLOT(reject()));
+  connect (ui->okButton, &QPushButton::clicked, this, &GroupEdit::accept);
+  connect (ui->cancelButton, &QPushButton::clicked, this, &GroupEdit::reject);
 
+}
+
+GroupEdit::~GroupEdit()
+{
+    delete ui;
 }
 
 //--------------------------------------------------------------------------------
 
 void GroupEdit::accept()
 {
-  QSqlDatabase dbc = QSqlDatabase::database("CN");
+  QSqlDatabase dbc = Database::database();
   QSqlQuery query(dbc);
 
   QString color = ui->colorComboBox->model()->index(ui->colorComboBox->currentIndex(), 0).data(Qt::BackgroundColorRole).toString();

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 */
 
 #include "aboutdlg.h"
+#include "ui_aboutdlg.h"
 
 #include <QFile>
 #include <QTextStream>
@@ -30,7 +31,6 @@ AboutDlg::AboutDlg( QWidget* parent)
 {
   ui->setupUi(this);
   readLicense();
-    // connect( btClose, SIGNAL( clicked() ), this, SLOT( close() ) );
 }
 
 AboutDlg::~AboutDlg()

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ public:
     void unload(const QString& path);
 
     QStringList plugins(void);
-    QObject* getObjectByName(QString name);
+    QObject *getObjectByName(QString name);
+    QString getNameByPath(QString path);
 
 protected:
      PluginManager(void);

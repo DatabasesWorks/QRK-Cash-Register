@@ -17,6 +17,21 @@
    <item row="0" column="0">
     <widget class="QFrame" name="frame_0">
      <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>1</number>
+      </property>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_5">
         <item>
@@ -57,8 +72,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>780</width>
-             <height>70</height>
+             <width>791</width>
+             <height>79</height>
             </rect>
            </property>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -163,8 +178,8 @@
 beenden</string>
              </property>
              <property name="icon">
-              <iconset resource="../qrk.qrc">
-               <normaloff>:/icons/void.png</normaloff>:/icons/void.png</iconset>
+              <iconset>
+               <normaloff>:src/icons/void.png</normaloff>:src/icons/void.png</iconset>
              </property>
              <property name="iconSize">
               <size>
@@ -799,8 +814,8 @@ beenden</string>
 verlassen</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/cancel.png</normaloff>:/icons/cancel.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/cancel.png</normaloff>:src/icons/cancel.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -822,8 +837,8 @@ verlassen</string>
              <string>Nachbonieren</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/edit.png</normaloff>:/icons/edit.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/edit.png</normaloff>:src/icons/edit.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -858,8 +873,8 @@ verlassen</string>
              <string>Kreditkarte</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/paymentmodes48.png</normaloff>:/icons/paymentmodes48.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/paymentmodes48.png</normaloff>:src/icons/paymentmodes48.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -884,8 +899,8 @@ verlassen</string>
              <string>Bankomat</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/bankomat.png</normaloff>:/icons/bankomat.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/bankomat.png</normaloff>:src/icons/bankomat.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -910,8 +925,8 @@ verlassen</string>
              <string>BAR</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/money48.png</normaloff>:/icons/money48.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/money48.png</normaloff>:src/icons/money48.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -966,8 +981,8 @@ verlassen</string>
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>302</width>
-               <height>363</height>
+               <width>303</width>
+               <height>374</height>
               </rect>
              </property>
             </widget>
@@ -989,8 +1004,8 @@ verlassen</string>
              <string>Kontroll Beleg</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/edit.png</normaloff>:/icons/edit.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/edit.png</normaloff>:src/icons/edit.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -1018,8 +1033,8 @@ verlassen</string>
              <string>Plus</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/list-add.png</normaloff>:/icons/list-add.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/list-add.png</normaloff>:src/icons/list-add.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -1041,8 +1056,8 @@ verlassen</string>
              <string>Minus</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/list-remove.png</normaloff>:/icons/list-remove.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/list-remove.png</normaloff>:src/icons/list-remove.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -1108,8 +1123,8 @@ verlassen</string>
 zu Rechnung #</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/invoice.png</normaloff>:/icons/invoice.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/invoice.png</normaloff>:src/icons/invoice.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -1128,9 +1143,7 @@ zu Rechnung #</string>
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../qrk.qrc"/>
- </resources>
+ <resources/>
  <connections/>
  <buttongroups>
   <buttongroup name="buttonGroup"/>

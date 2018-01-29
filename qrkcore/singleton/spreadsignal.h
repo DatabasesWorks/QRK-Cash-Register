@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,11 +33,12 @@ class QRK_EXPORT SpreadSignal : public QObject
     Q_OBJECT
 public:
     explicit SpreadSignal(QObject *parent = 0);
+    ~SpreadSignal() {}
 
-    static void setProgressBarValue(int value, bool add = false);
-    static void setProgressBarWait(bool on_off);
-    static void setImportInfo(QString message, bool isError = false);
-    static void setSafetyDevice(bool active);
+    void setProgressBarValue(int value, bool add = false);
+    void setProgressBarWait(bool on_off);
+    void setImportInfo(QString message, bool isError = false);
+    void setSafetyDevice(bool active);
 
 signals:
     void updateProgressBar(int value, bool add);

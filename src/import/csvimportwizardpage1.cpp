@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ CsvImportWizardPage1::CsvImportWizardPage1(QWidget *parent)
     ui->setupUi(this);
     m_timer = new QTimer(this);
     m_timer->setSingleShot(true);
-    connect(m_timer, SIGNAL(timeout()), this, SLOT(loadCsvFile()));
+
+    connect(m_timer, &QTimer::timeout, this, static_cast<void(CsvImportWizardPage1::*)()>(&CsvImportWizardPage1::loadCsvFile));
 
     ui->buttonGroup->setId(ui->semicolonCheckBox, SEMIKOLON);
     ui->buttonGroup->setId(ui->commaCheckBox, COMMA);
@@ -49,18 +50,16 @@ CsvImportWizardPage1::CsvImportWizardPage1(QWidget *parent)
     ui->buttonGroup->setId(ui->spaceCheckBox, SPACE);
     ui->buttonGroup->setId(ui->otherCheckBox, OTHER);
 
-    connect(ui->filePathEdit, SIGNAL(textChanged(QString)), this, SLOT(csvPathTextChanged(QString)));
-    connect(ui->fileLoadButton, SIGNAL(clicked(bool)), this, SLOT(fileLoadClicked(bool)));
-    connect(ui->otherEdit, SIGNAL(returnPressed()), this, SLOT(otherDelimiterChanged()));
-    connect(ui->firstRowIsHeaderCheckBox, SIGNAL(toggled(bool)), this, SLOT(firstRowCheckBoxToogled(bool)));
-    connect(ui->textSeperatorBox, SIGNAL(currentIndexChanged(QString)), this, SLOT(textDelimiterChanged(QString)));
-    connect(ui->checkBox, SIGNAL(toggled(bool)), this, SLOT(setLoadAll(bool)));
-
-    connect(ui->fromLineSpinBox, SIGNAL(valueChanged(int)), this, SLOT(fromValueChanged(int)));
-    connect(ui->toLineSpinBox, SIGNAL(valueChanged(int)), this, SLOT(toValueChanged(int)));
-
-    connect(ui->buttonGroup, SIGNAL(buttonToggled(int, bool)), this, SLOT(checkBoxToogled(int, bool)));
-    connect(ui->codecComboBox, SIGNAL(currentTextChanged(QString)), this, SLOT(codecChanged(QString)));
+    connect(ui->filePathEdit, &QLineEdit::textChanged, this, &CsvImportWizardPage1::csvPathTextChanged);
+    connect(ui->fileLoadButton, &QPushButton::clicked, this, &CsvImportWizardPage1::fileLoadClicked);
+    connect(ui->otherEdit, &QLineEdit::returnPressed, this, &CsvImportWizardPage1::otherDelimiterChanged);
+    connect(ui->firstRowIsHeaderCheckBox, &QCheckBox::toggled, this, &CsvImportWizardPage1::firstRowCheckBoxToogled);
+    connect(ui->textSeperatorBox, &QComboBox::currentTextChanged, this, &CsvImportWizardPage1::textDelimiterChanged);
+    connect(ui->checkBox, &QCheckBox::toggled, this, &CsvImportWizardPage1::setLoadAll);
+    connect(ui->fromLineSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &CsvImportWizardPage1::fromValueChanged);
+    connect(ui->toLineSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &CsvImportWizardPage1::toValueChanged);
+    connect(ui->buttonGroup, static_cast<void(QButtonGroup::*)(int, bool)>(&QButtonGroup::buttonToggled), this, &CsvImportWizardPage1::checkBoxToogled);
+    connect(ui->codecComboBox, &QComboBox::currentTextChanged, this, &CsvImportWizardPage1::codecChanged);
 
     registerField("fromLine", ui->fromLineSpinBox);
     registerField("toLine", ui->toLineSpinBox);
@@ -70,6 +69,7 @@ CsvImportWizardPage1::CsvImportWizardPage1(QWidget *parent)
 CsvImportWizardPage1::~CsvImportWizardPage1()
 {
     delete ui;
+    m_timer->stop();
 }
 
 void CsvImportWizardPage1::loadSettings()
@@ -233,28 +233,16 @@ void CsvImportWizardPage1::checkBoxToogled(int id, bool checked)
 
 void CsvImportWizardPage1::fileLoadClicked(bool)
 {
-    QString file;
-    QStringList ls;
-    QFileDialog dlg(this, tr("Datei öffnen"));
-
     QrkSettings settings;
-    QString path = settings.value("csvimportpath", QDir::homePath()).toString();
+    QString lastUsedFileName = settings.value("csvimportpath", QDir::homePath()).toString();
 
-    dlg.setViewMode(QFileDialog::Detail);
-    dlg.setFileMode(QFileDialog::ExistingFile);
-    dlg.setOption(QFileDialog::DontUseNativeDialog);
-    dlg.setDirectory(path);
+    QString file = QFileDialog::getOpenFileName(this, tr("Datei laden"), lastUsedFileName, "Import (*.csv)", 0, QFileDialog::DontUseNativeDialog);
 
-    if (dlg.exec()) {
-        ls = dlg.selectedFiles();
-        settings.save2Settings("csvimportpath", dlg.directory().absolutePath());
-        if (ls.count() > 0) {
-            file = ls[0]; //get selected file
-            ui->filePathEdit->setText(file);
-            ui->fromLineSpinBox->setValue(1);
-            m_model->clear();
-        }
-        ls.clear();
+    if (!file.isEmpty()) {
+        settings.save2Settings("csvimportpath", lastUsedFileName);
+        ui->filePathEdit->setText(file);
+        ui->fromLineSpinBox->setValue(1);
+        m_model->clear();
     }
 }
 
@@ -284,16 +272,17 @@ void CsvImportWizardPage1::loadCsvFile(QString text)
         emit completeChanged();
         m_model->clear();
         m_load = new LoadCsvFile(ui->filePathEdit->text(), m_delimiter, ui->textSeperatorBox->currentText(), ui->firstRowIsHeaderCheckBox->isChecked(), ui->fromLineSpinBox->value(), ui->toLineSpinBox->value(), m_codec);
-        m_thread = new QThread(this);
+        m_thread = new QThread;
         m_load->moveToThread(m_thread);
 
-        connect(m_thread, SIGNAL(started()), m_load, SLOT(run()));
-
-        connect(m_load, SIGNAL(percentChanged(int)), ui->progressBar, SLOT(setValue(int)));
-        connect(m_load, SIGNAL(addHeader(int, int, QString)), this, SLOT(addHeader(int, int, QString)));
-        connect(m_load, SIGNAL(addItem(int, int, QString)), this, SLOT(addItem(int, int, QString)));
-        connect(m_load, SIGNAL(finished()), this, SLOT(fileLoadFinished()));
-        connect(m_load, SIGNAL(finished()), this, SIGNAL(completeChanged()));
+        connect(m_thread, &QThread::started, m_load, &LoadCsvFile::run);
+        connect(m_load, &LoadCsvFile::percentChanged, ui->progressBar, &QProgressBar::setValue);
+        connect(m_load, &LoadCsvFile::addHeader, this, &CsvImportWizardPage1::addHeader);
+        connect(m_load, &LoadCsvFile::addItem, this, &CsvImportWizardPage1::addItem);
+        connect(m_load, &LoadCsvFile::finished, this, &CsvImportWizardPage1::fileLoadFinished);
+        connect(m_load, &LoadCsvFile::finished, this, &CsvImportWizardPage1::completeChanged);
+        connect(m_load, &LoadCsvFile::finished, m_load, &LoadCsvFile::deleteLater);
+        connect(m_thread, &QThread::finished, m_thread, &QThread::deleteLater);
 
         m_thread->start();
     }

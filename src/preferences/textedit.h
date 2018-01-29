@@ -48,41 +48,38 @@
 **
 ****************************************************************************/
 
-#ifndef FLOWLAYOUT_H
-#define FLOWLAYOUT_H
+#ifndef TEXTEDIT_H
+#define TEXTEDIT_H
 
-#include <QLayout>
-#include <QRect>
-#include <QStyle>
-//! [0]
-class FlowLayout : public QLayout
+#include <QTextEdit>
+
+class QCompleter;
+
+class TextEdit : public QTextEdit
 {
-public:
-    explicit FlowLayout(QWidget *parent, int margin = -1, int hSpacing = -1, int vSpacing = -1);
-    explicit FlowLayout(int margin = -1, int hSpacing = -1, int vSpacing = -1);
-    ~FlowLayout();
+    Q_OBJECT
 
-    void addItem(QLayoutItem *item);
-    int horizontalSpacing() const;
-    int verticalSpacing() const;
-    Qt::Orientations expandingDirections() const;
-    bool hasHeightForWidth() const;
-    int heightForWidth(int) const;
-    int count() const;
-    QLayoutItem *itemAt(int index) const;
-    QSize minimumSize() const;
-    void setGeometry(const QRect &rect);
-    QSize sizeHint() const;
-    QLayoutItem *takeAt(int index);
+public:
+    TextEdit(QWidget *parent = 0);
+    ~TextEdit();
+
+    void setCompleter(QCompleter *c);
+    QCompleter *completer() const;
+
+protected:
+    void keyPressEvent(QKeyEvent *e) override;
+    void focusInEvent(QFocusEvent *e) override;
+
+private slots:
+    void insertCompletion(const QString &completion);
 
 private:
-    int doLayout(const QRect &rect, bool testOnly) const;
-    int smartSpacing(QStyle::PixelMetric pm) const;
+    QString textUnderCursor();
 
-    QList<QLayoutItem *> itemList;
-    int m_hSpace;
-    int m_vSpace;
+private:
+    QCompleter *c;
+    int position = 0;
+
 };
-//! [0]
 
-#endif // FLOWLAYOUT_H
+#endif // TEXTEDIT_H

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,29 +57,30 @@ void QSortFilterSqlQueryModel::select()
     QString esFilterString = m_filterString;
     QString esFilterColumn = m_filterColumn;
 
-    if (m_filterFlags & Qt::MatchExactly) {
+    if (m_filterFlags == Qt::MatchExactly) {
       whereClause = "WHERE %1 = %2";
-    } else if (m_filterFlags & Qt::MatchStartsWith) {
+    } else if (m_filterFlags == Qt::MatchStartsWith) {
       whereClause = "WHERE %1 LIKE %2";
       esFilterString.append("%");
-    } else if (m_filterFlags & Qt::MatchEndsWith) {
+    } else if (m_filterFlags == Qt::MatchContains) {
       whereClause = "WHERE %1 LIKE %2";
+      esFilterString.append("%");
       esFilterString.prepend("%");
-    } else if (m_filterFlags & Qt::MatchContains) {
+    } else if (m_filterFlags == Qt::MatchEndsWith) {
       whereClause = "WHERE %1 LIKE %2";
-      esFilterString.append("%");
       esFilterString.prepend("%");
     } else { return; } // unhandled filterflag
 
     QSqlDriver *driver = m_dbc.driver();
     esFilterColumn = driver->escapeIdentifier(m_filterColumn, QSqlDriver::FieldName);
-    QSqlField field; field.setType(QVariant::String); field.setValue(esFilterString);
+    QSqlField field;
+    field.setType(QVariant::String);
+    field.setValue(esFilterString);
     esFilterString = driver->formatValue(field);
 
     whereClause = whereClause.arg(esFilterColumn).arg(esFilterString);
     query.append(" " + whereClause);
   }
-
 
   if (m_sortKeyColumn >= 0) {
     QString orderClause;

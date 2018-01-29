@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "database.h"
 #include "journal.h"
 
+#include <QApplication>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QSettings>
@@ -31,7 +32,13 @@
 
 QrkSettings::QrkSettings(QObject *parent) : QSettings(parent)
 {
-    m_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, "QRK", "QRK", this);
+    QString appName = qApp->property("configuration").toString();
+    if (appName.isEmpty())
+        appName = "QRK";
+    else
+        appName.prepend("QRK_");
+
+    m_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope, "QRK", appName, this);
     m_journal = new Journal(this);
 }
 
@@ -51,7 +58,7 @@ void QrkSettings::endGroup()
 
 void QrkSettings::save2Database(QString name, QString value)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     QString oldValue = "";
@@ -129,4 +136,9 @@ void QrkSettings::removeSettings(QString name, bool journaling)
 QVariant QrkSettings::value(QString key, QVariant defaultValue)
 {
     return m_settings->value(key,defaultValue);
+}
+
+QString QrkSettings::fileName()
+{
+    return m_settings->fileName();
 }

@@ -156,8 +156,8 @@
 verlassen</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/cancel.png</normaloff>:/icons/cancel.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/cancel.png</normaloff>:src/icons/cancel.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -201,8 +201,8 @@ verlassen</string>
              <string>Storno</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/void.png</normaloff>:/icons/void.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/void.png</normaloff>:src/icons/void.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -233,8 +233,8 @@ verlassen</string>
              <string>Kopie Drucken</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/print.png</normaloff>:/icons/print.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/print.png</normaloff>:src/icons/print.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -313,8 +313,8 @@ verlassen</string>
 Drucken</string>
             </property>
             <property name="icon">
-             <iconset resource="../qrk.qrc">
-              <normaloff>:/icons/print.png</normaloff>:/icons/print.png</iconset>
+             <iconset>
+              <normaloff>:src/icons/print.png</normaloff>:src/icons/print.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -349,8 +349,6 @@ Drucken</string>
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../qrk.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

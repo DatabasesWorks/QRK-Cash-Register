@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ ManagerDialog::ManagerDialog(QWidget *parent)
   pushButton->setMinimumHeight(60);
   pushButton->setMinimumWidth(0);
 
-  QIcon icon = QIcon(":icons/ok.png");
+  QIcon icon = QIcon(":src/icons/ok.png");
   QSize size = QSize(32,32);
   pushButton->setIcon(icon);
   pushButton->setIconSize(size);
@@ -61,7 +61,7 @@ ManagerDialog::ManagerDialog(QWidget *parent)
   setMinimumWidth(800);
   setMinimumHeight(400);
 
-  connect(pushButton, SIGNAL(clicked()), this, SLOT(accept()));
+  connect(pushButton, &QPushButton::clicked, this, &ManagerDialog::accept);
 
 }
 

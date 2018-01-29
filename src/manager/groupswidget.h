@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,8 +28,6 @@
 class QSqlTableModel;
 class QSortFilterProxyModel;
 
-#include "ui_groupwidget.h"
-
 namespace Ui {
   class GroupsWidget;
 }
@@ -40,6 +38,7 @@ class GroupsWidget : public QWidget
 
   public:
     GroupsWidget(QWidget *parent);
+    ~GroupsWidget();
 
   private slots:
     void filterGroup(const QString &filter);

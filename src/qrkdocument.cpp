@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +28,15 @@
 #include "reports.h"
 #include "qrkdelegate.h"
 #include "utils/utils.h"
+#include "3rdparty/ckvsoft/rbac/acl.h"
+#include "ui_qrkdocument.h"
 
 #include <QMessageBox>
 #include <QDesktopWidget>
 #include <QJsonObject>
 #include <QSqlRecord>
 #include <QSqlError>
+#include <QTimer>
 #include <QDebug>
 
 QRKDocument::QRKDocument(QWidget *parent)
@@ -53,10 +56,10 @@ QRKDocument::QRKDocument(QWidget *parent)
         ui->pushFreeButton->setMinimumWidth(0);
     }
 
-    connect(ui->cancelDocumentButton, SIGNAL(clicked()), this, SIGNAL(cancelDocumentButton_clicked()));
-    connect(ui->printcopyButton, SIGNAL(clicked()), this, SLOT(onPrintcopyButton_clicked()));
-    connect(ui->invoiceCompanyPrintcopyButton, SIGNAL(clicked()), this, SLOT(onInvoiceCompanyButton_clicked()));
-    connect(ui->cancellationButton, SIGNAL(clicked()), this, SLOT(onCancellationButton_clicked()));
+    connect(ui->cancelDocumentButton, &QPushButton::clicked, this, &QRKDocument::cancelDocumentButton_clicked);
+    connect(ui->printcopyButton, &QPushButton::clicked, this, &QRKDocument::onPrintcopyButton_clicked);
+    connect(ui->invoiceCompanyPrintcopyButton, &QPushButton::clicked, this, &QRKDocument::onInvoiceCompanyButton_clicked);
+    connect(ui->cancellationButton, &QPushButton::clicked, this, &QRKDocument::onCancellationButton_clicked);
 
 }
 
@@ -64,7 +67,7 @@ QRKDocument::QRKDocument(QWidget *parent)
 
 void QRKDocument::documentList()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
 
     ui->documentLabel->setText("");
     m_documentContentModel = new QSqlQueryModel;
@@ -73,10 +76,10 @@ void QRKDocument::documentList()
 
     QString driverName = dbc.driverName();
     if ( driverName == "QMYSQL" ) {
-        m_documentListModel->setQuery("SELECT receipts.receiptNum, actionTypes.actionText, DATE_FORMAT(receipts.infodate, '%Y-%m-%d'),ROUND(receipts.gross,2), receipts.timestamp FROM receipts INNER JOIN actionTypes ON receipts.payedBy=actionTypes.actionId", dbc);
+        m_documentListModel->setQuery("SELECT receipts.receiptNum, actionTypes.actionText, DATE_FORMAT(receipts.infodate, '%Y-%m-%d') AS infodate, ROUND(receipts.gross,2) AS gross, receipts.timestamp FROM receipts INNER JOIN actionTypes ON receipts.payedBy=actionTypes.actionId", dbc);
     }
     else if ( driverName == "QSQLITE" ) {
-        m_documentListModel->setQuery("SELECT receipts.receiptNum, actionTypes.actionText, strftime('%Y-%m-%d',receipts.infodate),ROUND(receipts.gross,2), receipts.timestamp FROM receipts INNER JOIN actionTypes ON receipts.payedBy=actionTypes.actionId", dbc);
+        m_documentListModel->setQuery("SELECT receipts.receiptNum, actionTypes.actionText, strftime('%Y-%m-%d',receipts.infodate) AS infodate, ROUND(receipts.gross,2) AS gross, receipts.timestamp FROM receipts INNER JOIN actionTypes ON receipts.payedBy=actionTypes.actionId", dbc);
     }
 
     m_documentListModel->setFilterColumn("receiptNum");
@@ -107,13 +110,16 @@ void QRKDocument::documentList()
 
     ui->documentFilterLabel->setText("Filter " + m_documentListModel->getFilterColumnName());
 
-    connect(m_documentListModel, SIGNAL(sortChanged()), this, SLOT(sortChanged()));
-    connect(ui->documentFilterEdit, SIGNAL (textChanged(QString)), m_documentListModel, SLOT (filter(QString)));
-    connect(ui->documentList->selectionModel(), SIGNAL (selectionChanged ( const QItemSelection &, const QItemSelection &)),this, SLOT (onDocumentSelectionChanged(const QItemSelection &, const QItemSelection &)));
+    connect(m_documentListModel, &QSortFilterSqlQueryModel::sortChanged, this, &QRKDocument::sortChanged);
+    connect(ui->documentFilterEdit, &QLineEdit::textChanged, m_documentListModel, &QSortFilterSqlQueryModel::filter);
+    connect(ui->documentList->selectionModel(), &QItemSelectionModel::selectionChanged, this, &QRKDocument::onDocumentSelectionChanged);
 
     ui->cancellationButton->setEnabled(false);
     ui->printcopyButton->setEnabled(false);
     ui->invoiceCompanyPrintcopyButton->setEnabled(false);
+
+    QrkSettings settings;
+    m_receiptPrintDialog = settings.value("useReceiptPrintedDialog", true).toBool();
 
 }
 
@@ -165,7 +171,7 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
         ui->documentLabel->setText(tr("Beleg Nr: %1\t%2\t%3\t\t%4").arg(receiptNum).arg(payedByText).arg(QString::number(price, 'f', 2)).arg(stornoText));
         ui->customerTextLabel->setText(tr("Kunden Zusatztext: ") + Database::getCustomerText(receiptNum));
 
-        QSqlDatabase dbc = QSqlDatabase::database("CN");
+        QSqlDatabase dbc = Database::database();
         int id = ui->documentList->model()->data(m_documentListModel->index(row, REGISTER_COL_COUNT, QModelIndex())).toInt();
 
         m_documentContentModel->setQuery(QString("SELECT orders.count, products.name, round(orders.net,2), orders.tax, orders.gross, orders.discount * (-1), ROUND((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount),2) AS Price FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=%1").arg(id), dbc);
@@ -193,6 +199,7 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
 
 void QRKDocument::onCancellationButton_clicked()
 {
+    if(!RBAC::Instance()->hasPermission("documents_cancellation", true)) return;
 
     ui->cancellationButton->setEnabled(false);
     ui->documentLabel->setText("");
@@ -211,7 +218,7 @@ void QRKDocument::onCancellationButton_clicked()
         if (storno == 1)
             stornoText = tr("Beleg mit der Nummer %1 wurde bereits storniert. Siehe Beleg Nr: %2").arg(id).arg(Database::getStornoId(id));
         else
-            stornoText = tr("Beleg mit der Nummer %1 ist ein Stornobeleg von Beleg Nummer %2 und kann nicht storniert werden. Erstellen Sie einen neuen Kassebon").arg(id).arg(Database::getStornoId(id));
+            stornoText = tr("Beleg mit der Nummer %1 ist ein Stornobeleg von Beleg Nummer %2 und kann nicht storniert werden.\nErstellen Sie einen neuen Beleg. (Kassabon)").arg(id).arg(Database::getStornoId(id));
 
         QMessageBox::warning( this, tr("Storno"), stornoText);
         emit documentButton_clicked();
@@ -219,15 +226,15 @@ void QRKDocument::onCancellationButton_clicked()
     }
 
     int payedBy = Database::getPayedBy(id);
-    Reports *rep = new Reports(this,true);
-    bool ret = rep->checkEOAnyServerMode();
-    delete rep;
+    Reports rep;
+    bool ret = rep.checkEOAny(); //  rep->checkEOAnyServerMode();
     if (! ret) {
         emit documentButton_clicked();
         return;
     }
 
     ReceiptItemModel reg;
+    reg.clear();
     reg.newOrder();
     reg.storno(id);
 
@@ -273,7 +280,15 @@ void QRKDocument::onPrintcopyButton_clicked(bool isInvoiceCompany)
         DocumentPrinter p;
         p.printDocument(&doc, DocumentTitle);
 
-        QMessageBox::information(0, QObject::tr("Drucker"), QObject::tr("%1 wurde gedruckt.").arg(payedByText));
+        if (m_receiptPrintDialog) {
+            QMessageBox msgBox;
+            msgBox.setWindowTitle(tr("Drucker"));
+            msgBox.setText(QObject::tr("%1 wurde gedruckt.").arg(payedByText));
+
+            QTimer::singleShot(10000, &msgBox, SLOT(reject()));
+
+            msgBox.exec();
+        }
 
     } else {
 
@@ -297,7 +312,16 @@ void QRKDocument::onPrintcopyButton_clicked(bool isInvoiceCompany)
 
         DocumentPrinter p;
         p.printReceipt(data);
-        QMessageBox::information(0, QObject::tr("Drucker"), QObject::tr("%1 %2 ( Kopie) wurde gedruckt.").arg(data.value("comment").toString()).arg(m_currentReceipt));
+
+        if (m_receiptPrintDialog) {
+            QMessageBox msgBox;
+            msgBox.setWindowTitle(tr("Drucker"));
+            msgBox.setText(QObject::tr("%1 %2 (Kopie) wurde gedruckt.").arg(data.value("comment").toString()).arg(m_currentReceipt));
+
+            QTimer::singleShot(10000, &msgBox, SLOT(reject()));
+
+            msgBox.exec();
+        }
 
         emit documentButton_clicked();
     }

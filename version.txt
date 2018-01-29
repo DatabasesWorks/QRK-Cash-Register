@@ -1,7 +1,7 @@
-﻿#
+#
 # This file is part of QRK - Qt Registrier Kasse
 #
-# Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+# Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,31 @@
 #
 #
 
-VERSION 1.05 Build ????
+VERSION 1.06 Build 180129
+  + RBAC Rollenbasiertes Berechtigungskonzept
+  + Template System (vordefinierte Variablen die bei den BON texten durch deren Werte ersetzt werden.)
+  + Automatischer DEP export (Externer Datenträger muss zu Verfügung stehen.)
+  + Automatisches löschen alter Backup Dateien.
+  + Drucker für Abholbon konfigurierbar
+  + Artkelnummer wird ins Journal geschrieben
+  + Kleines Diagramm Plugin (kann bei Bedarf noch erweitert werden)
+  + Versionscheck (auch für Linux)
+  + Plugin -> BarCodes Settings Dialog erweitert (Barcode drucken)
+  + Prüfung ob ein BON gültig Signiert werden muss. (Startbeleg, Sammelbeleg und JahresBeleg)
+  + Completer für Kundenzusatztext
+  * DEP Prüfung um Seriennummer erweitert.
+  * Interne Umstellung auf neuen SIGNAL Syntax
+  * BON Nummer wird auch auf Abholbon geschrieben (ging wohl verloren)
+  * Online Zertifikat Abfrage optimierung
+  * WaitCursor wurde zu BussyCursor geändert
+  * FIX Erstellung eines BONs bei neuer Installation war nicht möglich
+  * FIX MySQL reconnect und readtimeout
+  * FIX MySQL >5.6 GROUP BY. Ab Version 5.7 ist per default ONLY_FULL_GROUP_BY enabled
+  * FIX MySQL Lost connection to MySQL server during query
+  * FIX ATrust Online Seriennummerabfrage.
+  * FIX Fehlende WaitDialoge. Zb. beim Aktivieren des DEPs
+
+VERSION 1.05 Build 171105
   * FIX Doppel Storno bei DoppelKlick
   * FIX Datenbank alte/doppelte Einträge in "globals" angepasst
   * FIX Wenn kein Drucker installiert ist wird automatisch auf PDF-Druck gestellt.
@@ -30,9 +54,14 @@ VERSION 1.05 Build ????
   * FIX Ausgeschaltene Umsatzinfo wurde beim verlassen des
         ServerModes (fullscreen) angezeigt
   * FIX Kartenleser wurden doppelt angezeigt.
+  * FIX Der SettingsDialog wird schneller gestartet.
+  * FIX Dokumente Filter (Datum und Summen konnten nicht gefiltert werden)
   + NEU BON Nummer wird auf den Abholbon gedruckt
   + NEU Plugin -> BarCodes Settings Dialog
   + NEU Plugin -> WSDL Interface
+
+VERSION 1.05 Build 171009
+   * Zwischenversion für Linux / PI3
 
 VERSION 1.05 Build 171005
   + Discount infos zu Reports dazugefügt
@@ -61,7 +90,7 @@ VERSION 1.04 Build 170531
 
 VERSION 1.04 Build 170425
   + Kreditkarten/Bankomat Tasten können ausgeblendet werden
-  + Tages/Monats-Abschluß Zahlungsmittel Summe
+  + Tages/Monats-Abschluss Zahlungsmittel Summe
   + Wenn beim CSV Import kein Steuersatz zugewiesen ist wird der Standard Steuersatz verwendet
   * fix CardOS_53 Warnung
   * fix Update beim CSV Import
@@ -69,14 +98,14 @@ VERSION 1.04 Build 170425
   * Einheitliche Datei/Verzeichnis Dialoge
 
 VERSION 1.03 Build 170404
-  * fix Tages/Monats Abschluß am BON Drucker drucken (experimentell) wenn Ausdruck länger
+  * fix Tages/Monats Abschluss am BON Drucker drucken (experimentell) wenn Ausdruck länger
     als die eingestellte Papierlänge ist.
   * fix Druck Tages/Monatsabschluss
   * fix ServerMode import. Dateien mit Großbuchstaben wurden nicht umbenannt.
     Json Datei wurde dadurch in einer Schleife eingelesen.
 
 VERSION 1.03 Build 170403
-  + Tages/Monats-Abschluß am BON Drucker drucken (experimentell)
+  + Tages/Monats-Abschluss am BON Drucker drucken (experimentell)
   * FONInfo wird nur angezeiget wenn das DEP aktiviert ist und die Kasse nicht im DEMO-Modus ist
   * fix FONInfo Seriennummeranzeige bei ATrust Online
   * fix feedTimeStamp Einstellungen
@@ -208,7 +237,7 @@ VERSION 0.16.0502
  * fix bei manueller Erstellung von Tages/Monatsabschluss wurde nicht automatisch gedruckt 
 
 VERSION 0.16.0427
- * fix Tages/Monatsabschluß aus Dokumenten Modus drucken
+ * fix Tages/Monatsabschluss aus Dokumenten Modus drucken
 
  VERSION 0.16.0426
  * noch kleinerer QR-Code (TEST)
@@ -236,7 +265,7 @@ VERSION 0.16.0411
  * Gruppen und Produkt Manager Die Größe der Felder kann manuell geändert werden
  * Produkt Manager Anzahl der Felder wurde reduziert (Preis/Mwst)
  * Manager Design wurde angepasst
- * Tages/Monatsabschluß Wenn ein Artikel mehrmals verkauft wird und der Preis nicht der
+ * Tages/Monatsabschluss Wenn ein Artikel mehrmals verkauft wird und der Preis nicht der
    gleiche ist wird das jetzt erkannt und extra aufgeschlüsselt.
    (Zb. Es wurde der Tages oder Kundenpreis händisch geändert)
  * Fix für kleine (<= 60mm) Bondrucker, Druckdesignänderung für Bondrucker deren Druckbreite
@@ -326,7 +355,7 @@ VERSION 0.16.0130
 
  VERSION 0.16.0120
  + Meistverkaufter Artikel kann als Standard Artikel verwendet werden. (Einstellungen->Extras)
- + Abfrage bei Monatsabschluß
+ + Abfrage bei Monatsabschluss
  + Bezahlbuttons sind deaktiviert wenn sich kein Artikel im Produktfeld befindet
  + Wenn das Logo breiter als der druckbare Bereich ist wird automatisch skaliert
  * Fix bei Storno (Betrag 0,00)

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 #define DEFINES
 
 #define MIN_HEIGHT 60
-#define QRK_VERSION_MAJOR "1.05"
-#define QRK_VERSION_MINOR "Build-171109"
+#define QRK_VERSION_MAJOR "1.06"
+#define QRK_VERSION_MINOR "Build-180129"
 
 enum REGISTER_COL
 {

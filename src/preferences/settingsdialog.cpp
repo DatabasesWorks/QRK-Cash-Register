@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include <QSqlQuery>
 #include <QPrinterInfo>
 #include <QStackedWidget>
+#include <QElapsedTimer>
+#include <QCompleter>
 
 #include "font/fontselector.h"
 #include "documentprinter.h"
@@ -36,6 +38,11 @@
 #include "database.h"
 #include "reports.h"
 #include "preferences/qrksettings.h"
+#include "textedit.h"
+#include "3rdparty/ckvsoft/rbac/acl.h"
+#include "pluginmanager/pluginmanager.h"
+#include "pluginmanager/pluginview.h"
+#include "qrkprogress.h"
 
 class CustomTabStyle : public QProxyStyle
 {
@@ -68,23 +75,33 @@ class CustomTabStyle : public QProxyStyle
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent, Qt::CustomizeWindowHint | Qt::WindowTitleHint)
 {
+    QElapsedTimer timer;
+    timer.start();
+    QStringList availablePrinters = QPrinterInfo::availablePrinterNames();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << "availablePrinters loaded. elapsed: " << timer.elapsed();
+
     m_journal = new Journal(this);
     m_general = new GeneralTab(this);
     m_master = new MasterDataTab(this);
-    m_printer = new PrinterTab(this);
-    m_receiptprinter = new ReceiptPrinterTab(this);
-    m_receipt = new ReceiptTab(this);
+    m_printer = new PrinterTab(availablePrinters, this);
+    m_receiptprinter = new ReceiptPrinterTab(availablePrinters, this);
+    m_receipt = new ReceiptTab(availablePrinters, this);
     m_receiptenhanced = new ReceiptEnhancedTab(this);
     m_extra = new ExtraTab(this);
     m_server = new ServerTab(this);
     m_scardreader = new SCardReaderTab(this);
-
     m_general->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
     m_scardreader->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
 
+    PluginView *pluginview = new PluginView(this);
+
     m_tabWidget = new QTabWidget(this);
+
+    // FIXME: Apple do not Display Text with CustomTabStyle and QTabWidget::West
+#ifndef __APPLE__
     m_tabWidget->setTabPosition(QTabWidget::West);
     m_tabWidget->tabBar()->setStyle(new CustomTabStyle);
+#endif
     m_tabWidget->addTab(m_master, tr("Stammdaten"));
     m_tabWidget->addTab(m_printer, tr("Drucker"));
     m_tabWidget->addTab(m_receiptprinter, tr("BON Drucker"));
@@ -95,9 +112,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     m_tabWidget->addTab(m_server, tr("Import Server"));
     if (m_master->getShopTaxes() == "AT" && !Database::isCashRegisterInAktive())
         m_tabWidget->addTab(m_scardreader, tr("SignaturErstellungsEinheit"));
-
-//    m_tabWidget->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
-//    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    m_tabWidget->addTab(pluginview, tr("Plugins"));
 
     QPushButton *OkPushButton = new QPushButton;
     QPushButton *CancelPushButton = new QPushButton;
@@ -106,8 +121,8 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     CancelPushButton->setMinimumHeight(60);
     CancelPushButton->setMinimumWidth(0);
 
-    QIcon iconOk = QIcon(":icons/ok.png");
-    QIcon iconCancel = QIcon(":icons/cancel.png");
+    QIcon iconOk = QIcon(":src/icons/ok.png");
+    QIcon iconCancel = QIcon(":src/icons/cancel.png");
     QSize size = QSize(32,32);
     OkPushButton->setIcon(iconOk);
     OkPushButton->setIconSize(size);
@@ -145,11 +160,12 @@ SettingsDialog::SettingsDialog(QWidget *parent)
         setFixedHeight(550);
     }
 
-    connect(OkPushButton, SIGNAL(clicked()), this, SLOT(accept()));
-    connect(CancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-    connect(m_master, SIGNAL(taxChanged(QString)),this, SLOT(masterTaxChanged(QString)));
-    connect(m_master, SIGNAL(taxChanged(QString)),m_general, SLOT(masterTaxChanged(QString)));
-    emit loaded();
+    connect(OkPushButton, &QPushButton::clicked, this, &SettingsDialog::accept);
+    connect(CancelPushButton, &QPushButton::clicked, this, &SettingsDialog::close);
+    connect(m_master, &MasterDataTab::taxChanged, this, &SettingsDialog::masterTaxChanged);
+    connect(m_master, &MasterDataTab::taxChanged, m_general, &GeneralTab::masterTaxChanged);
+
+    qDebug() << "Function Name: " << Q_FUNC_INFO << "finished elapsed: " << timer.elapsed();
 }
 
 void SettingsDialog::masterTaxChanged(QString tax)
@@ -198,6 +214,7 @@ void SettingsDialog::accept()
     settings.save2Settings("importServerFullscreen", m_server->getServerFullscreen());
 
     settings.save2Settings("backupDirectory", m_general->getBackupDirectory());
+    settings.save2Settings("keepMaxBackups", m_general->getKeepMaxBackups());
     settings.save2Settings("pdfDirectory", m_general->getPdfDirectory());
     settings.save2Settings("externalDepDirectory", m_general->getExternalDepDirectory());
 
@@ -236,8 +253,10 @@ void SettingsDialog::accept()
     settings.save2Settings("receiptPrinterHeading", m_receipt->getReceiptPrinterHeading());
     settings.save2Settings("receiptPrinter", m_receiptprinter->getReceiptPrinter());
     settings.save2Settings("printCollectionReceipt", m_receipt->getPrintCollectionReceipt());
+    settings.save2Settings("collectionPrinter", m_receipt->getCollectionPrinter());
     settings.save2Settings("collectionReceiptCopies", m_receipt->getCollectionReceiptCopies());
     settings.save2Settings("collectionReceiptText", m_receipt->getCollectionReceiptText());
+    settings.save2Settings("collectionPrinterPaperFormat", m_receipt->getCollectionPrinterPaperFormat());
     settings.save2Settings("printCompanyNameBold", m_receipt->getPrintCompanyNameBold());
     settings.save2Settings("useReportPrinter", m_receiptprinter->getUseReportPrinter());
     settings.save2Settings("logoRight", m_receipt->getIsLogoRight());
@@ -270,7 +289,7 @@ void SettingsDialog::accept()
 }
 
 ExtraTab::ExtraTab(QWidget *parent)
-    : QWidget(parent)
+    : Widget(parent)
 {
     QrkSettings settings;
 
@@ -321,7 +340,7 @@ ExtraTab::ExtraTab(QWidget *parent)
 
     /* Default Taxes*/
     m_defaultTaxComboBox = new QComboBox();
-    QSqlDatabase dbc= QSqlDatabase::database("CN");
+    QSqlDatabase dbc= Database::database();
     QSqlQuery query(dbc);
     query.prepare(QString("SELECT tax FROM taxTypes WHERE taxlocation=:taxlocation ORDER BY id"));
     query.bindValue(":taxlocation", Database::getTaxLocation());
@@ -335,18 +354,18 @@ ExtraTab::ExtraTab(QWidget *parent)
 
     /* Fonts */
 
-    m_systemFont = new QFont(QApplication::font());
+    m_systemFont = QApplication::font();
 
     QList<QString> printerFontList = settings.value("printerfont", "Courier-New,10,100").toString().split(",");
     QList<QString> receiptPrinterFontList = settings.value("receiptprinterfont", "Courier-New,8,100").toString().split(",");
 
-    m_printerFont = new QFont(printerFontList.at(0));
-    m_printerFont->setPointSize(printerFontList.at(1).toInt());
-    m_printerFont->setStretch(printerFontList.at(2).toInt());
+    m_printerFont = printerFontList.at(0);
+    m_printerFont.setPointSize(printerFontList.at(1).toInt());
+    m_printerFont.setStretch(printerFontList.at(2).toInt());
 
-    m_receiptPrinterFont = new QFont(receiptPrinterFontList.at(0));
-    m_receiptPrinterFont->setPointSize(receiptPrinterFontList.at(1).toInt());
-    m_receiptPrinterFont->setStretch(receiptPrinterFontList.at(2).toInt());
+    m_receiptPrinterFont = receiptPrinterFontList.at(0);
+    m_receiptPrinterFont.setPointSize(receiptPrinterFontList.at(1).toInt());
+    m_receiptPrinterFont.setStretch(receiptPrinterFontList.at(2).toInt());
 
     QGroupBox *registerGroup = new QGroupBox();
     registerGroup->setTitle(tr("Kasse"));
@@ -414,28 +433,28 @@ ExtraTab::ExtraTab(QWidget *parent)
     fontsLayout->addWidget( new QLabel(tr("Druckerschrift:")), 2,1,1,1);
     fontsLayout->addWidget( new QLabel(tr("BON - Druckerschrift:")), 3,1,1,1);
 
-    m_systemFontButton = new QPushButton(m_systemFont->family());
-    m_systemFontButton->setFont(*m_systemFont);
-    m_systemFontSizeLabel = new QLabel(QString::number(m_systemFont->pointSize()));
-    m_systemFontStretchLabel = new QLabel(QString::number(m_systemFont->stretch()));
+    m_systemFontButton = new QPushButton(m_systemFont.family());
+    m_systemFontButton->setFont(m_systemFont);
+    m_systemFontSizeLabel = new QLabel(QString::number(m_systemFont.pointSize()));
+    m_systemFontStretchLabel = new QLabel(QString::number(m_systemFont.stretch()));
 
-    QFontInfo printerFontInfo(*m_printerFont);
+    QFontInfo printerFontInfo(m_printerFont);
     QString sPrinterFontInfo = printerFontInfo.family();
 
-    m_printerFont->setFamily(sPrinterFontInfo);
+    m_printerFont.setFamily(sPrinterFontInfo);
     m_printerFontButton = new QPushButton(sPrinterFontInfo);
-    m_printerFontButton->setFont(*m_printerFont);
-    m_printerFontSizeLabel = new QLabel(QString::number(m_printerFont->pointSize()));
-    m_printerFontStretchLabel = new QLabel(QString::number(m_printerFont->stretch()));
+    m_printerFontButton->setFont(m_printerFont);
+    m_printerFontSizeLabel = new QLabel(QString::number(m_printerFont.pointSize()));
+    m_printerFontStretchLabel = new QLabel(QString::number(m_printerFont.stretch()));
 
-    QFontInfo receiptPrinterFontInfo(*m_receiptPrinterFont);
+    QFontInfo receiptPrinterFontInfo(m_receiptPrinterFont);
     QString sReceiptPrinterFontInfo = receiptPrinterFontInfo.family();
 
-    m_receiptPrinterFont->setFamily(sReceiptPrinterFontInfo);
+    m_receiptPrinterFont.setFamily(sReceiptPrinterFontInfo);
     m_receiptPrinterFontButton = new QPushButton(sReceiptPrinterFontInfo);
-    m_receiptPrinterFontButton->setFont(*m_receiptPrinterFont);
-    m_receiptPrinterFontSizeLabel = new QLabel(QString::number(m_receiptPrinterFont->pointSize()));
-    m_receiptPrinterFontStretchLabel = new QLabel(QString::number(m_receiptPrinterFont->stretch()));
+    m_receiptPrinterFontButton->setFont(m_receiptPrinterFont);
+    m_receiptPrinterFontSizeLabel = new QLabel(QString::number(m_receiptPrinterFont.pointSize()));
+    m_receiptPrinterFontStretchLabel = new QLabel(QString::number(m_receiptPrinterFont.stretch()));
 
     QPushButton *printerTestButton = new QPushButton(tr("Drucktest"));
     QPushButton *receiptPrinterTestButton = new QPushButton(tr("Drucktest"));
@@ -493,15 +512,19 @@ ExtraTab::ExtraTab(QWidget *parent)
     m_hideCreditcardCheck->setChecked(settings.value("hideCreditcardButton", false).toBool());
     m_hideDebitcardCheck->setChecked(settings.value("hideDebitcardButton", false).toBool());
 
-    connect(m_systemFontButton, SIGNAL(clicked(bool)), this, SLOT(systemFontButton_clicked(bool)));
-    connect(m_printerFontButton, SIGNAL(clicked(bool)), this, SLOT(printerFontButton_clicked(bool)));
-    connect(m_receiptPrinterFontButton, SIGNAL(clicked(bool)), this, SLOT(receiptPrinterFontButton_clicked(bool)));
-    connect(m_useMaximumItemSoldCheck, SIGNAL(clicked(bool)), this, SLOT(maximumSoldItemChanged(bool)));
+    connect(m_systemFontButton, &QPushButton::clicked, this, &ExtraTab::systemFontButton_clicked);
+    connect(m_printerFontButton, &QPushButton::clicked, this, &ExtraTab::printerFontButton_clicked);
+    connect(m_receiptPrinterFontButton, &QPushButton::clicked, this, &ExtraTab::receiptPrinterFontButton_clicked);
+    connect(m_useMaximumItemSoldCheck, &QPushButton::clicked, this, &ExtraTab::maximumSoldItemChanged);
 
-    connect(printerTestButton, SIGNAL(clicked(bool)), this, SLOT(printerTestButton_clicked(bool)));
-    connect(receiptPrinterTestButton, SIGNAL(clicked(bool)), this, SLOT(receiptPrinterTestButton_clicked(bool)));
+    connect(printerTestButton, &QPushButton::clicked, this, &ExtraTab::printerTestButton_clicked);
+    connect(receiptPrinterTestButton, &QPushButton::clicked, this, &ExtraTab::receiptPrinterTestButton_clicked);
 
-    connect(m_fontsGroup, SIGNAL(toggled(bool)), this, SLOT(fontsGroup_toggled(bool)));
+    connect(m_fontsGroup, &QGroupBox::toggled, this, &ExtraTab::fontsGroup_toggled);
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_extra"))
+        disableWidgets();
+
 }
 
 void ExtraTab::maximumSoldItemChanged(bool enabled)
@@ -541,23 +564,23 @@ bool ExtraTab::isFontsGroup()
 
 QString ExtraTab::getSystemFont()
 {
-    return QString("%1,%2,%3").arg(m_systemFont->family()).arg(m_systemFont->pointSize()).arg(m_systemFont->stretch());
+    return QString("%1,%2,%3").arg(m_systemFont.family()).arg(m_systemFont.pointSize()).arg(m_systemFont.stretch());
 }
 
 QString ExtraTab::getPrinterFont()
 {
-    return QString("%1,%2,%3").arg(m_printerFont->family()).arg(m_printerFont->pointSize()).arg(m_printerFont->stretch());
+    return QString("%1,%2,%3").arg(m_printerFont.family()).arg(m_printerFont.pointSize()).arg(m_printerFont.stretch());
 }
 
 QString ExtraTab::getReceiptPrinterFont()
 {
-    return QString("%1,%2,%3").arg(m_receiptPrinterFont->family()).arg(m_receiptPrinterFont->pointSize()).arg(m_receiptPrinterFont->stretch());
+    return QString("%1,%2,%3").arg(m_receiptPrinterFont.family()).arg(m_receiptPrinterFont.pointSize()).arg(m_receiptPrinterFont.stretch());
 }
 
 void ExtraTab::printerTestButton_clicked(bool)
 {
     DocumentPrinter *p = new DocumentPrinter();
-    p->printTestDocument(*m_printerFont);
+    p->printTestDocument(m_printerFont);
 }
 
 void ExtraTab::receiptPrinterTestButton_clicked(bool)
@@ -580,37 +603,37 @@ void ExtraTab::receiptPrinterTestButton_clicked(bool)
 
 void ExtraTab::systemFontButton_clicked(bool)
 {
-    FontSelector *fontSelect = new FontSelector(*m_systemFont);
+    FontSelector *fontSelect = new FontSelector(m_systemFont);
     if ( fontSelect->exec() == FontSelector::Accepted ) {
-        m_systemFont = new QFont(fontSelect->getFont());
-        m_systemFontButton->setText(m_systemFont->family());
-        m_systemFontSizeLabel->setText(QString::number(m_systemFont->pointSize()));
-        m_systemFontStretchLabel->setText(QString::number(m_systemFont->stretch()));
-        QApplication::setFont(*m_systemFont);
+        m_systemFont = fontSelect->getFont();
+        m_systemFontButton->setText(m_systemFont.family());
+        m_systemFontSizeLabel->setText(QString::number(m_systemFont.pointSize()));
+        m_systemFontStretchLabel->setText(QString::number(m_systemFont.stretch()));
+        QApplication::setFont(m_systemFont);
     }
 }
 
 void ExtraTab::printerFontButton_clicked(bool)
 {
-    FontSelector *fontSelect = new FontSelector(*m_printerFont);
+    FontSelector *fontSelect = new FontSelector(m_printerFont);
     if ( fontSelect->exec() == FontSelector::Accepted ) {
-        m_printerFont = new QFont(fontSelect->getFont());
-        m_printerFontButton->setText(m_printerFont->family());
-        m_printerFontButton->setFont(*m_printerFont);
-        m_printerFontSizeLabel->setText(QString::number(m_printerFont->pointSize()));
-        m_printerFontStretchLabel->setText(QString::number(m_printerFont->stretch()));
+        m_printerFont = fontSelect->getFont();
+        m_printerFontButton->setText(m_printerFont.family());
+        m_printerFontButton->setFont(m_printerFont);
+        m_printerFontSizeLabel->setText(QString::number(m_printerFont.pointSize()));
+        m_printerFontStretchLabel->setText(QString::number(m_printerFont.stretch()));
     }
 }
 
 void ExtraTab::receiptPrinterFontButton_clicked(bool)
 {
-    FontSelector *fontSelect = new FontSelector(*m_receiptPrinterFont);
+    FontSelector *fontSelect = new FontSelector(m_receiptPrinterFont);
     if ( fontSelect->exec() == FontSelector::Accepted ) {
-        m_receiptPrinterFont = new QFont(fontSelect->getFont());
-        m_receiptPrinterFontButton->setText(m_receiptPrinterFont->family());
-        m_receiptPrinterFontButton->setFont(*m_receiptPrinterFont);
-        m_receiptPrinterFontSizeLabel->setText(QString::number(m_receiptPrinterFont->pointSize()));
-        m_receiptPrinterFontStretchLabel->setText(QString::number(m_receiptPrinterFont->stretch()));
+        m_receiptPrinterFont = fontSelect->getFont();
+        m_receiptPrinterFontButton->setText(m_receiptPrinterFont.family());
+        m_receiptPrinterFontButton->setFont(m_receiptPrinterFont);
+        m_receiptPrinterFontSizeLabel->setText(QString::number(m_receiptPrinterFont.pointSize()));
+        m_receiptPrinterFontStretchLabel->setText(QString::number(m_receiptPrinterFont.stretch()));
     }
 }
 
@@ -660,7 +683,7 @@ bool ExtraTab::hideDebitcardButton()
 }
 
 ServerTab::ServerTab(QWidget *parent)
-    : QWidget(parent)
+    : Widget(parent)
 {
     m_importDirectoryEdit = new QLineEdit();
     m_importDirectoryEdit->setEnabled(false);
@@ -672,7 +695,7 @@ ServerTab::ServerTab(QWidget *parent)
 
     QPushButton *importDirectoryButton = new QPushButton;
 
-    QIcon icon = QIcon(":icons/save.png");
+    QIcon icon = QIcon(":src/icons/save.png");
     QSize size = QSize(24,24);
 
     importDirectoryButton->setIcon(icon);
@@ -692,7 +715,7 @@ ServerTab::ServerTab(QWidget *parent)
     serverLayout->addWidget(importDirectoryButton, 1,3);
     serverGroup->setLayout(serverLayout);
 
-    connect(importDirectoryButton, SIGNAL(clicked(bool)), this, SLOT(importDirectoryButton_clicked()));
+    connect(importDirectoryButton, &QPushButton::clicked, this, &ServerTab::importDirectoryButton_clicked);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(serverGroup);
@@ -704,6 +727,10 @@ ServerTab::ServerTab(QWidget *parent)
     m_importDirectoryEdit->setText(settings.value("importDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString());
     m_codePageCombo->setCurrentText(settings.value("importCodePage", "UTF-8").toString());
     m_serverFullscreen->setChecked(settings.value("importServerFullscreen", false).toBool());
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_extra"))
+        disableWidgets();
+
 }
 
 void ServerTab::importDirectoryButton_clicked()
@@ -735,12 +762,14 @@ bool ServerTab::getServerFullscreen()
 }
 
 GeneralTab::GeneralTab(QWidget *parent)
-    : QWidget(parent)
+    : Widget(parent)
 {
     m_dataDirectoryEdit = new QLineEdit();
     m_dataDirectoryEdit->setEnabled(false);
     m_backupDirectoryEdit = new QLineEdit();
     m_backupDirectoryEdit->setEnabled(false);
+    m_keepMaxBackupSpinBox = new QSpinBox();
+    m_keepMaxBackupSpinBox->setMinimum(-1);
     m_pdfDirectoryEdit = new QLineEdit();
     m_pdfDirectoryEdit->setEnabled(false);
     m_externalDepDirectoryEdit = new QLineEdit();
@@ -751,7 +780,7 @@ GeneralTab::GeneralTab(QWidget *parent)
     QPushButton *pdfDirectoryButton = new QPushButton;
     QPushButton *externalDepDirectoryButton = new QPushButton;
 
-    QIcon icon = QIcon(":icons/save.png");
+    QIcon icon = QIcon(":src/icons/save.png");
     QSize size = QSize(24,24);
 
     dataDirectoryButton->setIcon(icon);
@@ -786,15 +815,17 @@ GeneralTab::GeneralTab(QWidget *parent)
     QGridLayout *pathLayout = new QGridLayout;
     pathLayout->addWidget(new QLabel(tr("Daten Verzeichnis:")), 1,1);
     pathLayout->addWidget(new QLabel(tr("Backup Verzeichnis:")), 2,1);
-    pathLayout->addWidget(new QLabel(tr("Pdf Verzeichnis:")), 3,1);
+    pathLayout->addWidget(new QLabel(tr("maximale Anzahl von Backups behalten:")), 3,2);
+    pathLayout->addWidget(new QLabel(tr("Pdf Verzeichnis:")), 4,1);
 
     pathLayout->addWidget(m_dataDirectoryEdit, 1,2);
     pathLayout->addWidget(m_backupDirectoryEdit, 2,2);
-    pathLayout->addWidget(m_pdfDirectoryEdit, 3,2);
+    pathLayout->addWidget(m_keepMaxBackupSpinBox, 3,3);
+    pathLayout->addWidget(m_pdfDirectoryEdit, 4,2);
 
     pathLayout->addWidget(dataDirectoryButton, 1,3);
     pathLayout->addWidget(backupDirectoryButton, 2,3);
-    pathLayout->addWidget(pdfDirectoryButton, 3,3);
+    pathLayout->addWidget(pdfDirectoryButton, 4,3);
 
     pathGroup->setLayout(pathLayout);
 
@@ -807,10 +838,10 @@ GeneralTab::GeneralTab(QWidget *parent)
     externalDepLayout->addWidget(externalDepDirectoryButton, 2,3);
     m_externalDepGroup->setLayout(externalDepLayout);
 
-    connect(backupDirectoryButton, SIGNAL(clicked(bool)), this, SLOT(backupDirectoryButton_clicked()));
-    connect(pdfDirectoryButton, SIGNAL(clicked(bool)), this, SLOT(pdfDirectoryButton_clicked()));
-    connect(dataDirectoryButton, SIGNAL(clicked(bool)), this, SLOT(dataDirectoryButton_clicked()));
-    connect(externalDepDirectoryButton, SIGNAL(clicked(bool)), this, SLOT(externalDepDirectoryButton_clicked()));
+    connect(backupDirectoryButton, &QPushButton::clicked, this, &GeneralTab::backupDirectoryButton_clicked);
+    connect(pdfDirectoryButton, &QPushButton::clicked, this, &GeneralTab::pdfDirectoryButton_clicked);
+    connect(dataDirectoryButton, &QPushButton::clicked, this, &GeneralTab::dataDirectoryButton_clicked);
+    connect(externalDepDirectoryButton, &QPushButton::clicked, this, &GeneralTab::externalDepDirectoryButton_clicked);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(pathGroup);
@@ -822,10 +853,15 @@ GeneralTab::GeneralTab(QWidget *parent)
     QrkSettings settings;
     m_dataDirectoryEdit->setText(settings.value("sqliteDataDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/data").toString());
     m_backupDirectoryEdit->setText(settings.value("backupDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString());
+    m_keepMaxBackupSpinBox->setValue(settings.value("keepMaxBackups", -1).toInt());
     m_pdfDirectoryEdit->setText(settings.value("pdfDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)+ "/pdf").toString());
     m_externalDepDirectoryEdit->setText(settings.value("externalDepDirectory", "").toString());
 
     masterTaxChanged(Database::getTaxLocation());
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_paths"))
+        disableWidgets();
+
 }
 
 void GeneralTab::masterTaxChanged(QString tax)
@@ -930,6 +966,11 @@ QString GeneralTab::getBackupDirectory()
     return m_backupDirectoryEdit->text();
 }
 
+int GeneralTab::getKeepMaxBackups()
+{
+    return m_keepMaxBackupSpinBox->value();
+}
+
 QString GeneralTab::getPdfDirectory()
 {
     return m_pdfDirectoryEdit->text();
@@ -946,24 +987,25 @@ QString GeneralTab::getExternalDepDirectory()
 }
 
 MasterDataTab::MasterDataTab(QWidget *parent)
-    : QWidget(parent)
+    : Widget(parent)
 {
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     m_shopName = new QLineEdit;
     m_shopOwner = new QLineEdit;
-    m_shopAddress = new QTextEdit;
+    m_shopAddress = new TextEdit;
+    m_shopAddress->setToolTip("");
     m_shopUid = new QLineEdit;
     m_shopCashRegisterId = new QLineEdit;
     m_taxlocation = new QComboBox;
     m_currency = new QComboBox;
 
-    connect(m_shopCashRegisterId, SIGNAL(editingFinished()), this, SLOT(cashRegisterIdChanged()));
+    connect(m_shopCashRegisterId, &QLineEdit::editingFinished, this, &MasterDataTab::cashRegisterIdChanged);
 
     QRegExp re("^[^_]+$");
-    QRegExpValidator *v = new QRegExpValidator(re);
+    QRegExpValidator *v = new QRegExpValidator(re, this);
     m_shopCashRegisterId->setValidator(v);
     m_shopCashRegisterId->setPlaceholderText(tr("z.B. Firmenname-1, QRK1, oder FN-1 ..."));
 
@@ -1054,8 +1096,10 @@ MasterDataTab::MasterDataTab(QWidget *parent)
         currencyGroup->setEnabled(false);
     }
 
-    connect(m_taxlocation, SIGNAL(currentIndexChanged(QString)),this, SIGNAL(taxChanged(QString)));
+    connect(m_taxlocation, static_cast<void(QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged), this, &MasterDataTab::taxChanged);
 
+    if (!RBAC::Instance()->hasPermission("settings_edit_masterdata"))
+        disableWidgets();
 }
 
 void MasterDataTab::cashRegisterIdChanged()
@@ -1100,8 +1144,8 @@ QString MasterDataTab::getShopCashRegisterId()
 
 }
 
-PrinterTab::PrinterTab(QWidget *parent)
-    : QWidget(parent)
+PrinterTab::PrinterTab(QStringList availablePrinters, QWidget *parent)
+    : Widget(parent)
 {
     m_reportPrinterCheck = new QCheckBox();
     m_reportPrinterCombo = new QComboBox();
@@ -1152,20 +1196,19 @@ PrinterTab::PrinterTab(QWidget *parent)
     QString reportPrinter = settings.value("reportPrinter").toString();
     QString invoiceCompanyPrinter = settings.value("invoiceCompanyPrinter").toString();
 
-    QList<QPrinterInfo> availablePrinters = QPrinterInfo::availablePrinters();
     for (int i = 0; i < availablePrinters.count(); i++)
     {
-        m_reportPrinterCombo->addItem(availablePrinters[i].printerName());
-        m_invoiceCompanyPrinterCombo->addItem(availablePrinters[i].printerName());
+        m_reportPrinterCombo->addItem(availablePrinters[i]);
+        m_invoiceCompanyPrinterCombo->addItem(availablePrinters[i]);
 
-        if ( reportPrinter == availablePrinters[i].printerName() )
+        if ( reportPrinter == availablePrinters[i] )
             m_reportPrinterCombo->setCurrentIndex(i);
-        if ( invoiceCompanyPrinter == availablePrinters[i].printerName() )
+        if ( invoiceCompanyPrinter == availablePrinters[i] )
             m_invoiceCompanyPrinterCombo->setCurrentIndex(i);
 
     }
     m_reportPrinterCheck->setChecked(settings.value("reportPrinterPDF", false).toBool());
-    connect(m_reportPrinterCheck, SIGNAL(toggled(bool)),this, SLOT(reportPrinterCheck_toggled(bool)));
+    connect(m_reportPrinterCheck, &QCheckBox::toggled,this, &PrinterTab::reportPrinterCheck_toggled);
 
     m_reportPrinterCombo->setEnabled(!m_reportPrinterCheck->isChecked());
 
@@ -1182,6 +1225,9 @@ PrinterTab::PrinterTab(QWidget *parent)
     m_invoiceCompanyMarginTopSpin->setValue(settings.value("invoiceCompanyMarginTop", 50).toInt());
     m_invoiceCompanyMarginRightSpin->setValue(settings.value("invoiceCompanyMarginRight", 5).toInt());
     m_invoiceCompanyMarginBottomSpin->setValue(settings.value("invoiceCompanyMarginBottom", 0).toInt());
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_printer"))
+        disableWidgets();
 
 }
 
@@ -1235,9 +1281,8 @@ int PrinterTab::getInvoiceCompanyMarginBottom()
     return m_invoiceCompanyMarginBottomSpin->value();
 }
 
-
-ReceiptPrinterTab::ReceiptPrinterTab(QWidget *parent)
-    : QWidget(parent)
+ReceiptPrinterTab::ReceiptPrinterTab(QStringList availablePrinters, QWidget *parent)
+    : Widget(parent)
 {
     m_receiptPrinterCombo = new QComboBox();
     m_useReportPrinterCheck = new QCheckBox();
@@ -1365,11 +1410,10 @@ ReceiptPrinterTab::ReceiptPrinterTab(QWidget *parent)
 
     QrkSettings settings;
     QString receiptPrinter = settings.value("receiptPrinter").toString();
-    QList<QPrinterInfo> availablePrinters = QPrinterInfo::availablePrinters();
     for (int i = 0; i < availablePrinters.count(); i++)
     {
-        m_receiptPrinterCombo->addItem(availablePrinters[i].printerName());
-        if ( receiptPrinter == availablePrinters[i].printerName() )
+        m_receiptPrinterCombo->addItem(availablePrinters[i]);
+        if ( receiptPrinter == availablePrinters[i] )
             m_receiptPrinterCombo->setCurrentIndex(i);
     }
 
@@ -1391,6 +1435,9 @@ ReceiptPrinterTab::ReceiptPrinterTab(QWidget *parent)
     m_feedTaxSpin->setValue(settings.value("feedTaxSpin", 5).toInt());
     m_feedPrintHeaderSpin->setValue(settings.value("feedPrintHeader", 5).toInt());
     m_feedHeaderTextSpin->setValue(settings.value("feedHeaderText", 5).toInt());
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_receipt_printer"))
+        disableWidgets();
 
 }
 
@@ -1479,8 +1526,8 @@ int ReceiptPrinterTab::getfeedHeaderText()
     return m_feedHeaderTextSpin->value();
 }
 
-ReceiptTab::ReceiptTab(QWidget *parent)
-    : QWidget(parent)
+ReceiptTab::ReceiptTab(QStringList availablePrinters, QWidget *parent)
+    : Widget(parent)
 {
 
     m_receiptPrinterHeading = new QComboBox();
@@ -1501,7 +1548,7 @@ ReceiptTab::ReceiptTab(QWidget *parent)
     m_logoEdit->setEnabled(false);
     m_logoButton = new QPushButton;
 
-    QIcon icon = QIcon(":icons/save.png");
+    QIcon icon = QIcon(":src/icons/save.png");
     QSize size = QSize(24,24);
     m_logoButton->setIcon(icon);
     m_logoButton->setIconSize(size);
@@ -1517,12 +1564,26 @@ ReceiptTab::ReceiptTab(QWidget *parent)
     collectionBonLayout->addWidget(new QLabel(tr("Anzahl Kopien:")));
     collectionBonLayout->addWidget(m_collectionReceiptCopiesSpin);
 
+    m_collectionPrinterCombo = new QComboBox;
+    QrkSettings settings;
+    QString collectionPrinter = settings.value("collectionPrinter").toString();
+    for (int i = 0; i < availablePrinters.count(); i++)
+    {
+        m_collectionPrinterCombo->addItem(availablePrinters[i]);
+        if ( collectionPrinter == availablePrinters[i] )
+            m_collectionPrinterCombo->setCurrentIndex(i);
+    }
+
+    m_collectionPrinterPaperFormatCombo = new QComboBox;
+    m_collectionPrinterPaperFormatCombo->addItem("A4");
+    m_collectionPrinterPaperFormatCombo->addItem("A5");
+    m_collectionPrinterPaperFormatCombo->addItem("POS");
+    m_collectionPrinterPaperFormatCombo->setCurrentText(settings.value("collectionPrinterPaperFormat", "POS").toString());
+
     QGroupBox *receiptGroup = new QGroupBox(tr("Kassa BON"));
     QFormLayout *receiptLayout = new QFormLayout;
     receiptLayout->setAlignment(Qt::AlignLeft);
     receiptLayout->addRow(tr("Überschrift:"), m_receiptPrinterHeading);
-    receiptLayout->addRow(tr("Extrabon pro Artikel drucken:"), collectionBonLayout);
-    receiptLayout->addRow(tr("Extrabon Text:"), m_collectionReceiptTextEdit);
     receiptLayout->addRow(tr("Firmenname Fett drucken:"), m_printCompanyNameBoldCheck);
     receiptLayout->addRow(tr("QRCode drucken:"), m_printQRCodeCheck);
     receiptLayout->addRow(tr("QRCode auf der linken Seite drucken:"), m_printQRCodeLeftCheck);
@@ -1531,13 +1592,24 @@ ReceiptTab::ReceiptTab(QWidget *parent)
     receiptLayout->addRow(tr("Logo auf der rechten Seite drucken:"), m_useLogoRightCheck);
     receiptGroup->setLayout(receiptLayout);
 
+    QGroupBox *collectionGroup = new QGroupBox(tr("Abhol BON"));
+    QFormLayout *collectionLayout = new QFormLayout;
+    collectionLayout->setAlignment(Qt::AlignLeft);
+    collectionLayout->addRow(tr("Extrabon pro Artikel drucken:"), collectionBonLayout);
+    collectionLayout->addRow(tr("Extrabon Text:"), m_collectionReceiptTextEdit);
+    collectionLayout->addRow(tr("Extrabon Drucker:"), m_collectionPrinterCombo);
+    collectionLayout->addRow(tr("Papierformat:"), m_collectionPrinterPaperFormatCombo);
+
+    collectionGroup->setLayout(collectionLayout);
+
+
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(receiptGroup);
+    mainLayout->addWidget(collectionGroup);
 
     mainLayout->addStretch(1);
     setLayout(mainLayout);
 
-    QrkSettings settings;
     m_receiptPrinterHeading->addItem("KASSABON");
     m_receiptPrinterHeading->addItem("KASSENBON");
     m_receiptPrinterHeading->addItem("Zahlungsbestätigung");
@@ -1559,9 +1631,12 @@ ReceiptTab::ReceiptTab(QWidget *parent)
     m_printQRCodeCheck->setChecked(settings.value("qrcode", true).toBool());
     m_printQRCodeLeftCheck->setChecked(settings.value("qrcodeleft", false).toBool());
 
-    connect(m_logoButton, SIGNAL(clicked(bool)), this, SLOT(logoButton_clicked()));
-    connect(m_useLogo, SIGNAL(toggled(bool)) , this, SLOT(useLogoCheck_toggled(bool)));
-    connect(m_printQRCodeCheck, SIGNAL(toggled(bool)) , m_printQRCodeLeftCheck, SLOT(setEnabled(bool)));
+    connect(m_logoButton, &QPushButton::clicked, this, &ReceiptTab::logoButton_clicked);
+    connect(m_useLogo, &QPushButton::clicked, this, &ReceiptTab::useLogoCheck_toggled);
+    connect(m_printQRCodeCheck, &QPushButton::clicked, m_printQRCodeLeftCheck, &QCheckBox::setEnabled);
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_receipt"))
+        disableWidgets();
 
 }
 
@@ -1600,6 +1675,16 @@ QString ReceiptTab::getReceiptPrinterHeading()
     return m_receiptPrinterHeading->currentText();
 }
 
+QString ReceiptTab::getCollectionPrinter()
+{
+    return m_collectionPrinterCombo->currentText();
+}
+
+QString ReceiptTab::getCollectionPrinterPaperFormat()
+{
+    return m_collectionPrinterPaperFormatCombo->currentText();
+}
+
 bool ReceiptTab::getPrintCollectionReceipt()
 {
     return m_printCollectionReceiptCheck->isChecked();
@@ -1632,19 +1717,27 @@ bool ReceiptTab::getPrintQRCodeLeft()
 }
 
 ReceiptEnhancedTab::ReceiptEnhancedTab(QWidget *parent)
-    : QWidget(parent)
+    : Widget(parent)
 {
+    m_printAdvertisingEdit = new TextEdit();
+    m_printHeaderEdit = new TextEdit();
+    m_printFooterEdit = new TextEdit();
 
-    m_printAdvertisingEdit = new QTextEdit();
-    m_printHeaderEdit = new QTextEdit();
-    m_printFooterEdit = new QTextEdit();
+    completer = new QCompleter(this);
+    completer->setModel(modelFromFile(":src/txt/templatecompleter.txt"));
+    completer->setModelSorting(QCompleter::CaseInsensitivelySortedModel);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setWrapAround(false);
+    m_printAdvertisingEdit->setCompleter(completer);
+    m_printHeaderEdit->setCompleter(completer);
+    m_printFooterEdit->setCompleter(completer);
 
     m_useAdvertising = new QCheckBox();
     m_advertisingEdit = new QLineEdit();
     m_advertisingEdit->setEnabled(false);
     m_advertisingButton = new QPushButton;
 
-    QIcon icon = QIcon(":icons/save.png");
+    QIcon icon = QIcon(":src/icons/save.png");
     QSize size = QSize(24,24);
     m_advertisingButton->setIcon(icon);
     m_advertisingButton->setIconSize(size);
@@ -1673,7 +1766,7 @@ ReceiptEnhancedTab::ReceiptEnhancedTab(QWidget *parent)
     mainLayout->addStretch(1);
     setLayout(mainLayout);
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT strValue FROM globals WHERE name='printAdvertisingText'");
@@ -1701,9 +1794,31 @@ ReceiptEnhancedTab::ReceiptEnhancedTab(QWidget *parent)
     m_useAdvertising->setChecked(settings.value("useAdvertising", false).toBool());
     m_advertisingEdit->setText(settings.value("advertising", "./advertising.png").toString());
 
-    connect(m_advertisingButton, SIGNAL(clicked(bool)), this, SLOT(advertisingButton_clicked()));
-    connect(m_useAdvertising, SIGNAL(toggled(bool)) , this, SLOT(useAdvertisingCheck_toggled(bool)));
+    connect(m_advertisingButton, &QPushButton::clicked, this, &ReceiptEnhancedTab::advertisingButton_clicked);
+    connect(m_useAdvertising, &QCheckBox::toggled, this, &ReceiptEnhancedTab::useAdvertisingCheck_toggled);
 
+    if (!RBAC::Instance()->hasPermission("settings_edit_receipt_text"))
+        disableWidgets();
+
+}
+
+QAbstractItemModel *ReceiptEnhancedTab::modelFromFile(const QString& fileName)
+{
+    QFile file(fileName);
+    if (!file.open(QFile::ReadOnly))
+        return new QStringListModel(completer);
+
+    QStringList words;
+
+    while (!file.atEnd()) {
+        QByteArray line = file.readLine();
+        if (!line.isEmpty())
+            words << line.trimmed();
+    }
+
+    std::sort(words.begin(), words.end(), std::greater<QString>());
+
+    return new QStringListModel(words, completer);
 }
 
 QString ReceiptEnhancedTab::getAdvertisingText()
@@ -1747,7 +1862,7 @@ void ReceiptEnhancedTab::advertisingButton_clicked()
 }
 
 SCardReaderTab::SCardReaderTab(QWidget *parent)
-    : QWidget(parent)
+    : Widget(parent)
 {
 
     QrkSettings settings;
@@ -1795,7 +1910,7 @@ SCardReaderTab::SCardReaderTab(QWidget *parent)
     QFormLayout *onlineLayout = new QFormLayout;
     QHBoxLayout *loginLayout = new QHBoxLayout;
     loginLayout->addWidget(m_providerLoginEdit);
-    loginLayout->addWidget(new QLabel((tr("Passwort:"))));
+    loginLayout->addWidget(new QLabel((tr("Kennwort:"))));
     loginLayout->addWidget(m_providerPasswordEdit);
 
     onlineLayout->setAlignment(Qt::AlignLeft);
@@ -1852,15 +1967,19 @@ SCardReaderTab::SCardReaderTab(QWidget *parent)
     setLayout(mainLayout);
 
     /*----------------------------------------------------------------------*/
-    connect(m_scardGroup, SIGNAL(clicked(bool)), this, SLOT(scardGroup_clicked(bool)));
-    connect(m_onlineGroup, SIGNAL(clicked(bool)), this, SLOT(onlineGroup_clicked(bool)));
-    connect(scardTestButton, SIGNAL(clicked(bool)), this, SLOT(testButton_clicked(bool)));
-    connect(m_scardActivateButton, SIGNAL(clicked(bool)), this, SLOT(activateButton_clicked(bool)));
+    connect(m_scardGroup, &QGroupBox::clicked, this, &SCardReaderTab::scardGroup_clicked);
+    connect(m_onlineGroup, &QGroupBox::clicked, this, &SCardReaderTab::onlineGroup_clicked);
+    connect(scardTestButton, &QPushButton::clicked, this, &SCardReaderTab::testButton_clicked);
+    connect(m_scardActivateButton, &QPushButton::clicked, this, &SCardReaderTab::activateButton_clicked);
     if (readerCount == 0) {
         m_scardReaderComboBox->addItem(tr("Kein Kartenleser vorhanden"));
         m_scardReaderComboBox->setEnabled(false);
         emit scardGroup_clicked(false);
     }
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_see"))
+        disableWidgets();
+
 }
 
 bool SCardReaderTab::saveSettings()
@@ -1929,6 +2048,10 @@ void SCardReaderTab::onlineGroup_clicked(bool b)
 void SCardReaderTab::testButton_clicked(bool)
 {
 
+    QRKProgress waitbar;
+    waitbar.setText(tr("Signaturerstellungseinheit wird geprüft."));
+    waitbar.setWaitMode(true);
+    waitbar.show();
     m_infoWidget->clear();
     if (m_onlineGroup->isChecked())
         m_rkSignature = RKSignatureModuleFactory::createInstance(getCurrentOnlineConnetionString(), DemoMode::isDemoMode());
@@ -1949,7 +2072,7 @@ void SCardReaderTab::testButton_clicked(bool)
 
 void SCardReaderTab::activateButton_clicked(bool)
 {
-    if (!saveSettings() && !DemoMode::isDemoMode()) {
+    if (!saveSettings() && !DemoMode::isDemoMode() && !RKSignatureModule::isDEPactive()) {
         QMessageBox messageBox(QMessageBox::Information,
                                QObject::tr("DEP aktivieren"),
                                QObject::tr("Keine gültige Signaturerstellungseinheit gefunden."),
@@ -1979,19 +2102,25 @@ void SCardReaderTab::activateButton_clicked(bool)
             messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ja"));
             messageBox.setButtonText(QMessageBox::No, QObject::tr("Nein"));
             if (messageBox.exec() == QMessageBox::Yes ) {
-                Reports *rep = new Reports(0, true);
-                bool check = rep->checkEOAnyServerMode();
-                delete rep;
+                QRKProgress waitbar;
+                waitbar.setText(tr("DEP wird aktiviert."));
+                waitbar.setWaitMode(true);
+                waitbar.show();
+
+                Reports rep(0, true);
+                bool check = rep.checkEOAnyServerMode();
                 if (check) {
-                    ReceiptItemModel *rec = new ReceiptItemModel();
-                    if (rec->createStartReceipt()) {
+                    ReceiptItemModel rec;
+                    if (rec.createStartReceipt()) {
                         m_scardActivateButton->setVisible(false);
+                        waitbar.close();
                         QMessageBox::information(this,tr("DEP wurde aktiviert!"), tr("DEP wurde aktiviert. Die Kasse ist RKSV-konform.\n Der STARTBELEG wurde erstellt."), "Ok");
                     } else {
+                        waitbar.close();
                         QMessageBox::information(this,tr("Fehler!"), tr("DEP konnte nicht aktiviert werden. Siehe Log."), "Ok");
                     }
-                    delete rec;
                 } else {
+                    waitbar.close();
                     QMessageBox::information(this,tr("Fehler!"), tr("DEP konnte nicht aktiviert werden. Tages/Monatsabschluss wurde schon erstellt."), "Ok");
                 }
             }
@@ -2004,24 +2133,30 @@ void SCardReaderTab::activateButton_clicked(bool)
             messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ja"));
             messageBox.setButtonText(QMessageBox::No, QObject::tr("Nein"));
             if (messageBox.exec() == QMessageBox::Yes ) {
+                QRKProgress waitbar;
+                waitbar.setText(tr("Signaturerstellungseinheit wird geprüft."));
+                waitbar.setWaitMode(true);
+                waitbar.show();
+
                 RKSignatureModule::setDEPactive(false);
                 m_scardActivateButton->setText(tr("Kasse außer Betrieb."));
                 m_scardActivateButton->setEnabled(false);
 
-                Reports *rep = new Reports(0, true);
-                bool check = rep->checkEOAnyServerMode();
-                delete rep;
+                Reports rep(0, true);
+                bool check = rep.checkEOAnyServerMode();
                 if (check) {
-                    ReceiptItemModel *rec = new ReceiptItemModel();
-                    if (rec->createNullReceipt(CONCLUSION_RECEIPT)) {
+                    ReceiptItemModel rec;
+                    if (rec.createNullReceipt(CONCLUSION_RECEIPT)) {
                         m_scardActivateButton->setVisible(false);
                         Database::setCashRegisterInAktive();
+                        waitbar.close();
                         QMessageBox::information(this,tr("Außer Betrieb!"), tr("Die Kasse wurde außer Betrieb genommen.\n Der SCHLUSSBELEG wurde erstellt."), "Ok");
                     } else {
+                        waitbar.close();
                         QMessageBox::information(this,tr("Fehler!"), tr("DEP konnte nicht aktiviert werden. Siehe Log."), "Ok");
                     }
-                    delete rec;
                 } else {
+                    waitbar.close();
                     QMessageBox::information(this,tr("Fehler!"), tr("DEP konnte nicht aktiviert werden. Tages/Monatsabschluss wurde schon erstellt."), "Ok");
                 }
             }

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,8 +37,7 @@ CsvImportWizardPage3::CsvImportWizardPage3(QWidget *parent) :
     ui(new Ui::CsvImportWizardPage3)
 {
     ui->setupUi(this);
-
-    connect(ui->startImportButton, SIGNAL(clicked(bool)),this, SLOT(save(bool)));
+    connect(ui->startImportButton, &QPushButton::clicked, this, &CsvImportWizardPage3::save);
 }
 
 CsvImportWizardPage3::~CsvImportWizardPage3()
@@ -102,14 +101,15 @@ void CsvImportWizardPage3::save(bool)
     emit completeChanged();
     emit info(tr("Der DatenImport wurde gestarted."));
     ImportData *import = new ImportData(m_model, m_map, m_ignoreExistingProduct, m_guessGroup, m_autoGroup, m_visibleGroup, m_visibleProduct, m_updateExistingProduct);
-    QThread *thread = new QThread(this);
+    QThread *thread = new QThread;
     import->moveToThread(thread);
 
-    connect(thread, SIGNAL(started()), import, SLOT(run()));
-
-    connect(import, SIGNAL(percentChanged(int)), ui->progressBar, SLOT(setValue(int)));
-    connect(import, SIGNAL(finished()), this, SLOT(importFinished()));
-    connect(import, SIGNAL(info(QString)), this, SLOT(info(QString)));
+    connect(thread, &QThread::started, import, &ImportData::run);
+    connect(import, &ImportData::percentChanged, ui->progressBar, &QProgressBar::setValue);
+    connect(import, &ImportData::info, this, &CsvImportWizardPage3::info);
+    connect(import, &ImportData::finished, this, &CsvImportWizardPage3::importFinished);
+    connect(import, &ImportData::finished, import, &ImportData::deleteLater);
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
 
     thread->start();
 
@@ -135,7 +135,7 @@ ImportData::~ImportData()
 
 void ImportData::run()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     int count = m_model->rowCount();
@@ -271,7 +271,7 @@ QString ImportData::getItemValue(int row, int col, bool replace)
 
 QString ImportData::getGroupById(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT name FROM groups WHERE id=:id");
@@ -286,7 +286,7 @@ QString ImportData::getGroupById(int id)
 
 int ImportData::getGroupByName(QString name)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT id FROM groups WHERE name=:name");
@@ -309,7 +309,7 @@ QString ImportData::getGuessGroup(QString name)
 int ImportData::createGroup(QString name)
 {
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT id FROM groups WHERE name=:name"));
@@ -347,7 +347,7 @@ int ImportData::exists(QString itemnum, QString barcode, QString name)
     if (name.isEmpty())
         return 0;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     if (!itemnum.isEmpty()) {

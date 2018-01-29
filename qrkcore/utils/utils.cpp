@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include <QStringList>
 #include <QPixmap>
 #include <QtMath>
+#include <QStorageInfo>
 #include <QDebug>
 
 Utils::Utils()
@@ -48,16 +49,15 @@ Utils::~Utils()
 {
 }
 
-
 QString Utils::getSignature(QJsonObject data)
 {
 
-    SpreadSignal::setProgressBarWait(true);
+    Spread::Instance()->setProgressBarWait(true);
     RKSignatureModule *RKSignature = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
     RKSignature->selectApplication();
 
     QString taxlocation =  Database::getTaxLocation();
-    QSqlDatabase dbc= QSqlDatabase::database("CN");
+    QSqlDatabase dbc= Database::database();
     QSqlQuery query(dbc);
 
     QJsonObject sign;
@@ -102,7 +102,7 @@ QString Utils::getSignature(QJsonObject data)
 
     bool safetyDevice;
     QString certificateSerial = RKSignature->getCertificateSerial(true);
-    if (certificateSerial == "0") {
+    if (certificateSerial == "0" || certificateSerial.isEmpty()) {
         safetyDevice = false;
         certificateSerial = RKSignature->getLastUsedSerial();
         if (!RKSignature->isSignatureModuleSetDamaged())
@@ -123,8 +123,11 @@ QString Utils::getSignature(QJsonObject data)
 
     delete RKSignature;
 
-    SpreadSignal::setProgressBarWait(false);
-    SpreadSignal::setSafetyDevice(safetyDevice);
+    Spread::Instance()->setProgressBarWait(false);
+    Spread::Instance()->setSafetyDevice(safetyDevice);
+
+    if (certificateSerial.isEmpty())
+        return "";
 
     return signature;
 }
@@ -147,7 +150,7 @@ QString Utils::getReceiptSignature(int id, bool full)
 {
     qDebug() << "Function Name: " << Q_FUNC_INFO << " id: " << id;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT data FROM dep WHERE receiptNum=:receiptNum");
@@ -213,7 +216,7 @@ void Utils::resetTurnOverCounter()
 
 qlonglong Utils::getTurnOverCounter()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT value FROM globals WHERE name='turnovercounter'"));
@@ -230,7 +233,7 @@ qlonglong Utils::getTurnOverCounter()
 
 void Utils::updateTurnOverCounter(qlonglong toc)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT value FROM globals WHERE name='turnovercounter'");
@@ -248,7 +251,7 @@ void Utils::updateTurnOverCounter(qlonglong toc)
 
 double Utils::getYearlyTotal(int year)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     QDateTime from;
@@ -288,38 +291,46 @@ bool Utils::isDirectoryWritable(QString path)
 
 QString Utils::wordWrap(QString text, int width, QFont font)
 {
-  QFontMetrics fm(font);
-  QString result;
-  int space = 0;
+    QFontMetrics fm(font);
+    QString result;
+    int space = 0;
 
-  for (;;) {
-    int i = 0;
-    while (i < text.length()) {
-      if (fm.width(text.left(++i + 1)) > width) {
-        int j = text.lastIndexOf(' ', i);
-        space = 0;
-        if (j > 0) {
-          i = j;
-          space = 1;
+    for (;;) {
+        int i = 0;
+        while (i < text.length()) {
+            if (fm.width(text.left(++i + 1)) > width) {
+                int j = text.indexOf('\n');
+                if (j > i) {
+                    if (j <  i*2)
+                        text.replace(j,1,' ');
+                    j = -1;
+                }
+                if (j < 0)
+                    j = text.lastIndexOf(' ', i);
+
+                space = 0;
+                if (j >= 0) {
+                    i = j;
+                    space = 1;
+                }
+                result += text.left(i);
+                result += '\n';
+                text = text.mid(i + space);
+                break;
+            }
         }
-        result += text.left(i);
-        result += '\n';
-        text = text.mid(i + space);
-        break;
-      }
+        if (i >= text.length())
+            break;
     }
-    if (i >= text.length())
-      break;
-  }
-  return result + text;
+    return result + text;
 }
 
-bool Utils::checkTurnOverCounter()
+bool Utils::checkTurnOverCounter(QStringList &error)
 {
     QString key = RKSignatureModule::getPrivateTurnoverKey();
     RKSignatureModule *sm = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT data FROM dep ORDER BY id");
@@ -333,16 +344,24 @@ bool Utils::checkTurnOverCounter()
         qlonglong counter2 = 0;
         QString con = list.at(2) + list.at(3);
         QString encTOC = list.at(10);
+        QString serial = list.at(11);
+        QString receiptNum = list.at(3);
+        if (serial.isEmpty())
+            error.append(QObject::tr("Fehlende Seriennummer bei BON %1").arg(receiptNum));
+        QString decTOC = sm->decryptTurnoverCounter(con, encTOC, key);
         for (int y = 5; y < 9; y++) {
             QString current = list.at(y);
             counter2 += current.replace(",","").toLongLong();
         }
         counter += counter2;
+//        qDebug() << "#" << list.at(3) << "decTOC " << decTOC << " Counter " << counter << " L:" << list;
         QString newEncTOC = sm->encryptTurnoverCounter(con,counter,key);
 
         if (newEncTOC.compare(encTOC) != 0) {
-            if (encTOC != "U1RP")
+            if (encTOC != "U1RP") {
+                error.append(QObject::tr("Fehler beim Umsatzzähler für BON %1, Wert=%2 statt %3").arg(receiptNum).arg(decTOC).arg(counter));
                 ret = false;
+            }
         }
     }
     delete sm;
@@ -452,4 +471,24 @@ QPixmap Utils::getQRCode(int id, bool &isDamaged )
     QPixmap QR = qr.encodeTextToPixmap(qr_code_rep);
 
     return QR;
+}
+
+void Utils::diskSpace(QString path, qint64 &size, qint64 &bytesAvailable, double &percent)
+{
+    QStorageInfo storage = QStorageInfo::root();
+    storage.setPath(path);
+
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " storage rootpath: " << storage.rootPath();
+    if (storage.isReadOnly())
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " isReadOnly:" << storage.isReadOnly();
+
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " name:" << storage.name();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " fileSystemType:" << storage.fileSystemType();
+
+    size = storage.bytesTotal() /1024/1025;
+    bytesAvailable = storage.bytesAvailable() /1024/1024;
+
+    qint64 usedspace = size - bytesAvailable;
+    percent = ((double) usedspace / (double) size);
+
 }

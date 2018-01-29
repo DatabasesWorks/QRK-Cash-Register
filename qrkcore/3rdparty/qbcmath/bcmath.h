@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ public:
     QBCMath(quint32 num) : value(QString::number(num)) {  }
     QBCMath(quint64 num) : value(QString::number(num)) {  }
     QBCMath(float num) : value(QString::number((double)num)) {  }
-    QBCMath(double num) : value(QString::number(num)) {  }
+    QBCMath(double num) : value(QString::number(num, 'f')) {  }
     QBCMath(long double num) { std::stringstream ss; ss << num; value = QString::fromStdString(ss.str()); }
 
     QBCMath operator+(const QBCMath& o) {
@@ -116,19 +116,19 @@ public:
     }
 
     qint32 toInt() {
-        return value.toInt();
+        return getIntPart().toInt();
     }
 
     quint32 toUInt() {
-        return value.toUInt();
+        return getIntPart().toUInt();
     }
 
     qint64 toLongLong() {
-        return value.toLongLong();
+        return getIntPart().toLongLong();
     }
 
     quint64 toULongLong() {
-        return value.toULongLong();
+        return getIntPart().toULongLong();
     }
 
     long double toLongDouble() {
@@ -148,8 +148,11 @@ public:
     }
 
     void round(int scale) {
-        if(scale>=1)
+        if(scale>=1) {
             value = QBCMath::bcround(value, scale);
+            if (getDecPart().size() < scale)
+                value.append(QString("0").repeated(scale - getDecPart().size()));
+        }
     }
 
     QString getIntPart() {

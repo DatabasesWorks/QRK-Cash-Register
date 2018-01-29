@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,17 +30,18 @@ class ReceiptItemModel;
 class QRK_EXPORT BarcodesInterface : public PluginInterface
 {
 
-    Q_OBJECT
-    Q_INTERFACES(PluginInterface)
+        Q_OBJECT
+        Q_INTERFACES(PluginInterface)
 
-public:
-    virtual ~BarcodesInterface() {}
-    virtual bool process(ReceiptItemModel *model, int index, QString barcode) = 0;
+    public:
+        virtual ~BarcodesInterface() {}
+        virtual bool process(ReceiptItemModel *model, int index, QString barcode) = 0;
+        virtual QString getPluginName() = 0;
 
-signals:
-    void minusSlot();
-    void setColumnHidden(int);
-    void finishedReceipt();
+    signals:
+        void minusSlot();
+        void setColumnHidden(int);
+        void finishedReceipt();
 };
 
 #define BarcodesInterface_iid "at.ckvsoft.BarcodesInterface"

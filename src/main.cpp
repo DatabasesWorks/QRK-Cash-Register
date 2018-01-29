@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include "3rdparty/fervor-autoupdate/fvupdater.h"
 #endif
 
-
 #include "qrk.h"
 #include "preferences/settingsdialog.h"
 #include "preferences/qrksettings.h"
@@ -32,12 +31,16 @@
 #include "utils/utils.h"
 #include "backup.h"
 #include "reports.h"
+#include "3rdparty/ckvsoft/rbac/userlogin.h"
+#include "3rdparty/ckvsoft/rbac/acl.h"
 
 #include "defines.h"
 #include "database.h"
 #include "stdio.h"
 #include "signal.h"
 
+#include <QApplication>
+#include <QStatusBar>
 #include <QDir>
 #include <QTranslator>
 #include <QLibraryInfo>
@@ -47,6 +50,8 @@
 #include <QStyleFactory>
 #include <QStandardPaths>
 #include <QCommandLineParser>
+#include <QSplashScreen>
+#include <QGraphicsBlurEffect>
 
 //--------------------------------------------------------------------------------
 #include <QFile>
@@ -56,6 +61,9 @@
 
 void QRKMessageHandler(QtMsgType type, const QMessageLogContext &, const QString & str)
 {
+    if (str.startsWith("QXcbConnection"))
+        return;
+
     QString txt = "";
     bool debug = qApp->property("debugMsg").toBool();
     switch (type) {
@@ -77,7 +85,10 @@ void QRKMessageHandler(QtMsgType type, const QMessageLogContext &, const QString
         break;
     }
 
-    QFile outFile( QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/qrk.log");
+    QString confname = qApp->property("configuration").toString();
+    if (!confname.isEmpty())
+        confname =  "_" + confname;
+    QFile outFile( QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QString("/qrk%1.log").arg(confname));
     if (outFile.size() > 20000000) /*20 Mega*/
         Backup::pakLogFile();
 
@@ -169,6 +180,14 @@ int main(int argc, char *argv[])
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     app.setProperty("debugMsg", false);
 
+    QSplashScreen *splash = new QSplashScreen;
+    splash->setPixmap(QPixmap(":src/icons/splash.png"));
+    splash->setMinimumHeight(228);
+    splash->show();
+
+    Qt::Alignment topRight = Qt::AlignLeft | Qt::AlignBottom;
+    splash->showMessage(QObject::tr("QRK wird gestartet ..."),topRight, Qt::black);
+
 #ifndef QT_DEBUG
     qInstallMessageHandler(QRKMessageHandler);
 #endif
@@ -178,12 +197,11 @@ int main(int argc, char *argv[])
     QApplication::setApplicationName("QRK");
     QApplication::setApplicationVersion(QString("%1.%2").arg(QRK_VERSION_MAJOR).arg(QRK_VERSION_MINOR));
 
+    splash->showMessage(QObject::tr("Datenverzeichnisse werden erstellt ..."),topRight, Qt::black);
     createAppDataLocation();
 
-    setApplicationFont();
-
+    splash->showMessage(QObject::tr("Übersetzungen werden geladen ..."),topRight, Qt::black);
     QString locale = QLocale::system().name();
-
     QTranslator trans;
     QString translationPath = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
     if ( (trans.load(QLocale(), QLatin1String("qt"), QLatin1String("_"),translationPath) ||
@@ -200,7 +218,7 @@ int main(int argc, char *argv[])
           trans2.load(QLatin1String("QRK_en"), QLatin1String("/usr/share/qrk"))) )
         app.installTranslator(&trans2);
 
-
+    splash->showMessage(QObject::tr("Kommandozeilen Parameter werden verarbeitet ..."),topRight, Qt::black);
     QCommandLineParser parser;
     parser.setApplicationDescription("QRK");
     parser.addHelpOption();
@@ -226,10 +244,17 @@ int main(int argc, char *argv[])
     QCommandLineOption serverModeOption(QStringList() << "servermode", QObject::tr("Startet QRK im Servermode"));
     parser.addOption(serverModeOption);
 
+    QCommandLineOption configurationFileOption(QStringList() << "c" << "config", QObject::tr("Alternative Config <zB. Kasse1>"), QObject::tr("Name"));
+    parser.addOption(configurationFileOption);
+
     QCommandLineOption debugModeOption(QStringList() << "d" << "debug", QObject::tr("Schreibt DEBUG Ausgaben in die Log-Datei"));
     parser.addOption(debugModeOption);
 
     parser.process(app);
+
+    if (parser.isSet(configurationFileOption)) {
+        app.setProperty("configuration", parser.value(configurationFileOption));
+    }
 
     bool dbSelect = parser.isSet(dbSelectOption);
     bool fullScreen = parser.isSet(fullScreenOption);
@@ -248,6 +273,10 @@ int main(int argc, char *argv[])
         settings.removeSettings("QRK_RUNNING", false);
     }
 
+    qApp->setStyleSheet("QFileDialog QPushButton, QWizard QPushButton, QMessageBox QPushButton {"
+                        "min-width: 100px;"
+                        "min-height: 50px;}");
+
     if (parser.isSet(styleSheetOption)) {
         loadStyleSheet(parser.value(styleSheetOption));
     }
@@ -255,6 +284,10 @@ int main(int argc, char *argv[])
     if (isQRKrunning())
       return 0;
 
+    splash->showMessage(QObject::tr("Schriftarten werden geladen ..."),topRight, Qt::black);
+    setApplicationFont();
+
+    splash->showMessage(QObject::tr("Verbindung zur Datenbank wird hergestellt ..."),topRight, Qt::black);
     if ( !Database::open( dbSelect) ) {
         sighandler(0);
         return 0;
@@ -282,29 +315,35 @@ int main(int argc, char *argv[])
         }
     }
 
-    QRK mainWidget(servermode);
-    mainWidget.show();
+    QRK *mainWidget = new QRK(servermode);
+    UserLogin *userLogin = new UserLogin(mainWidget);
+
+    splash->showMessage(QObject::tr("DEP wird überprüft ..."),topRight, Qt::black);
 
     // DEP Check
-    if (!Database::isCashRegisterInAktive() && !DemoMode::isDemoMode() && RKSignatureModule::isDEPactive() && !Utils::checkTurnOverCounter()) {
+    QStringList error;
+    if (!Database::isCashRegisterInAktive() && !DemoMode::isDemoMode() && RKSignatureModule::isDEPactive() && !Utils::checkTurnOverCounter(error)) {
         QMessageBox messageBox(QMessageBox::Critical,
                                QObject::tr("DEP Fehler"),
-                               QObject::tr("ACHTUNG! Der verschlüsselte Umsatzzähler stimmt nicht mit dem DEP überein.\nEvtl. hat Ihre Datenbank einen Fehler.\nBitte sichern Sie Ihre Daten. Melden Sie die Kasse bei FON ab und nochmals neu an.\nBis dahin müssen Sie Belege per Hand erstellen und in der neuen Kasse erfassen."),
+                               QObject::tr("ACHTUNG! Das gespeicherte DEP hat einen oder mehrere Fehler.\nEvtl. gibt es Zugriffsprobleme auf Ihre Datenbank.\nBitte sichern Sie Ihre Daten. Melden Sie die Kasse bei FON ab und nochmals neu an.\nBis dahin müssen Sie Belege per Hand erstellen und in der neuen Kasse erfassen.\nFür Infos steht Ihnen das Forum zu Verfügung."),
                                QMessageBox::Yes | QMessageBox::No,
                                0);
-        messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Kasse außer Betrieb nehmen?"));
+        messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Kasse außer\nBetrieb nehmen?"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Weiter machen"));
-
+        messageBox.setDetailedText(error.join('\n'));
         if (messageBox.exec() == QMessageBox::Yes )
         {
-            mainWidget.closeCashRegister();
+            RBAC::Instance()->setuserId(0);
+            mainWidget->closeCashRegister();
             return 0;
         }
     }
 
-    mainWidget.setResuscitationCashRegister(Database::isCashRegisterInAktive());
+    mainWidget->setResuscitationCashRegister(Database::isCashRegisterInAktive());
 
-    mainWidget.statusBar()->setStyleSheet(
+    splash->showMessage(QObject::tr("Einstellungen werden geladen ..."),topRight, Qt::black);
+
+    mainWidget->statusBar()->setStyleSheet(
                 "QStatusBar { border-top: 1px solid lightgrey; border-radius: 1px;"
                 "background: lightgrey; spacing: 3px; /* spacing between items in the tool bar */ }"
                 );
@@ -317,9 +356,9 @@ int main(int argc, char *argv[])
     app.setProperty("debugMsg", debugMsg);
 
     if (fullScreen && !minimize)
-        mainWidget.setWindowState(mainWidget.windowState() ^ Qt::WindowFullScreen);
+        mainWidget->setWindowState(mainWidget->windowState() ^ Qt::WindowFullScreen);
     else if (minimize && !fullScreen)
-        mainWidget.setWindowState(mainWidget.windowState() ^ Qt::WindowMinimized);
+        mainWidget->setWindowState(mainWidget->windowState() ^ Qt::WindowMinimized);
 
     /*check if we have SET Demomode*/
     if (DemoMode::isModeNotSet()) {
@@ -341,6 +380,7 @@ int main(int argc, char *argv[])
     QString cri = Database::getCashRegisterId();
     if ( cri.isEmpty() ) {
         QMessageBox::warning(0, QObject::tr("Kassenidentifikationsnummer"), QObject::tr("Stammdaten müssen vollständig ausgefüllt werden.."));
+        RBAC::Instance()->setuserId(0);
         SettingsDialog tab;
         tab.exec();
         if ( Database::getCashRegisterId().replace("DEMO-", "").isEmpty() ) {
@@ -349,11 +389,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    mainWidget.setShopName();
+    mainWidget->setShopName();
 
 #if defined(_WIN32) || defined(__APPLE__)
     // Set feed URL before doing anything else
-    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/Appcast.xml");
+    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.06/Appcast.xml");
     FvUpdater::sharedUpdater()->setRequiredSslFingerPrint("c3b038cb348c7d06328579fb950a48eb");	// Optional
     FvUpdater::sharedUpdater()->setHtAuthCredentials("username", "password");	// Optional
     FvUpdater::sharedUpdater()->setUserCredentials(Database::getShopName() + "/" + Database::getCashRegisterId() + "/" + QApplication::applicationVersion());
@@ -365,6 +405,24 @@ int main(int argc, char *argv[])
     // Check for updates automatically
     FvUpdater::sharedUpdater()->CheckForUpdatesSilent();
 #endif
+
+    splash->finish(mainWidget);
+
+    /*
+    QGraphicsBlurEffect *effect = new QGraphicsBlurEffect;
+    effect->setBlurHints(QGraphicsBlurEffect::PerformanceHint);
+    effect->setBlurRadius(17);
+    mainWidget.setGraphicsEffect(effect);
+    */
+    mainWidget->show();
+
+    if (RBAC::Instance()->Login()) {
+        userLogin->show();
+    } else {
+        RBAC::Instance()->setuserId(0);
+    }
+
+    delete splash;
 
     if (Database::getLastVersionInfo() < QApplication::applicationVersion()) {
         QrkSettings settings;

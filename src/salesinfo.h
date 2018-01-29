@@ -2,7 +2,10 @@
 #define SALESINFO_H
 
 #include <QDialog>
-#include <QSqlQueryModel>
+#include <QStyledItemDelegate>
+#include <QAbstractItemModel>
+#include <QModelIndex>
+#include <QStyleOptionViewItem>
 
 namespace Ui {
 class SalesInfo;
@@ -18,7 +21,18 @@ public:
 
 private:
     Ui::SalesInfo *ui;
-    QSqlQueryModel *m_salesContentModel;
+    void loadData(QString from, QString to);
+};
+
+class SalesDelegate : public QStyledItemDelegate
+{
+        Q_OBJECT
+
+    public:
+        SalesDelegate(QObject *parent = 0);
+
+        QString displayText(const QVariant &value, const QLocale &locale) const;
+        void paint(QPainter *painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;
 };
 
 #endif // SALESINFO_H

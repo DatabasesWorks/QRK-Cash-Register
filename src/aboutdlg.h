@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +23,10 @@
 #ifndef ABOUTDLG_H
 #define ABOUTDLG_H
 
-#include "ui_aboutdlg.h"
-
 #include <QDialog>
+namespace Ui {
+  class AboutDlg;
+}
 
 class AboutDlg : public QDialog
 {

@@ -1,7 +1,7 @@
 #
 # This file is part of QRK - Qt Registrier Kasse
 #
-# Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+# Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,10 +33,24 @@ QT += printsupport
 QT += widgets
 QT += network
 
+CONFIG += c++11
+
+# The following define makes your compiler emit warnings if you use
+# any feature of Qt which as been marked as deprecated (the exact warnings
+# depend on your compiler). Please consult the documentation of the
+# deprecated API in order to know how to port your code away from it.
+DEFINES += QT_DEPRECATED_WARNINGS
+
+# You can also make your code fail to compile if you use deprecated APIs.
+# In order to do so, uncomment the following line.
+# You can also select to disable deprecated APIs only up to a certain version of Qt.
+#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+
 TARGET = qrk
 DESTDIR = ../bin
-INCLUDEPATH += ../qrkcore
-DEPENDPATH += ../qrkcore
+
+INCLUDEPATH += $$SRC_DIR/qrkcore
+DEPENDPATH += $$SRC_DIR/qrkcore
 
 SOURCES += main.cpp \
     qsortfiltersqlquerymodel.cpp \
@@ -54,7 +68,6 @@ SOURCES += main.cpp \
     import/filewatcher.cpp \
     qrkdialog.cpp \
     font/fontselector.cpp \
-    qrkprogress.cpp \
     import/comboboxdelegate.cpp \
     import/csvimportwizard.cpp \
     import/csvimportwizardpage1.cpp \
@@ -67,9 +80,9 @@ SOURCES += main.cpp \
     manager/productedit.cpp \
     export/exportjournal.cpp \
     foninfo.cpp \
-    flowlayout.cpp \
     preferences/settingsdialog.cpp \
-    salesinfo.cpp
+    salesinfo.cpp \
+    preferences/textedit.cpp
 
 HEADERS  += \
     qsortfiltersqlquerymodel.h \
@@ -89,7 +102,6 @@ HEADERS  += \
     import/filewatcher.h \
     qrkdialog.h \
     font/fontselector.h \
-    qrkprogress.h \
     import/comboboxdelegate.h \
     import/csvimportwizard.h \
     import/csvimportwizardpage1.h \
@@ -100,9 +112,9 @@ HEADERS  += \
     import/importworker.h \
     export/exportjournal.h \
     foninfo.h \
-    flowlayout.h \
     preferences/settingsdialog.h \
-    salesinfo.h
+    salesinfo.h \
+    preferences/textedit.h
 
 FORMS += \
     ui/qrk.ui \
@@ -117,7 +129,6 @@ FORMS += \
     manager/productedit.ui \
     manager/productswidget.ui \
     font/fontselector.ui \
-    ui/qrkprogress.ui \
     import/csvimportwizardpage1.ui \
     import/csvimportwizardpage2.ui \
     import/csvimportwizardpage3.ui \
@@ -126,7 +137,7 @@ FORMS += \
     ui/salesinfo.ui
 
 RESOURCES += \
-    qrk.qrc
+    ../qrk.qrc
 
 TRANSLATIONS += tr/QRK_en.ts \
     tr/QRK_de.ts \
@@ -187,7 +198,20 @@ QMAKE_POST_LINK += $$quote($(MKDIR) $$BUILD_DIR/../bin/$${TARGET}.app/Contents/p
 QMAKE_POST_LINK += $$quote($(COPY_DIR) $$PLUGINS $$BUILD_DIR/../bin/$${TARGET}.app/Contents/plugins/) &
 QMAKE_POST_LINK += install_name_tool -change libQrkCore.1.dylib  @executable_path/libQrkCore.1.dylib $$BUILD_DIR/../bin/$${TARGET}.app/Contents/MacOS/$${TARGET}
 } else:win32 {
-QMAKE_POST_LINK += $$shell_path($(COPY_DIR) $$COREDLL $$BUILD_DIR/../bin/) &
-QMAKE_POST_LINK += $$shell_path($(MKDIR) $$BUILD_DIR/../bin/plugins) &
-QMAKE_POST_LINK += $$shell_path($(COPY_DIR) $$PLUGINS $$BUILD_DIR/../bin/plugins/)
+#QMAKE_POST_LINK += $$shell_path($(COPY_DIR) $$COREDLL $$BUILD_DIR/../bin/) &
+#QMAKE_POST_LINK += $$shell_path($(MKDIR) $$BUILD_DIR/../bin/plugins) &
+#QMAKE_POST_LINK += $$shell_path($(COPY_DIR) $$PLUGINS $$BUILD_DIR/../bin/plugins/)
 }
+
+message(Qt version: $$[QT_VERSION])
+message(Qt is installed in $$[QT_INSTALL_PREFIX])
+message(Qt resources can be found in the following locations:)
+message(Documentation: $$[QT_INSTALL_DOCS])
+message(Header files: $$[QT_INSTALL_HEADERS])
+message(Libraries: $$[QT_INSTALL_LIBS])
+message(Binary files (executables): $$[QT_INSTALL_BINS])
+message(Plugins: $$[QT_INSTALL_PLUGINS])
+message(Data files: $$[QT_INSTALL_DATA])
+message(Translation files: $$[QT_INSTALL_TRANSLATIONS])
+
+DISTFILES +=

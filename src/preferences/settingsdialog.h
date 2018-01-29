@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,8 @@
 
 class QDialogButtonBox;
 class QTabWidget;
-class QTextEdit;
+class TextEdit;
+class QCompleter;
 class QComboBox;
 class QCheckBox;
 class QSpinBox;
@@ -43,7 +44,24 @@ class ASignSmartCard;
 class Journal;
 class QStackedWidget;
 
-class ExtraTab : public QWidget
+class Widget: public QWidget
+{
+        Q_OBJECT
+    public:
+        explicit Widget(QWidget *parent = 0):QWidget(parent){}
+
+        void disableWidgets()
+        {
+            QList<QWidget *> widgets = this->findChildren<QWidget *>();
+
+            foreach(QWidget* widget, widgets)
+            {
+                widget->setEnabled(false);
+            }
+        }
+};
+
+class ExtraTab : public Widget
 {
     Q_OBJECT
 
@@ -104,14 +122,13 @@ private:
     QLabel *m_printerFontStretchLabel;
     QLabel *m_receiptPrinterFontStretchLabel;
 
-
-    QFont *m_systemFont;
-    QFont *m_printerFont;
-    QFont *m_receiptPrinterFont;
+    QFont m_systemFont;
+    QFont m_printerFont;
+    QFont m_receiptPrinterFont;
 
 };
 
-class ServerTab : public QWidget
+class ServerTab : public Widget
 {
     Q_OBJECT
 
@@ -131,7 +148,7 @@ private:
 
 };
 
-class GeneralTab : public QWidget
+class GeneralTab : public Widget
 {
     Q_OBJECT
 
@@ -141,6 +158,7 @@ public:
     QString getPdfDirectory();
     QString getDataDirectory();
     QString getExternalDepDirectory();
+    int getKeepMaxBackups();
 
 public slots:
     void masterTaxChanged(QString tax);
@@ -155,6 +173,7 @@ private:
     bool moveDataFiles( QString fromDir, QString toDir);
 
     QLineEdit *m_backupDirectoryEdit;
+    QSpinBox  *m_keepMaxBackupSpinBox;
     QLineEdit *m_pdfDirectoryEdit;
     QLineEdit *m_dataDirectoryEdit;
     QLineEdit *m_externalDepDirectoryEdit;
@@ -162,12 +181,12 @@ private:
 
 };
 
-class PrinterTab : public QWidget
+class PrinterTab : public Widget
 {
     Q_OBJECT
 
 public:
-    explicit PrinterTab(QWidget *parent = 0);
+    explicit PrinterTab(QStringList availablePrinters, QWidget *parent = 0);
 
     bool getReportPrinterPDF();
     QString getReportPrinter();
@@ -195,12 +214,12 @@ private:
     QSpinBox *m_invoiceCompanyMarginBottomSpin;
 };
 
-class ReceiptPrinterTab : public QWidget
+class ReceiptPrinterTab : public Widget
 {
     Q_OBJECT
 
 public:
-    explicit ReceiptPrinterTab(QWidget *parent = 0);
+    explicit ReceiptPrinterTab(QStringList availablePrinters, QWidget *parent = 0);
 
     QString getReceiptPrinter();
     bool getUseReportPrinter();
@@ -246,15 +265,17 @@ private:
 
 };
 
-class ReceiptTab : public QWidget
+class ReceiptTab : public Widget
 {
     Q_OBJECT
 
 public:
-    explicit ReceiptTab(QWidget *parent = 0);
+    explicit ReceiptTab(QStringList availablePrinters, QWidget *parent = 0);
 
     QString getReceiptPrinterHeading();
     bool getPrintCompanyNameBold();
+    QString getCollectionPrinter();
+    QString getCollectionPrinterPaperFormat();
     bool getPrintCollectionReceipt();
     QString getCollectionReceiptText();
     int getCollectionReceiptCopies();
@@ -273,6 +294,8 @@ private:
     QCheckBox *m_useLogo;
     QPushButton *m_logoButton;
 
+    QComboBox *m_collectionPrinterCombo;
+    QComboBox *m_collectionPrinterPaperFormatCombo;
     QComboBox *m_receiptPrinterHeading;
     QCheckBox *m_printCompanyNameBoldCheck;
     QCheckBox *m_printCollectionReceiptCheck;
@@ -283,7 +306,7 @@ private:
     QCheckBox *m_printQRCodeLeftCheck;
 };
 
-class ReceiptEnhancedTab : public QWidget
+class ReceiptEnhancedTab : public Widget
 {
     Q_OBJECT
 
@@ -302,16 +325,19 @@ private slots:
     void useAdvertisingCheck_toggled(bool);
 
 private:
-    QTextEdit *m_printAdvertisingEdit;
-    QTextEdit *m_printHeaderEdit;
-    QTextEdit *m_printFooterEdit;
+    QAbstractItemModel *modelFromFile(const QString& fileName);
+    QCompleter *completer;
+
+    TextEdit *m_printAdvertisingEdit;
+    TextEdit *m_printHeaderEdit;
+    TextEdit *m_printFooterEdit;
 
     QLineEdit *m_advertisingEdit;
     QCheckBox *m_useAdvertising;
     QPushButton *m_advertisingButton;
 };
 
-class MasterDataTab : public QWidget
+class MasterDataTab : public Widget
 {
     Q_OBJECT
 
@@ -335,7 +361,7 @@ private slots:
 private:
     QLineEdit *m_shopName;
     QLineEdit *m_shopOwner;
-    QTextEdit *m_shopAddress;
+     TextEdit *m_shopAddress;
     QLineEdit *m_shopUid;
     QLineEdit *m_shopCashRegisterId;
     QComboBox *m_currency;
@@ -343,7 +369,7 @@ private:
 
 };
 
-class SCardReaderTab : public QWidget
+class SCardReaderTab : public Widget
 {
     Q_OBJECT
 
@@ -352,8 +378,6 @@ public:
     QString getCurrentCardReader();
     QString getCurrentOnlineConnetionString();
     bool saveSettings();
-
-
 
 private slots:
     void scardGroup_clicked(bool);
@@ -384,9 +408,6 @@ class SettingsDialog : public QDialog
 public:
     explicit SettingsDialog(QWidget *parent = 0);
 
-signals:
-    void loaded();
-
 private slots:
     void masterTaxChanged(QString);
     void accept();
@@ -405,7 +426,6 @@ private:
     ServerTab *m_server;
     SCardReaderTab *m_scardreader;
     Journal *m_journal;
-
 };
 
 #endif

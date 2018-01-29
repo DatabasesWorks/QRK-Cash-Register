@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 */
 
 #include "r2bdialog.h"
+#include "ui_r2bdialog.h"
+
 #include <QDoubleValidator>
 
 R2BDialog::R2BDialog(QWidget *parent) :
@@ -36,8 +38,13 @@ R2BDialog::R2BDialog(QWidget *parent) :
   registerMandatoryField(ui->invoiceNum);
   ui->pushButton->setEnabled(false);
 
-  connect(this, SIGNAL(hasAcceptableInput(bool)), SLOT(setOkButtonEnabled(bool)));
-  connect (ui->pushButton, SIGNAL(clicked(bool)), SLOT(accept()));
+  connect(this, &R2BDialog::hasAcceptableInput, this, &R2BDialog::setOkButtonEnabled);
+  connect (ui->pushButton, &QPushButton::clicked, this, &R2BDialog::accept);
+}
+
+R2BDialog::~R2BDialog()
+{
+    delete ui;
 }
 
 void R2BDialog::setOkButtonEnabled(bool isAccptableInput)
