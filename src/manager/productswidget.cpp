@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "productswidget.h"
 #include "productedit.h"
 #include "qrkdelegate.h"
+#include "database.h"
+#include <ui_productswidget.h>
 
 #include <QSqlRelationalTableModel>
 #include <QSqlRelation>
@@ -37,12 +39,12 @@ ProductsWidget::ProductsWidget(QWidget *parent)
 {
   ui->setupUi(this);
 
-  connect(ui->plus, SIGNAL(clicked()), this, SLOT(plusSlot()));
-  connect(ui->minus, SIGNAL(clicked()), this, SLOT(minusSlot()));
-  connect(ui->edit, SIGNAL(clicked()), this, SLOT(editSlot()));
-  connect(ui->productFilter, SIGNAL(textChanged(const QString &)), this, SLOT(filterProduct(const QString &)));
+  connect(ui->plus, &QPushButton::clicked, this, &ProductsWidget::plusSlot);
+  connect(ui->minus, &QPushButton::clicked, this, &ProductsWidget::minusSlot);
+  connect(ui->edit, &QPushButton::clicked, this, &ProductsWidget::editSlot);
+  connect(ui->productFilter, &QLineEdit::textChanged, this, &ProductsWidget::filterProduct);
 
-  QSqlDatabase dbc = QSqlDatabase::database("CN");
+  QSqlDatabase dbc = Database::database();
 
   m_model = new QSqlRelationalTableModel(this, dbc);
   m_model->setTable("products");
@@ -85,6 +87,11 @@ ProductsWidget::ProductsWidget(QWidget *parent)
   ui->tableView->resizeColumnsToContents();
   ui->tableView->horizontalHeader()->setStretchLastSection(true);
 
+}
+
+ProductsWidget::~ProductsWidget()
+{
+    delete ui;
 }
 
 //--------------------------------------------------------------------------------

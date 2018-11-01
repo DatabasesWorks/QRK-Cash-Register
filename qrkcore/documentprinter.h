@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ class QRK_EXPORT DocumentPrinter : public QObject
     void printReceipt(QJsonObject data);
     void printDocument(QTextDocument *document, QString title);
     void printTestDocument(QFont font);
+    void printTagged(QJsonObject data);
 
   private:
     QString wordWrap(QString text, int width, QFont font);
@@ -78,9 +79,11 @@ class QRK_EXPORT DocumentPrinter : public QObject
     int m_feedTax;
     int m_feedPrintHeader;
     int m_feedHeaderText;
+    int m_feedQRCode;
     bool m_printQrCodeLeft;
     bool m_useDecimalQuantity;
     int m_defaultPaperWidth;
+    int m_countDigits;
 
 };
 

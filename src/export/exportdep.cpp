@@ -1,9 +1,9 @@
 /*
  * Manipulationssicherheit
- * Die Datenbank für das DEP wird in der Hauptdatenbank mitgeführt, ist allerdings vom User
+ * Die Datenbank für das DEP-7 wird in der Hauptdatenbank mitgeführt, ist allerdings vom User
  * nicht direkt les- oder änderbar.
  * Durch die Kombination aus fortlaufender Sequenznummer und dem Hashwert aus
- * den Zeileneinträgen ist das DEP auch nach dem Export vor Manipulation geschützt.
+ * den Zeileneinträgen ist das DEP-7 auch nach dem Export vor Manipulation geschützt.
 */
 
 #include "exportdep.h"
@@ -22,11 +22,11 @@ void ExportDEP::dExport()
     if (dlg.exec() == QDialog::Accepted ) {
         QString filename = dlg.getFilename();
         if (depExport(filename, dlg.getFrom(), dlg.getTo())) {
-            SpreadSignal::setProgressBarValue(-1);
-            QMessageBox::information(0, tr("Export"), tr("DEP (Daten-Erfassungs-Protokol) wurde nach %1 exportiert.").arg(filename));
+            Spread::Instance()->setProgressBarValue(-1);
+            QMessageBox::information(0, tr("Export"), tr("DEP-7 (Daten-Erfassungs-Protokol) wurde nach %1 exportiert.").arg(filename));
         } else {
-            SpreadSignal::setProgressBarValue(-1);
-            QMessageBox::warning(0, tr("Export"), tr("DEP (Daten-Erfassungs-Protokol) konnte nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
+            Spread::Instance()->setProgressBarValue(-1);
+            QMessageBox::warning(0, tr("Export"), tr("DEP-7 (Daten-Erfassungs-Protokol) konnte nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
         }
     }
 }

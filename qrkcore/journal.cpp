@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "journal.h"
 #include "defines.h"
 #include "database.h"
+#include "preferences/qrksettings.h"
+#include "3rdparty/ckvsoft/rbac/acl.h"
 
 #include <QSqlQuery>
 #include <QSqlError>
@@ -35,37 +37,44 @@
 Journal::Journal(QObject *parent)
   : QObject(parent)
 {
-  m_dbc = QSqlDatabase::database("CN");
 }
 
 void Journal::journalInsertReceipt(QJsonObject &data)
 {
-  QSqlQuery query(m_dbc);
+  QSqlDatabase dbc = Database::database();
+  QSqlQuery query(dbc);
+
+  QrkSettings settings;
+  int digits = settings.value("decimalDigits", 2).toInt();;
 
   // Id Programmversion Kassen-Id Beleg Belegtyp Bemerkung Nachbonierung
   // Belegnummer Datum Umsatz_Normal Umsatz_Ermaessigt1 Umsatz_Ermaessigt2
   // Umsatz_Null Umsatz_Besonders Jahresumsatz_bisher Erstellungsdatum
 
   QString var;
-  QString val = "(version,cashregisterid,datetime,text)";
+  QString val = "(version,cashregisterid,datetime,text,userId)";
 
   QJsonArray a = data.value("Orders").toArray();
 
   foreach (const QJsonValue & value, a) {
     var.clear();
     QJsonObject o = value.toObject();
-    var.append(QString("'Produktposition\t"));
+    var.append(QString("Produktposition\t"));
+    QString itemNum = o["itemNum"].toString();
+    if (!itemNum.isEmpty())
+        itemNum = QString("%1 ").arg(itemNum);
+
     if (o["discount"].toDouble() != 0.0)
-        var.append(QString("%1 Rabatt: -%2%\t").arg(o["product"].toString()).arg(QString::number(o["discount"].toDouble(),'f', 2)));
+        var.append(QString("%1%2 Rabatt: -%3%\t").arg(itemNum).arg(o["product"].toString()).arg(QString::number(o["discount"].toDouble(),'f', 2)));
     else
-        var.append(QString("%1\t").arg(o["product"].toString()));
-    var.append(QString("%1\t").arg(QString::number(o["count"].toDouble(),'f', 2)));
+        var.append(QString("%1 %2\t").arg(itemNum).arg(o["product"].toString()));
+    var.append(QString("%1\t").arg(QString::number(o["count"].toDouble(),'f', digits)));
     var.append(QString("%1\t").arg(QString::number(o["singleprice"].toDouble(),'f', 2)));
     var.append(QString("%1\t").arg(QString::number(o["gross"].toDouble() - (o["gross"].toDouble() / 100) * o["discount"].toDouble(),'f', 2)));
     var.append(QString("%1\t").arg(o["tax"].toDouble()));
-    var.append(QString("%1'").arg(data.value("receiptTime").toString()));
+    var.append(QString("%1").arg(data.value("receiptTime").toString()));
 
-    bool ok = query.prepare(QString("INSERT INTO journal %1 VALUES(:version,:kasse,:receiptTime,:var)")
+    bool ok = query.prepare(QString("INSERT INTO journal %1 VALUES(:version,:kasse,:receiptTime,:var,:userId)")
         .arg(val));
 
     if (!ok) {
@@ -77,6 +86,7 @@ void Journal::journalInsertReceipt(QJsonObject &data)
     query.bindValue(":kasse", data.value("kasse").toString());
     query.bindValue(":receiptTime", data.value("receiptTime").toString());
     query.bindValue(":var", var);
+    query.bindValue(":userId", RBAC::Instance()->getUserId());
 
     if (!ok) {
       qCritical() << "Function Name: " << Q_FUNC_INFO << " " << query.lastError().text();
@@ -102,7 +112,7 @@ void Journal::journalInsertReceipt(QJsonObject &data)
   var.append(QString("%1\t").arg(QString::number(data.value("sumYear").toDouble(),'f',2)));
   var.append(QString("%1").arg(data.value("receiptTime").toString()));
 
-  bool ok = query.prepare(QString("INSERT INTO journal %1 VALUES(:version,:kasse,:date,:var)")
+  bool ok = query.prepare(QString("INSERT INTO journal %1 VALUES(:version,:kasse,:date,:var,:userId)")
       .arg(val));
 
   if (!ok) {
@@ -114,6 +124,7 @@ void Journal::journalInsertReceipt(QJsonObject &data)
   query.bindValue(":kasse", data.value("kasse").toString());
   query.bindValue(":date", QDateTime::currentDateTime());
   query.bindValue(":var", var);
+  query.bindValue(":userId", RBAC::Instance()->getUserId());
 
   ok = query.exec();
   if (!ok) {
@@ -126,9 +137,10 @@ void Journal::journalInsertLine(QString title,  QString text)
 {
 
   QDateTime dt = QDateTime::currentDateTime();
-  QSqlQuery query(m_dbc);
-  QString val = "(version,cashregisterid,datetime,text)";
-  bool ok = query.prepare(QString("INSERT INTO journal %1 VALUES(:version, :kasse, :date, :text)")
+  QSqlDatabase dbc = Database::database();
+  QSqlQuery query(dbc);
+  QString val = "(version,cashregisterid,datetime,text,userId)";
+  bool ok = query.prepare(QString("INSERT INTO journal %1 VALUES(:version, :kasse, :date, :text, :userId)")
                       .arg(val));
 
   if (!ok) {
@@ -140,6 +152,7 @@ void Journal::journalInsertLine(QString title,  QString text)
   query.bindValue(":kasse", Database::getCashRegisterId());
   query.bindValue(":date", dt);
   query.bindValue(":text", title + "\t" + text + "\t" + dt.toString(Qt::ISODate));
+  query.bindValue(":userId", RBAC::Instance()->getUserId());
 
   ok = query.exec();
 

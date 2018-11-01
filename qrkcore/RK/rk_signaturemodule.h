@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,8 +65,6 @@ public:
     static bool isDEPactive();
     static void setDEPactive(bool active=true);
     static bool isCertificateInDB(int serial);
-    static QString getLastUsedSerial();
-    static void updateLastUsedSerial(QString serial);
     static void setSignatureModuleDamaged();
     static bool isSignatureModuleSetDamaged();
     static QString resetSignatureModuleDamaged();
@@ -96,5 +94,7 @@ protected:
 
 
 };
+
+extern bool SignatureModuleSetDamaged;
 
 #endif // RKSIGNATUREMODULE_H

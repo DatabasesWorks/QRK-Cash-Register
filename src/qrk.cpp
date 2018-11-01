@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "defines.h"
 #include "database.h"
+#include "databasemanager.h"
 #include "aboutdlg.h"
 #include "qrk.h"
 #include "reports.h"
@@ -30,6 +31,7 @@
 #include "qrkhome.h"
 #include "qrkdocument.h"
 #include "qrkregister.h"
+#include "qrktimedmessagebox.h"
 #include "manager/managerdialog.h"
 #include "utils/demomode.h"
 #include "import/csvimportwizard.h"
@@ -38,11 +40,19 @@
 #include "foninfo.h"
 #include "backup.h"
 #include "utils/utils.h"
+#include "utils/versionchecker.h"
 #include "preferences/qrksettings.h"
 #include "pluginmanager/pluginmanager.h"
 #include "pluginmanager/pluginview.h"
+#include "pluginmanager/Interfaces/independentinterface.h"
+#include "3rdparty/ckvsoft/rbac/acl.h"
+#include "3rdparty/ckvsoft/rbac/aclmanager.h"
+#include "3rdparty/ckvsoft/rbac/aclwizard.h"
+#include "3rdparty/ckvsoft/rbac/userlogin.h"
+#include <ui_qrk.h>
 
 #include <QStackedWidget>
+#include <QLabel>
 #include <QLCDNumber>
 #include <QTimer>
 #include <QMessageBox>
@@ -53,17 +63,18 @@
 #include <QProgressBar>
 #include <QTreeView>
 #include <QThread>
-#include <QDebug>
 
 //-----------------------------------------------------------------------
 
-QRK::QRK(bool servermode, QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow), m_servermode(servermode)
+QRK::QRK(bool servermode)
+    : QMainWindow(), ui(new Ui::MainWindow), m_servermode(servermode)
 
 {
-    connect(Spread::Instance(),SIGNAL(updateProgressBar(int,bool)), this,SLOT(setStatusBarProgressBar(int,bool)));
-    connect(Spread::Instance(),SIGNAL(updateProgressBarWait(bool)), this,SLOT(setStatusBarProgressBarWait(bool)));
-    connect(Spread::Instance(),SIGNAL(updateSafetyDevice(bool)), this,SLOT(setSafetyDevice(bool)));
+    connect(Spread::Instance(), &SpreadSignal::updateProgressBar, this, &QRK::setStatusBarProgressBar);
+    connect(Spread::Instance(), &SpreadSignal::updateProgressBarWait, this, &QRK::setStatusBarProgressBarWait);
+    connect(Spread::Instance(), &SpreadSignal::updateSafetyDevice, this, &QRK::setSafetyDevice);
+
+    connect(RBAC::Instance(), static_cast<void(Acl::*)()>(&Acl::userChanged), this, &QRK::init);
 
     ui->setupUi(this);
 
@@ -98,7 +109,7 @@ QRK::QRK(bool servermode, QWidget *parent)
 
     m_checkDateTime = QDateTime::currentDateTime();
     m_timer = new QTimer (this);
-    connect (m_timer, SIGNAL(timeout()), SLOT(timerDone()));
+    connect (m_timer, &QTimer::timeout, this, &QRK::timerDone);
 
     m_currentRegisterYear = QDateTime::currentDateTime().toString("yyyy").toInt();
     QFont font = QApplication::font();
@@ -108,6 +119,7 @@ QRK::QRK(bool servermode, QWidget *parent)
     // setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
 
     PluginManager::instance()->initialize();
+    initPlugins();
 
     //Stacked Widget
     m_stackedWidget = new QStackedWidget(this);
@@ -117,36 +129,38 @@ QRK::QRK(bool servermode, QWidget *parent)
 
     iniStack();
 
-    connect(ui->export_CSV, SIGNAL(triggered()), this, SLOT(export_CSV()));
-    connect(ui->import_CSV, SIGNAL(triggered()), this, SLOT(import_CSV()));
-    connect(ui->export_JSON, SIGNAL(triggered()), this, SLOT(export_JSON()));
-    connect(ui->actionDEPexternalBackup, SIGNAL(triggered()), this, SLOT(backupDEP()));
-    connect(ui->actionDatenbank_sichern, SIGNAL(triggered(bool)), this, SLOT(backup()));
+    connect(ui->export_CSV, &QAction::triggered, this, &QRK::export_CSV);
+    connect(ui->import_CSV, &QAction::triggered, this, &QRK::import_CSV);
+    connect(ui->export_JSON, &QAction::triggered, this, &QRK::export_JSON);
+    connect(ui->actionDEPexternalBackup, &QAction::triggered, this, &QRK::backupDEP);
+    connect(ui->actionDatenbank_sichern, &QAction::triggered, this, &QRK::backup);
+    connect(ui->actionAbout_QRK, &QAction::triggered, this, &QRK::actionAbout_QRK);
+    connect(ui->actionAbout_QT, &QAction::triggered, qApp, &QApplication::aboutQt);
+    connect(ui->actionQRK_Forum, &QAction::triggered, this, &QRK::actionQRK_Forum);
+    connect(ui->actionDEMO_Daten_zur_cksetzen, &QAction::triggered, this, &QRK::actionResetDemoData);
+    connect(ui->actionDEMOMODUS_Verlassen, &QAction::triggered, this, &QRK::actionLeaveDemoMode);
+    connect(ui->actionInfos_zur_Registrierung_bei_FON, &QAction::triggered, this, &QRK::infoFON);
+    connect(ui->actionResuscitationCashRegister, &QAction::triggered, this, &QRK::actionResuscitationCashRegister);
+    connect(ui->actionAclManager, &QAction::triggered, this, &QRK::actionAclManager);
 
-    connect(ui->actionAbout_QRK, SIGNAL(triggered()), this, SLOT(actionAbout_QRK()));
-    connect(ui->actionAbout_QT, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
-    connect(ui->actionQRK_Forum, SIGNAL(triggered()), this, SLOT(actionQRK_Forum()));
-    connect(ui->actionDEMO_Daten_zur_cksetzen, SIGNAL(triggered()), this, SLOT(actionResetDemoData()));
-    connect(ui->actionDEMOMODUS_Verlassen, SIGNAL(triggered()), this, SLOT(actionLeaveDemoMode()));
-    connect(ui->actionInfos_zur_Registrierung_bei_FON, SIGNAL(triggered(bool)), this, SLOT(infoFON()));
-    connect(ui->actionPlugins, SIGNAL(triggered(bool)), this, SLOT(plugins()));
-    connect(ui->actionResuscitationCashRegister, SIGNAL(triggered(bool)), this, SLOT(actionResuscitationCashRegister()));
+    connect(this, &QRK::setServerMode, m_qrk_home, &QRKHome::setServerMode);
+    connect(m_qrk_home, &QRKHome::endOfDay, this, &QRK::endOfDaySlot);
+    connect(m_qrk_home, &QRKHome::endOfMonth, this, &QRK::endOfMonthSlot);
+    connect(m_qrk_home, &QRKHome::fullScreenButton_clicked, this, &QRK::fullScreenSlot);
+    connect(m_qrk_home, &QRKHome::exitButton_clicked, this, &QRK::exitSlot);
+    connect(m_qrk_home, &QRKHome::logOnOff, this, &QRK::logOnOff);
 
-    connect(m_qrk_home, SIGNAL(endOfDay()), this, SLOT(endOfDaySlot()));
-    connect(m_qrk_home, SIGNAL(endOfMonth()), this, SLOT(endOfMonthSlot()));
-    connect(m_qrk_home, SIGNAL(fullScreenButton_clicked()), this, SLOT(fullScreenSlot()));
-    connect(m_qrk_home, SIGNAL(exitButton_clicked()), this, SLOT(exitSlot()));
+    connect(m_qrk_home, &QRKHome::registerButton_clicked, this, &QRK::onRegisterButton_clicked);
+    connect(m_qrk_home, &QRKHome::documentButton_clicked, this, &QRK::onDocumentButton_clicked);
+    connect(m_qrk_home, &QRKHome::productmanagerButton_clicked, this, &QRK::onManagerButton_clicked);
+    connect(m_qrk_home, &QRKHome::usermanagerButton_clicked, this, &QRK::actionAclManager);
+    connect(m_qrk_home, &QRKHome::refreshMain, this, &QRK::init);
 
-    connect(m_qrk_home, SIGNAL(registerButton_clicked()), this, SLOT(onRegisterButton_clicked()));
-    connect(m_qrk_home, SIGNAL(documentButton_clicked()), this, SLOT(onDocumentButton_clicked()));
-    connect(m_qrk_home, SIGNAL(managerButton_clicked()), this, SLOT(onManagerButton_clicked()));
-    connect(m_qrk_home, SIGNAL(refreshMain()), this, SLOT(init()));
+    connect(m_qrk_register, &QRKRegister::cancelRegisterButton_clicked, this, &QRK::onCancelRegisterButton_clicked);
+    connect(m_qrk_register, &QRKRegister::finishedReceipt, this, &QRK::finishedReceipt);
 
-    connect(m_qrk_register, SIGNAL(cancelRegisterButton_clicked()), this, SLOT(onCancelRegisterButton_clicked()));
-    connect(m_qrk_register, SIGNAL(finishedReceipt()), this, SLOT(finishedReceipt()));
-
-    connect(m_qrk_document, SIGNAL(cancelDocumentButton_clicked()), this, SLOT(onCancelDocumentButton_clicked()));
-    connect(m_qrk_document, SIGNAL(documentButton_clicked()), this, SLOT(onDocumentButton_clicked()));
+    connect(m_qrk_document, &QRKDocument::cancelDocumentButton_clicked, this, &QRK::onCancelDocumentButton_clicked);
+    connect(m_qrk_document, &QRKDocument::documentButton_clicked, this, &QRK::onDocumentButton_clicked);
 
     QString title = QString("QRK V%1.%2 - Qt Registrier Kasse - %3").arg(QRK_VERSION_MAJOR).arg(QRK_VERSION_MINOR).arg(Database::getShopName());
     setWindowTitle ( title );
@@ -157,6 +171,12 @@ QRK::QRK(bool servermode, QWidget *parent)
     restoreGeometry(settings.value("mainWindowGeometry").toByteArray());
     restoreState(settings.value("mainWindowState").toByteArray());
 
+    m_checkerThread = new QThread;
+    m_versionChecker = new VersionChecker;
+    m_versionChecker->moveToThread(m_checkerThread);
+    connect(m_versionChecker, &VersionChecker::Version, this, &QRK::newApplicationVersionAvailable);
+    connect(m_checkerThread, &QThread::started, m_versionChecker, &VersionChecker::run);
+    m_checkerThread->start();
 }
 
 //--------------------------------------------------------------------------------
@@ -165,7 +185,7 @@ QRK::~QRK()
 {
     delete ui;
     PluginManager::instance()->uninitialize();
-
+    m_timer->stop();
 }
 
 //--------------------------------------------------------------------------------
@@ -185,6 +205,48 @@ void QRK::iniStack()
 }
 
 //--------------------------------------------------------------------------------
+
+void QRK::initPlugins()
+{
+    QStringList plugins = PluginManager::instance()->plugins();
+    QListIterator<QString> i(plugins);
+    bool hasPlugins = false;
+    while(i.hasNext()) {
+        QString path = i.next();
+        QString name = PluginManager::instance()->getNameByPath(path);
+        IndependentInterface *plugin = qobject_cast<IndependentInterface *>(PluginManager::instance()->getObjectByName(name));
+        if (plugin) {
+            QAction *action = ui->menuPlugins->addAction(plugin->getPluginName(), this, SLOT(runPlugin()));
+            action->setObjectName(name);
+            addAction(action);
+            delete plugin;
+            hasPlugins = true;
+        }
+    }
+    if (hasPlugins)
+        ui->menuPlugins->addSeparator();
+
+      ui->menuPlugins->addAction(tr("Plugins ..."), this, SLOT(viewPlugins()));
+
+}
+
+void QRK::runPlugin()
+{
+    QAction *action = qobject_cast<QAction *>(QObject::sender());
+    QString name = action->objectName();
+    IndependentInterface *plugin = qobject_cast<IndependentInterface *>(PluginManager::instance()->getObjectByName(name));
+    if (plugin) {
+        plugin->process();
+        delete plugin;
+    }
+}
+
+void QRK::viewPlugins()
+{
+    PluginView view(this);
+    view.setCloseButtonVisible(true);
+    view.exec();
+}
 
 void QRK::timerDone()
 {
@@ -237,7 +299,7 @@ void QRK::setStatusBarProgressBar(int value, bool add)
 
     } else {
         if (!QApplication::overrideCursor())
-            QApplication::setOverrideCursor(Qt::WaitCursor);
+            QApplication::setOverrideCursor(Qt::BusyCursor);
 
         if (add)
             value = m_progressBar->value() + value;
@@ -253,14 +315,14 @@ void QRK::setStatusBarProgressBarWait(bool on_off)
         m_progressBar->setValue(0);
 
         if (!QApplication::overrideCursor())
-            QApplication::setOverrideCursor(Qt::WaitCursor);
-   } else {
+            QApplication::setOverrideCursor(Qt::BusyCursor);
+    } else {
         m_progressBar->setMaximum(100);
         m_progressBar->reset();
 
         if (QApplication::overrideCursor())
             QApplication::restoreOverrideCursor();
-   }
+    }
 }
 
 void QRK::setSafetyDevice(bool active)
@@ -295,9 +357,9 @@ void QRK::init()
     QPixmap pm1(32, 32);
     QPixmap pm2(32, 32);
 
-    QString DEPtoolTip = tr("DEP Inaktiv");
+    QString DEPtoolTip = tr("DEP-7 Inaktiv");
     QString DEPaktive = tr("Inaktiv");
-    m_dep->setText(tr("DEP"));
+    m_dep->setText(tr("DEP-7"));
 
     if (Database::getTaxLocation() == "AT") {
         m_qrk_home->setExternalDepLabels(true);
@@ -318,14 +380,14 @@ void QRK::init()
                 m_previousSafetyDeviceState = true;
                 serial = signaturinfo->getCertificateSerial(true);
                 cardType = signaturinfo->getCardType();
-                DEPtoolTip = tr("DEP (Daten Erfassungs Protokoll) aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial);
+                DEPtoolTip = tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial);
                 pm2.fill(Qt::green);
                 m_safetyDevicePX->setToolTip(tr("SignaturErstellungsEinheit aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial));
                 m_qrk_register->safetyDevice(true);
                 m_qrk_home->safetyDevice(true);
             } else {
                 m_previousSafetyDeviceState = false;
-                DEPtoolTip = tr("DEP (Daten Erfassungs Protokoll) aktiv, SignaturErstellungsEinheit ausgefallen");
+                DEPtoolTip = tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv, SignaturErstellungsEinheit ausgefallen");
                 pm2.fill(Qt::red);
                 m_safetyDevicePX->setToolTip(tr("SignaturErstellungsEinheit ausgefallen"));
                 m_qrk_register->safetyDevice(false);
@@ -334,7 +396,7 @@ void QRK::init()
 
             pm1.fill(Qt::green);
             m_depPX->setPixmap(pm1);
-            m_depPX->setToolTip(tr("DEP (Daten Erfassungs Protokoll) aktiv"));
+            m_depPX->setToolTip(tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv"));
             m_safetyDevicePX->setPixmap(pm2);
 
             delete signaturinfo;
@@ -349,6 +411,21 @@ void QRK::init()
         m_dep->setVisible(false);
         m_depPX->setVisible(false);
         m_safetyDevicePX->setVisible(false);
+    }
+}
+
+void QRK::logOnOff(bool)
+{
+    if (RBAC::Instance()->Login()) {
+        if (RBAC::Instance()->getUserId() > 0) {
+            RBAC::Instance()->setuserId(-1);
+            init();
+            UserLogin *login = new UserLogin(this);
+            connect(login, &UserLogin::accepted, this, &QRK::init);
+            login->exec();
+        }
+    } else {
+        RBAC::Instance()->setuserId(0);
     }
 }
 
@@ -368,6 +445,18 @@ void QRK::setShopName()
 
 //--------------------------------------------------------------------------------
 
+void QRK::actionAclManager()
+{
+    if (!RBAC::Instance()->hasPermission("admin_access", true)) return;
+    AclWizard::createFirstRoleAndUser();
+    if (RBAC::Instance()->getAllUsers().isEmpty())
+        return;
+
+    AclManager am;
+    am.exec();
+    emit init();
+}
+
 void QRK::actionAbout_QRK()
 {
     AboutDlg dlg;
@@ -383,6 +472,8 @@ void QRK::actionQRK_Forum()
 //--------------------------------------------------------------------------------
 void QRK::import_CSV()
 {
+    if(!RBAC::Instance()->hasPermission("import_csv", true)) return;
+
     CsvImportWizard importWizard;
     importWizard.exec();
 }
@@ -413,27 +504,37 @@ void QRK::infoFON()
 
 void QRK::endOfDaySlot()
 {
-    Reports rep;
-    rep.endOfDay();
+    if (RBAC::Instance()->hasPermission("tasks_create_eod", true)) {
+        Reports rep;
+        rep.endOfDay();
+    }
 }
 
 //--------------------------------------------------------------------------------
 
 void QRK::endOfMonthSlot()
 {
-    Reports rep;
-    rep.endOfMonth();
+    if (RBAC::Instance()->hasPermission("tasks_create_eom", true)) {
+        Reports rep;
+        rep.endOfMonth();
+    }
 }
 
 void QRK::onCancelDocumentButton_clicked()
 {
     m_stackedWidget->setCurrentWidget(m_qrk_home);
+    m_qrk_home->init();
 }
 
 //--------------------------------------------------------------------------------
 
 void QRK::onRegisterButton_clicked()
 {
+    if(!RBAC::Instance()->hasPermission("register_access")) {
+        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("register_access"))));
+        return;
+    }
+
     m_qrk_register->init();
     m_qrk_register->newOrder();
     m_stackedWidget->setCurrentWidget(m_qrk_register);
@@ -441,6 +542,11 @@ void QRK::onRegisterButton_clicked()
 
 void QRK::onManagerButton_clicked()
 {
+    if(!RBAC::Instance()->hasPermission("manager_access")) {
+        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("manager_access"))));
+        return;
+    }
+
     ManagerDialog manager;
     manager.exec();
 }
@@ -458,7 +564,7 @@ void QRK::finishedReceipt()
 {
     m_qrk_register->clearModel();
     m_qrk_home->init();
-//    m_qrk_register->init();
+    //    m_qrk_register->init();
     m_qrk_register->newOrder();
 }
 
@@ -466,8 +572,13 @@ void QRK::finishedReceipt()
 
 void QRK::onDocumentButton_clicked()
 {
+    if(!RBAC::Instance()->hasPermission("documents_access")) {
+        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("documents_access"))));
+        return;
+    }
+
     m_stackedWidget->setCurrentWidget(m_qrk_document);
-    m_qrk_document->documentList();
+    m_qrk_document->documentList(m_qrk_home->isServerMode());
 }
 
 //--------------------------------------------------------------------------------
@@ -492,12 +603,16 @@ void QRK::fullScreenSlot()
 void QRK::closeEvent (QCloseEvent *event)
 {
     if (m_qrk_home->isServerMode()) {
-        QMessageBox::information(this, tr("Server Modus aktiv"), tr("Beenden Sie bitte zuerst den Servermodus."));
+        emit setServerMode(false);
+        connect(m_qrk_home, &QRKHome::servermodefinished, this, &QRK::exitSlot);
+
+//        QMessageBox::information(this, tr("Server Modus aktiv"), tr("Beenden Sie bitte zuerst den Servermodus."));
         event->ignore();
         return;
     }
 
-    QMessageBox mb(tr("Beenden"),
+    disconnect(m_qrk_home, &QRKHome::servermodefinished, 0,0);
+    QrkTimedMessageBox mb(5, tr("Beenden"),
                    tr("Möchten sie wirklich beenden ?"),
                    QMessageBox::Question,
                    QMessageBox::Yes | QMessageBox::Default,
@@ -505,6 +620,7 @@ void QRK::closeEvent (QCloseEvent *event)
                    QMessageBox::NoButton);
     mb.setButtonText(QMessageBox::Yes, tr("Ja"));
     mb.setButtonText(QMessageBox::No, tr("Nein"));
+    mb.setDefaultButton(QMessageBox::Yes);
 
     if (mb.exec() == QMessageBox::Yes) {
         QrkSettings settings;
@@ -514,6 +630,7 @@ void QRK::closeEvent (QCloseEvent *event)
             settings.save2Settings("mainWindowState", saveState(), false);
         }
         PluginManager::instance()->uninitialize();
+        DatabaseManager::clear();
         QApplication::exit();
     } else {
         event->ignore();
@@ -562,7 +679,7 @@ void QRK::actionResuscitationCashRegister()
 void QRK::backupDEP()
 {
     if (Export::getLastMonthReceiptId() == -1) {
-        QMessageBox::information(this, tr("DEP Datensicherung"), tr("Es wurde kein Monatsbeleg gefunden. Versuchen Sie die Sicherung nach einen Monatsabschlusses erneut."));
+        QMessageBox::information(this, tr("DEP-7 Datensicherung"), tr("Es wurde kein Monatsbeleg gefunden. Versuchen Sie die Sicherung nach einen Monatsabschlusses erneut."));
         return;
     }
 
@@ -570,8 +687,8 @@ void QRK::backupDEP()
     QString directoryname = settings.value("externalDepDirectory", "").toString();
     if (!Utils::isDirectoryWritable(directoryname)) {
         QMessageBox messageBox(QMessageBox::Question,
-                               QObject::tr("Externes DEP Backup"),
-                               QObject::tr("Das externe Medium %1 ist nicht vorhanden oder nicht beschreibbar. Bitte beheben Sie den Fehler und dann drücken OK. Wenn Sie das Backup zu einen späteren Zeitpunkt durchführen möchten dann klicken Sie abbrechen.").arg(directoryname),
+                               QObject::tr("Externes DEP-7 Backup"),
+                               QObject::tr("Das externe Medium %1 ist nicht vorhanden oder nicht beschreibbar.\nBitte beheben Sie den Fehler und drücken OK. Wenn das Backup zu einen späteren Zeitpunkt durchgeführt werden soll klicken Sie abbrechen.").arg(directoryname),
                                QMessageBox::Yes | QMessageBox::No,
                                0);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("OK"));
@@ -586,12 +703,12 @@ void QRK::backupDEP()
     if (Utils::isDirectoryWritable(directoryname)) {
         Export xDep;
         bool ok = xDep.createBackup();
-        SpreadSignal::setProgressBarValue(-1);
+        Spread::Instance()->setProgressBarValue(-1);
         if (ok) {
-            QMessageBox::information(this, tr("DEP Datensicherung"), tr("DEP Datensicherung abgeschlossen."));
+            QMessageBox::information(this, tr("DEP-7 Datensicherung"), tr("DEP-7 Datensicherung abgeschlossen."));
             return;
         } else {
-            QMessageBox::information(this, tr("DEP Datensicherung"), tr("DEP Datensicherung fehlgeschlagen."));
+            QMessageBox::information(this, tr("DEP-7 Datensicherung"), tr("DEP-7 Datensicherung fehlgeschlagen."));
             return;
         }
     }
@@ -607,12 +724,6 @@ void QRK::backup()
     QMessageBox::information(this, tr("Datensicherung"), tr("Datensicherung abgeschlossen."));
 }
 
-void QRK::plugins()
-{
-    PluginView view;
-    view.exec();
-}
-
 void QRK::restartApplication()
 {
     // Spawn a new instance of myApplication:
@@ -622,4 +733,23 @@ void QRK::restartApplication()
     QString wd = QDir::currentPath();
     QProcess::startDetached(app, arguments, wd);
     QApplication::exit(0);
+}
+
+void QRK::newApplicationVersionAvailable(QString version)
+{    
+    disconnect(m_versionChecker, &VersionChecker::Version, 0, 0);
+
+    QString currentVersion = qApp->applicationVersion().right(6);
+    if (QString::compare(version.right(6), currentVersion, Qt::CaseInsensitive) > 0) {
+        QMessageBox messageBox(QMessageBox::Information,
+                               QObject::tr("Out of Date"),
+                               QObject::tr("Hinweis: Ihre QRK Version (%1) ist möglicherweise veraltet. QRK Version %2 ist verfügbar").arg(qApp->applicationVersion()).arg(version),
+                               QMessageBox::Yes,
+                               this);
+        messageBox.setButtonText(QMessageBox::Yes, QObject::tr("OK"));
+        messageBox.setWindowFlags(messageBox.windowFlags() | Qt::WindowStaysOnTopHint);
+
+        messageBox.exec();
+    }
+    connect(m_versionChecker, &VersionChecker::Version, this, &QRK::newApplicationVersionAvailable);
 }

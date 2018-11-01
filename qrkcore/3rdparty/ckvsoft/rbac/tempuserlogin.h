@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,28 +20,22 @@
  *
 */
 
-#ifndef QRKPROGRESS_H
-#define QRKPROGRESS_H
+#ifndef TEMPUSERLOGIN_H
+#define TEMPUSERLOGIN_H
 
-#include <QDialog>
-#include "ui_qrkprogress.h"
+#include "base_login.h"
 
-class QRKProgress : public QDialog
+class CKVSOFT_EXPORT TempUserLogin : public base_login
 {
-    Q_OBJECT
+        Q_OBJECT
 
-public:
-    QRKProgress(QDialog *parent = 0);
-    ~QRKProgress();
+    public:
+        TempUserLogin(QWidget* parent = 0);
+        ~TempUserLogin();
 
-    void setWaitMode(bool waitmode = true);
-    void setText(QString text);
+    private slots:
+        void OnLogin();
 
-public slots:
-    void progress ( int );
-
-private:
-    Ui::QRKProgress *ui;
 };
 
-#endif // QRKPROGRESS_H
+#endif // TEMPUSERLOGIN_H

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,9 +29,8 @@ FontSelector::FontSelector(QFont font, QWidget *parent) :
     ui->setupUi(this);
 
     // this->font = new QFont(font);
-
-    connect(ui->OKButton, SIGNAL(clicked(bool)),this,SLOT(accept()));
-    connect(ui->CancelButton, SIGNAL(clicked(bool)),this,SLOT(close()));
+    connect(ui->OKButton, &QPushButton::clicked, this, &FontSelector::accept);
+    connect(ui->CancelButton, &QPushButton::clicked, this, &FontSelector::close);
 
     ui->fontComboBox->setCurrentFont(font);
     ui->fontComboBox->setCurrentText(font.family());

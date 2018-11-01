@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +23,6 @@
 #ifndef SINGLETON_H
 #define SINGLETON_H
 
-
-
-#include <assert.h>
 #include "qrkcore_global.h"
 
 template <class T>
@@ -36,9 +33,7 @@ class QRK_EXPORT Singleton
 public:
     static T* Instance()
     {
-        if(!m_Instance) m_Instance = new T;
-        assert(m_Instance != NULL);
-        return m_Instance;
+        return m_Instance? m_Instance : (m_Instance = new T);
     }
 
 protected:

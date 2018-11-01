@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "pluginmanager/pluginmanager.h"
 #include "preferences/qrksettings.h"
 #include "3rdparty/qbcmath/bcmath.h"
+#include "3rdparty/ckvsoft/rbac/acl.h"
 
 #include <QApplication>
 #include <QSqlDatabase>
@@ -51,9 +52,11 @@ ReceiptItemModel::ReceiptItemModel(QObject* parent)
     m_isReport = false;
     m_totallyup = false;
 
-    connect(this, SIGNAL(dataChanged(const QModelIndex&, const QModelIndex&)), this, SLOT(itemChangedSlot(const QModelIndex&, const QModelIndex&)));
+    connect(this, &ReceiptItemModel::dataChanged, this, &ReceiptItemModel::itemChangedSlot);
+}
 
-    initPlugins();
+ReceiptItemModel::~ReceiptItemModel()
+{
 }
 
 void ReceiptItemModel::clear()
@@ -66,8 +69,9 @@ void ReceiptItemModel::clear()
     m_isR2B = false;
     m_isReport = false;
     m_totallyup = false;
-
+    initPlugins();
 }
+
 void ReceiptItemModel::setReceiptTime(QDateTime receiptTime)
 {
     m_receiptTime = receiptTime;
@@ -91,7 +95,7 @@ int ReceiptItemModel::getReceiptNum()
 bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
 {
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     bool ok = false;
@@ -117,10 +121,12 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
             qCritical() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
         }
 
+        QrkSettings settings;
+
         while ( orders.next() )
         {
             QBCMath count = orders.value("count").toDouble();
-            count.round(2);
+            count.round(settings.value("decimalDigits", 2).toInt());
             QBCMath singlePrice = orders.value("gross").toDouble();
             singlePrice.round(2);
             double tax = QString::number(orders.value("tax").toDouble(),'f',2).toDouble();
@@ -137,13 +143,14 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
     }
 
     setReceiptTime(QDateTime::currentDateTime());
-    query.prepare(QString("UPDATE receipts SET timestamp=:timestamp, infodate=:infodate, receiptNum=:receiptNum, payedBy=:payedBy, gross=:gross, net=:net WHERE id=:receiptNum"));
+    query.prepare(QString("UPDATE receipts SET timestamp=:timestamp, infodate=:infodate, receiptNum=:receiptNum, payedBy=:payedBy, gross=:gross, net=:net, userId=:userId WHERE id=:receiptNum"));
     query.bindValue(":timestamp", m_receiptTime.toString(Qt::ISODate));
     query.bindValue(":infodate", m_receiptTime.toString(Qt::ISODate));
     query.bindValue(":receiptNum", m_currentReceipt);
     query.bindValue(":payedBy", payedBy);
     query.bindValue(":gross", sum.toDouble());
     query.bindValue(":net", net.toString());
+    query.bindValue(":userId", RBAC::Instance()->getUserId());
 
     ok = query.exec();
     if (!ok) {
@@ -158,7 +165,11 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
 
     if (RKSignatureModule::isDEPactive()) {
         Utils utils;
-        QString signature =  utils.getSignature(data);
+        QString signature = utils.getSignature(data);
+        if (signature.isEmpty()) {
+            qCritical() << "Function Name: " << Q_FUNC_INFO << " No Signature Data: " << signature;
+            return false;
+        }
 
         query.prepare(QString("INSERT INTO dep (receiptNum, data) VALUES (:receiptNum, :data)"));
         query.bindValue(":receiptNum", m_currentReceipt);
@@ -178,20 +189,22 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
     if (id)
         Database::setStornoId(m_currentReceipt, id);
 
-    DocumentPrinter p;
-    p.printReceipt(data);
+    if (ok) {
+        DocumentPrinter p;
+        p.printReceipt(data);
 
-    Journal journal;
-    journal.journalInsertReceipt(data);
+        Journal journal;
+        journal.journalInsertReceipt(data);
+    }
 
-    return true;
+    return ok;
 
 }
 
 QJsonObject ReceiptItemModel::compileData(int id)
 {
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
 
     QSqlQuery query(dbc);
     QJsonObject Root;//root object
@@ -209,6 +222,9 @@ QJsonObject ReceiptItemModel::compileData(int id)
     int receiptNum = query.value(0).toInt();
     QDateTime receiptTime = query.value(1).toDateTime();
     int payedBy = query.value(2).toInt();
+
+    if (!m_customerText.isEmpty())
+        Database::addCustomerText(receiptNum, m_customerText);
 
     // Positions
     query.prepare(QString("SELECT COUNT(*) FROM orders WHERE receiptId=%1").arg(m_currentReceipt));
@@ -260,7 +276,7 @@ QJsonObject ReceiptItemModel::compileData(int id)
 
     // Orders
     QSqlQuery orders(dbc);
-    orders.prepare(QString("SELECT orders.count, products.name, orders.gross, orders.tax, products.coupon, orders.discount FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=:id"));
+    orders.prepare(QString("SELECT orders.count, products.name, orders.gross, orders.tax, products.coupon, orders.discount, products.itemnum FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=:id"));
     orders.bindValue(":id", m_currentReceipt);
 
     orders.exec();
@@ -274,6 +290,7 @@ QJsonObject ReceiptItemModel::compileData(int id)
     Root["version"] = QString("%1.%2").arg(QRK_VERSION_MAJOR).arg(QRK_VERSION_MINOR);
     Root["action"] = JOURNAL_RECEIPT;
     Root["kasse"] = Database::getCashRegisterId();
+    Root["displayname"] = RBAC::Instance()->getDisplayname();
     Root["actionText"] = tr("Beleg");
     Root["typeText"] = Database::getActionType((payedBy > PAYED_BY_START_RECEIPT)?0:payedBy);
     Root["shopName"] = Database::getShopName();
@@ -288,40 +305,42 @@ QJsonObject ReceiptItemModel::compileData(int id)
 
     QJsonArray Orders;
 
-    double sum = 0;
+    QBCMath sum(0.00);
     QMap<double, double> taxes; // <tax-percent, sum>
 
-    while(orders.next())//load all data from the database
+    while(orders.next()) //load all data from the database
     {
         QBCMath discount = orders.value("discount").toDouble();
         discount.round(2);
-        double count = orders.value(0).toDouble();
-        count = QString::number(count, 'f', 2).toDouble();
-        double singlePrice = orders.value(2).toDouble();
-        double gross = singlePrice * count;
-        gross = gross - ((gross / 100) * discount.toDouble());
-        gross = QString::number(gross, 'f', 2).toDouble();
+        QBCMath count(orders.value(0).toDouble());
+        count.round(settings.value("decimalDigits", 2).toInt());
+        QBCMath singlePrice(orders.value(2).toDouble());
+        QBCMath gross = singlePrice * count;
+        gross = gross - ((gross / 100) * discount);
+        gross.round(2);
+//        gross = QString::number(gross, 'f', 2).toDouble();
         double tax = orders.value(3).toDouble();
 
         sum += gross;
 
         if ( taxes.contains(tax) )
-            taxes[tax] += Utils::getTax(gross,tax);
+            taxes[tax] += Utils::getTax(gross.toDouble(), tax);
         else
-            taxes[tax] = Utils::getTax(gross,tax);
+            taxes[tax] = Utils::getTax(gross.toDouble(), tax);
 
         QJsonObject order;
-        order["count"] = count;
+        order["count"] = count.toDouble();
+        order["itemNum"] = orders.value("itemNum").toString();
         order["product"] = orders.value(1).toString();
         order["discount"] = discount.toDouble();
-        order["gross"] = gross;
-        order["singleprice"] = singlePrice;
+        order["gross"] = gross.toDouble();
+        order["singleprice"] = singlePrice.toDouble();
         order["tax"] = tax;
         order["coupon"] = orders.value(4).toString();
         Orders.append(order);
 
         QString taxType = Database::getTaxType(tax);
-        Root[taxType] = Root[taxType].toDouble() + gross; /* last Info: we need GROSS :)*/
+        Root[taxType] = Root[taxType].toDouble() + gross.toDouble(); /* last Info: we need GROSS :)*/
         qApp->processEvents();
     }
 
@@ -336,7 +355,7 @@ QJsonObject ReceiptItemModel::compileData(int id)
     }
 
     Root["Orders"] = Orders;
-    Root["sum"] = sum;
+    Root["sum"] = sum.toDouble();
     Root["sumYear"] = sumYear;
     Root["positions"] = positions;
     Root["Taxes"] = Taxes;
@@ -405,10 +424,12 @@ bool ReceiptItemModel::createNullReceipt(int type)
 
     QString typeText = "";
     int payType = 0;
+    bool mustSign = false;
     switch (type) {
     case START_RECEIPT:
         typeText = "Startbeleg";
         payType = PAYED_BY_START_RECEIPT;
+        mustSign = true;
         break;
     case MONTH_RECEIPT:
         typeText = "Monatsbeleg";
@@ -417,10 +438,12 @@ bool ReceiptItemModel::createNullReceipt(int type)
     case YEAR_RECEIPT:
         typeText = "Jahresbeleg";
         payType = PAYED_BY_MONTH_RECEIPT;
+        mustSign = true;
         break;
     case COLLECTING_RECEIPT:
         typeText = QString("Sammelbeleg - Signatureinheit ausgefallen von %1 bis %2").arg(RKSignatureModule::resetSignatureModuleDamaged()).arg(QDateTime::currentDateTime().toString(Qt::ISODate));
         payType = PAYED_BY_COLLECTING_RECEIPT;
+        mustSign = true;
         break;
     case CONTROL_RECEIPT:
         typeText = "Kontroll NULL Beleg";
@@ -463,6 +486,16 @@ bool ReceiptItemModel::createNullReceipt(int type)
 
     } else {
         return false;
+    }
+
+    if (mustSign) {
+        RKSignatureModule *sig = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
+        QString serial = sig->getCertificateSerial(true);
+        delete sig;
+        if (serial.isEmpty() || serial == "0") {
+            qCritical() << "Function Name: " << Q_FUNC_INFO << " A receipt requiring a signature could not be created. Signature unit failed.";
+            return false;
+        }
     }
 
     if (int id = createReceipts()) {
@@ -508,7 +541,7 @@ int ReceiptItemModel::createReceipts()
         }
     }
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     bool processed = false;
@@ -525,6 +558,7 @@ int ReceiptItemModel::createReceipts()
     if (!ok) {
         qCritical() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
         qCritical() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
+        return false;
     }
 
     QString driverName = dbc.driverName();
@@ -548,34 +582,40 @@ bool ReceiptItemModel::createOrder(bool storno)
 
     bool ret = false;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc) ;
-    query.prepare(QString("INSERT INTO orders (receiptId, product, count, net, discount, gross, tax) SELECT :receiptId, id, :count, :net, :discount, :egross, :tax FROM products WHERE name=:name"));
+    query.prepare(QString("INSERT INTO orders (receiptId, product, count, net, discount, gross, tax) SELECT :receiptId, id, :count, :net, :discount, :egross, :tax FROM products WHERE name=:name LIMIT 1"));
+
+    QrkSettings settings;
 
     int row_count = rowCount();
     for (int row = 0; row < row_count; row++)
     {
-        double count = data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
+        QBCMath count(data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble());
+        count.round(settings.value("decimalDigits", 2).toInt());
         if (storno)
             count *= -1;
 
         QString product = data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString();
-        double tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
-        double egross = data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toDouble();
-        double discount = data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble();
 
-        Database::updateProductSold(count, product);
+        QBCMath tax(data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble());
+        QBCMath egross(data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toDouble());
+        QBCMath discount(data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble());
+        tax.round(2);
+        egross.round(2);
+        discount.round(2);
 
-        //double net = egross - (egross * tax / (100 + tax));
+        Database::updateProductSold(count.toDouble(), product);
 
-        double net = egross - Utils::getTax(egross, tax);
+        QBCMath net(egross - Utils::getTax(egross.toDouble(), tax.toDouble()));
+        net.round(2);
 
         query.bindValue(":receiptId", m_currentReceipt);
-        query.bindValue(":count", count);
-        query.bindValue(":net", net);
-        query.bindValue(":discount", discount);
-        query.bindValue(":egross", egross);
-        query.bindValue(":tax", tax);
+        query.bindValue(":count", count.toDouble());
+        query.bindValue(":net", net.toDouble());
+        query.bindValue(":discount", discount.toDouble());
+        query.bindValue(":egross", egross.toDouble());
+        query.bindValue(":tax", tax.toDouble());
         query.bindValue(":name", product);
 
         ret = query.exec();
@@ -597,13 +637,15 @@ bool ReceiptItemModel::setR2BServerMode(QJsonObject obj)
 
     QString gross = Utils::normalizeNumber( obj.value("gross").toString() );
 
+    if (!Utils::isNumber(gross)) { emit not_a_number("gross"); return false; }
+
     item(0, REGISTER_COL_COUNT)->setText( "1" );
     item(0, REGISTER_COL_PRODUCT)->setText( product );
     item(0, REGISTER_COL_TAX)->setText( "0" );
     item(0, REGISTER_COL_SINGLE)->setText( gross );
 
     if (!obj.value("customerText").toString().isEmpty())
-        setCustomerText(obj.value("customerText").toString());
+        ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
     m_isR2B = true;
 
@@ -640,10 +682,17 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         QString tax = Utils::normalizeNumber(jsonItem.value("tax").toString());
         QString count = Utils::normalizeNumber(jsonItem.value("count").toString());
         QString discount;
-        if (jsonItem.value("discount").isUndefined())
+        if (jsonItem.value("discount").isUndefined()) {
             discount = "0.00";
-        else
+        } else {
             discount = jsonItem.value("discount").toString();
+            discount.replace("-","");
+        }
+
+        if (!Utils::isNumber(gross)) { emit not_a_number("gross"); return false; }
+        if (!Utils::isNumber(tax)) { emit not_a_number("tax"); return false; }
+        if (!Utils::isNumber(count)) { emit not_a_number("count"); return false; }
+        if (!Utils::isNumber(discount)) { emit not_a_number("discount"); return false; }
 
         list << jsonItem.value("name").toString()
              << tax
@@ -673,8 +722,9 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         }
     }
 
-    if (!obj.value("customerText").toString().isEmpty())
-        setCustomerText(obj.value("customerText").toString());
+    QString customerText = obj.value("customerText").toString();
+    if (! customerText.isEmpty())
+        ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
     return ret;
 }
@@ -685,9 +735,9 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     int row = i.row();
     int col = i.column();
 
-    double sum(0.0);
-    double net(0.0);
-    double tax(0.0);
+    QBCMath sum(0.0);
+    QBCMath net(0.0);
+    QBCMath tax(0.0);
 
     QString s = data(index(row, col, QModelIndex())).toString();
 
@@ -700,7 +750,7 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
    */
 
     if (col == REGISTER_COL_PRODUCT) {
-        QSqlDatabase dbc = QSqlDatabase::database("CN");
+        QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
         query.prepare(QString("SELECT gross, tax FROM products WHERE name=:name"));
         query.bindValue(":name", s);
@@ -725,7 +775,8 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
             sum = sum - ((sum / 100) * data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble());
         }
 
-        s = QString::number(sum, 'f', 2);
+        sum.round(2);
+        s = sum.toString();
 //        if (s.toDouble() == 0)
             blockSignals(true);
 
@@ -738,17 +789,21 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     case REGISTER_COL_TAX:
         net = data(index(row, REGISTER_COL_NET, QModelIndex())).toDouble();
         sum = net * (1.0 + s.replace(" %", "").toDouble() / 100.0);
-        item(row, REGISTER_COL_SINGLE)->setText( QString("%1").arg(sum) );
+        sum.round(2);
+        item(row, REGISTER_COL_SINGLE)->setText( sum.toString() );
         break;
     case REGISTER_COL_NET:
         s.replace(",", ".");
         blockSignals(true);
         tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
-        s = QString::number(s.toDouble() * ((100 + tax) / 100), 'f', 2);
+        net = (s.toDouble() * ((100 + tax.toDouble()) / 100));
+        net.round(2);
+        s = net.toString();
         item(row, REGISTER_COL_SINGLE)->setText( s );
         sum = s.toDouble() * data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
         sum = sum - ((sum / 100) * data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble());
-        s = QString::number(sum, 'f', 2);
+        sum.round(2);
+        s = sum.toString();
         item(row, REGISTER_COL_TOTAL)->setText( s );
         blockSignals(false);
         break;
@@ -757,37 +812,43 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         blockSignals(true);
         item(row, REGISTER_COL_SINGLE)->setText( s );
         tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
-        net = s.toDouble() / (1.0 + tax / 100.0);
-        item(row, REGISTER_COL_NET)->setText( QString("%1").arg(net) );
+        net = s.toDouble() / (1.0 + tax.toDouble() / 100.0);
+        item(row, REGISTER_COL_NET)->setText( net.toString() );
         sum = s.toDouble() * data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
         sum = sum - ((sum / 100) * data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble());
-        s = QString::number(sum, 'f', 2);
-        item(row, REGISTER_COL_TOTAL)->setText( s );
+        sum.round(2);
+        item(row, REGISTER_COL_TOTAL)->setText( sum.toString() );
         blockSignals(false);
         break ;
     case REGISTER_COL_DISCOUNT:
         blockSignals(true);
         s.replace(",", ".");
+        s.replace("-", "");
         sum = data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toDouble();
         sum = sum * data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
         sum = sum - ((sum / 100) * s.toDouble());
-        s = QString::number(sum, 'f', 2);
-        item(row, REGISTER_COL_TOTAL)->setText( s );
+        sum.round(2);
+        item(row, REGISTER_COL_TOTAL)->setText( sum.toString() );
         blockSignals(false);
         break ;
     case REGISTER_COL_TOTAL:
+        if (data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble() == 0.00)
+            break;
+
         s.replace(",", ".");
         s = QString::number(s.toDouble(), 'f', 2);
         blockSignals(true);
         item(row, REGISTER_COL_TOTAL)->setText( s );
         sum = s.toDouble() / data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
+        sum = (sum / (100 - data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble())) * 100;
         tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
-        net = sum / (1.0 + tax / 100.0);
-        item(row, REGISTER_COL_NET)->setText( QString("%1").arg(net) );
-        s = QString::number(sum, 'f', 2);
-        item(row, REGISTER_COL_SINGLE)->setText( s );
+        net = sum / (1.0 + tax.toDouble() / 100.0);
+        net.round(2);
+        sum.round(2);
+        item(row, REGISTER_COL_NET)->setText( net.toString() );
+        item(row, REGISTER_COL_SINGLE)->setText( sum.toString() );
         blockSignals(false);
-        break ;
+        break;
     }
 
     emit finishedItemChanged();
@@ -799,7 +860,7 @@ bool ReceiptItemModel::storno(int id)
 
     int rc = rowCount();
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT orders.count, products.name, orders.tax, orders.net, orders.gross, orders.discount FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=:id");
     query.bindValue(":id", id);
@@ -831,7 +892,9 @@ bool ReceiptItemModel::storno(int id)
 
 void ReceiptItemModel::initPlugins()
 {
-    wsdlInterface = qobject_cast<WsdlInterface *>(PluginManager::instance()->getObjectByName("Wsdl*"));
+    if (!wsdlInterface)
+        wsdlInterface = qobject_cast<WsdlInterface *>(PluginManager::instance()->getObjectByName("Wsdl*"));
+
     if (!wsdlInterface)
         qDebug() << "Function Name: " << Q_FUNC_INFO << " WSDL: not available";
 }

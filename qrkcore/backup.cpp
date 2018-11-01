@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,13 +41,18 @@ void Backup::create(QString dataDir)
 
     QrkSettings settings;
     QString backupDir = settings.value("backupDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/backup").toString();
+    QString confname = qApp->property("configuration").toString();
+    if (!confname.isEmpty())
+        confname = "_" + confname;
 
-    QString infile = QString("%1/%2-QRK.db").arg(dataDir).arg(QDate::currentDate().year());
+    QString infile = QString("%1/%2-QRK%3.db").arg(dataDir).arg(QDate::currentDate().year()).arg(confname);
     QString outfile = QString("%1/data_%2.zip").arg(backupDir).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"));
 
     bool ok = JlCompress::compressFile( outfile, infile );
     if (!ok)
         qWarning() << "Function Name: " << Q_FUNC_INFO << " JlCompress::compressFile:" << ok;
+
+    removeOldestFiles();
 
 }
 
@@ -62,7 +67,7 @@ void Backup::restore(QString filename, bool restart)
     files = JlCompress::extractFiles(zipfile, files, dataDir);
 
     if (files.isEmpty()) {
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " JlCompress::extractFiles: none";
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " JlCompress::extractFiles: none, filename: " << filename << " zipfile: " << zipfile;
     } else if (restart) {
         // Spawn a new instance of myApplication:
         QString app = QApplication::applicationFilePath();
@@ -78,10 +83,13 @@ void Backup::pakLogFile()
 {
 
     QrkSettings settings;
+    QString confname = qApp->property("configuration").toString();
+    if (!confname.isEmpty())
+        confname = "_" + confname;
 
     QString backupDir = QDir(settings.value("backupDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString()).absolutePath();
-    QString infile = QString("%1").arg(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/qrk.log");
-    QString outfile = QString("%1/qrk_log_%2.zip").arg(backupDir).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"));
+    QString infile = QString("%1").arg(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QString("/qrk.log").arg(confname));
+    QString outfile = QString("%1/qrk%2_log_%3.zip").arg(backupDir).arg(confname).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"));
 
     bool ok = JlCompress::compressFile( outfile, infile );
     if (!ok) {
@@ -90,6 +98,27 @@ void Backup::pakLogFile()
     }
 
     QFile(infile).remove();
+}
+
+void Backup::removeOldestFiles()
+{
+    QrkSettings settings;
+    int keep = settings.value("keepMaxBackups", -1).toInt();
+    if (keep == -1)
+        return;
+
+    QString backupDir = QDir(settings.value("backupDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString()).absolutePath();
+
+    QDir dir(backupDir);
+    dir.setNameFilters(QStringList() << "*.zip");
+    dir.setFilter(QDir::Files);
+    dir.setSorting(QDir::Time | QDir::Reversed);
+    QStringList list = dir.entryList();
+    while(list.size() > keep){
+        QString f = list.takeFirst();
+        QFile::remove(dir.absoluteFilePath(f));
+        qInfo() << "Function Name: " << Q_FUNC_INFO << " Remove old backup FileName: " << f;
+    }
 }
 
 bool Backup::removeDir(const QString & dirName)

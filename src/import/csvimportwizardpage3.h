@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,6 @@ class ImportData : public QObject
     ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, bool ignoreExistingProduct = false, bool guessGroup = false, bool autogroup = false,  bool visibleGroup = false, bool visibleProduct = false, bool updateExistingProduct = false);
     ~ImportData();
 
-  private slots:
     void run();
 
   signals:

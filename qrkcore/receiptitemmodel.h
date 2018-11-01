@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +51,8 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     Q_OBJECT
   public:
     ReceiptItemModel(QObject* parent = 0);
+    ~ReceiptItemModel();
+
     QJsonObject compileData(int id = 0);
 
     void setCurrentReceiptNum(int id);
@@ -75,6 +77,7 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     void setButtonGroupEnabled(bool);
     void finishedItemChanged();
     void finishedPlus();
+    void not_a_number(QString);
 
 private slots:
     void itemChangedSlot(const QModelIndex&, const QModelIndex&);
@@ -84,7 +87,7 @@ private:
     bool doEndOfDay(QDate date);
     void initPlugins();
 
-    WsdlInterface *wsdlInterface;
+    WsdlInterface *wsdlInterface = 0;
 
     QDate m_lastEOD;
     QString m_currency;

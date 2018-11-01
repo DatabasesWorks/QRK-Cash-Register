@@ -1,6 +1,5 @@
 INCLUDEPATH += $$PWD
-# DEPENDPATH += $$PWD
-
+DEPENDPATH += $$PWD
 HEADERS += \
         $$PWD/crypt.h \
         $$PWD/ioapi.h \

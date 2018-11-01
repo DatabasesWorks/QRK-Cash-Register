@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -145,10 +145,12 @@ void PluginManager::load(const QString& path)
 
     QPluginLoader *loader = new QPluginLoader(path);
     if (d->names.value(path) == loader->metaData().value("MetaData").toObject().value("name").toVariant()) {
-        if(qobject_cast<PluginInterface *>(loader->instance()))
+        if(qobject_cast<PluginInterface *>(loader->instance())) {
             d->loaders.insert(path, loader);
-        else {
-            qWarning() << "can't load:" << path << " Error: " << loader->errorString();
+            if (!qobject_cast<PluginInterface *>(loader->instance())->initialize())
+                qWarning() << "can't initialize: " << path;
+        } else {
+            qWarning() << "can't load: " << path << " Error: " << loader->errorString();
             delete loader;
         }
     } else {
@@ -160,6 +162,9 @@ void PluginManager::load(const QString& path)
 void PluginManager::unload(const QString& path)
 {
     QPluginLoader *loader = d->loaders.value(path);
+
+    if (!qobject_cast<PluginInterface *>(loader->instance())->deinitialize())
+        qWarning() << "can't deinitialize: " << path;
 
     if(loader->unload()) {
         d->loaders.remove(path);
@@ -182,6 +187,11 @@ QObject* PluginManager::getObjectByName(QString name)
         }
     }
     return NULL;
+}
+
+QString PluginManager::getNameByPath(QString path)
+{
+    return d->names.value(path).toString();
 }
 
 QString PluginManager::getHashValue(QString strVal)

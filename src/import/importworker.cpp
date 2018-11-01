@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,10 @@
 #include "importworker.h"
 #include "singleton/spreadsignal.h"
 #include "preferences/qrksettings.h"
+#include "RK/rk_signaturemodule.h"
+#include "database.h"
+#include "databasemanager.h"
+#include "documentprinter.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -33,6 +37,7 @@
 #include <QThread>
 #include <QWidget>
 #include <QTextCodec>
+#include <QSqlError>
 #include <QDebug>
 
 ImportWorker::ImportWorker(QQueue<QString> &queue, QWidget *parent)
@@ -40,11 +45,14 @@ ImportWorker::ImportWorker(QQueue<QString> &queue, QWidget *parent)
 {
     m_queue = &queue;
     m_isStopped = false;
+    connect(this, &ImportWorker::not_a_number, this, &ImportWorker::number_error);
 }
 
 ImportWorker::~ImportWorker()
 {
-    qDebug() << "Destructor from Worker thread: "<<QThread::currentThreadId();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " Destructor from Worker thread: " << QThread::currentThread();
+    disconnect(this, &ImportWorker::not_a_number, 0, 0);
+    DatabaseManager::removeCurrentThread("CN");
 }
 
 void ImportWorker::stopProcess()
@@ -55,7 +63,7 @@ void ImportWorker::stopProcess()
 void ImportWorker::process()
 {
     while (!m_isStopped && !m_queue->isEmpty()) {
-        qDebug() << "From Worker thread: "<<QThread::currentThreadId();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " From Worker thread: " << QThread::currentThread();
 
         if (checkEOAnyServerMode()) {
             QString filename = m_queue->first();
@@ -67,18 +75,31 @@ void ImportWorker::process()
             while (!m_isStopped && !m_queue->isEmpty())
                 fileMover(m_queue->dequeue(), ".false");
 
-            QString info = tr("Import Fehler -> Tages/Monatsabschluß wurde schon erstellt. Es wurden %1 Dateien umbenannt.").arg(qsize);
-            SpreadSignal::setImportInfo(info, true);
+            QString info;
+            if (!RKSignatureModule::isSignatureModuleSetDamaged())
+                info = tr("Import Fehler -> Tages/Monatsabschluss wurde schon erstellt. Es wurden %1 Dateien umbenannt.").arg(qsize);
+            else
+                info = tr("Import Fehler -> Es wurden %1 Dateien umbenannt. (siehe Logdatei)").arg(qsize);
+            Spread::Instance()->setImportInfo(info, true);
             break;
         }
     }
     emit finished();
 }
 
+void ImportWorker::number_error(QString what)
+{
+    Spread::Instance()->setImportInfo(tr("Import Fehler JSON Datenformat von %1 is keine Zahl").arg(what), true);
+}
+
+void ImportWorker::database_error(QString what)
+{
+    Spread::Instance()->setImportInfo(what, true);
+}
+
 bool ImportWorker::loadJSonFile(QString filename)
 {
 
-//    QString receiptInfo;
     QByteArray receiptInfo;
     QFile file(filename);
 
@@ -88,7 +109,7 @@ bool ImportWorker::loadJSonFile(QString filename)
             break;
         }
         if (i == 3) {
-            SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht geöffnet werden.").arg(filename), true);
+            Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht geöffnet werden.").arg(filename), true);
             return false;
         }
         QThread::msleep(300);
@@ -115,14 +136,14 @@ bool ImportWorker::loadJSonFile(QString filename)
     if (data.contains("r2b")) {
         data["filename"] = file.fileName();
         if (importR2B(data)) {
-            SpreadSignal::setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
+            Spread::Instance()->setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
             if (!fileMover(filename, ".old"))
-                SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden").arg(data.value("filename").toString()), true);
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden").arg(data.value("filename").toString()), true);
 
             return true;
 
         } else {
-            SpreadSignal::setImportInfo(tr("Import Fehler -> Falsches Dateiformat (%1).").arg(filename), true);
+            Spread::Instance()->setImportInfo(tr("Import Fehler -> Falsches Dateiformat (%1).").arg(filename), true);
             fileMover(filename, ".false");
             return false;
         }
@@ -130,19 +151,36 @@ bool ImportWorker::loadJSonFile(QString filename)
     } else if (data.contains("receipt")) {
         data["filename"] = file.fileName();
         if (importReceipt(data)) {
-            SpreadSignal::setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
-            if (!fileMover(filename, ".old"))
-                SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
-
+            Spread::Instance()->setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
+            if (!fileMover(filename, ".old")) {
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+                return false;
+            }
             return true;
 
         } else {
             if (!fileMover(filename, ".old"))
-                SpreadSignal::setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+            Spread::Instance()->setImportInfo(tr("Import %1 -> Fehler").arg(data.value("filename").toString()), true);
         }
 
+    } else if (data.contains("printtagged")) {
+        data["filename"] = file.fileName();
+        if (importTagged(data)) {
+            Spread::Instance()->setImportInfo(tr("Import %1 -> Druck OK").arg(data.value("filename").toString()));
+            if (!fileMover(filename, ".old"))
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+
+            return true;
+        }
+        if (!fileMover(filename, ".false"))
+            Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+
+        Spread::Instance()->setImportInfo(tr("Import %1 -> Fehler").arg(data.value("filename").toString()), true);
+        return false;
+
     } else {
-        SpreadSignal::setImportInfo(tr("Import Fehler -> %1 [Offset: %2] (%3)").arg(jerror.errorString()).arg(jerror.offset).arg(filename), true);
+        Spread::Instance()->setImportInfo(tr("Import Fehler -> %1 [Offset: %2] (%3)").arg(jerror.errorString()).arg(jerror.offset).arg(filename), true);
         fileMover(filename, ".false");
     }
 
@@ -153,65 +191,110 @@ bool ImportWorker::importR2B(QJsonObject data)
 {
     QJsonArray r2bArray = data.value("r2b").toArray();
     bool ok = false;
+
+    QSqlDatabase dbc = Database::database();
+    ok = dbc.transaction();
+    if (!ok) {
+        emit database_error(QString("Transaction failed(%1), %2 %3").arg(ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
+        return ok;
+    }
+
     foreach (const QJsonValue & value, r2bArray) {
         QJsonObject obj = value.toObject();
         ok = obj.contains("gross") && obj.contains("receiptNum") && obj.contains("payedBy");
         if (ok) {
-
+            ok = false;
             newOrder();
             if (! setR2BServerMode(obj)) {
                 QString info = tr("Import Fehler -> Rechnungsnummer: %1 aus Importdatei %2 wird schon verwendet!").arg(obj.value("receiptNum").toString()).arg(data.value("filename").toString());
-                SpreadSignal::setImportInfo(info, true);
-                return false;
-            }
-
-            if (int id = createReceipts()) {
+                Spread::Instance()->setImportInfo(info, true);
+                ok = false;
+            } else if (int id = createReceipts()) {
                 setCurrentReceiptNum(id);
                 if (createOrder()) {
                     if (finishReceipts(obj.value("payedBy").toString().toInt())) {
-                    }
-                }
+                        ok = dbc.commit();
+                    } else {ok = false;}
+                } else {ok = false;}
             }
         } else {
             QString info = tr("Import Fehler -> Falsches JSON Format, Dateiname: %1").arg(data.value("filename").toString());
-            SpreadSignal::setImportInfo(info, true);
-            return false;
+            Spread::Instance()->setImportInfo(info, true);
+            ok = false;
         }
     }
-    return true;
+
+    if (!ok) {
+        bool sql_ok = dbc.rollback();
+        emit database_error(QString("Rollback = %1,%2 %3").arg(sql_ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
+    }
+
+    return ok;
 }
 
 bool ImportWorker::importReceipt(QJsonObject data)
 {
     QJsonArray receiptData = data.value("receipt").toArray();
     bool ok = false;
+
+    QSqlDatabase dbc = Database::database();
+    ok = dbc.transaction();
+    if (!ok) {
+        emit database_error(QString("Transaction failed(%1), %2 %3").arg(ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
+        return ok;
+    }
+
     foreach (const QJsonValue & value, receiptData) {
         QJsonObject obj = value.toObject();
         ok = obj.contains("payedBy") && obj.contains("items");
         if (ok) {
-
+            ok = false;
             newOrder();
             if (! setReceiptServerMode(obj)) {
                 QString info = tr("Import Fehler -> Importdatei %1!").arg(data.value("filename").toString());
-                SpreadSignal::setImportInfo(info, true);
-                return false;
-            }
-            if (int id = createReceipts()) {
+                Spread::Instance()->setImportInfo(info, true);
+                ok = false;
+            } else if (int id = createReceipts()) {
                 setCurrentReceiptNum(id);
                 if (createOrder()) {
                     if (finishReceipts(obj.value("payedBy").toString().toInt())) {
-                        return true;
-                    }
-                }
+                        ok = dbc.commit();
+                    } else {ok = false;}
+                } else {ok = false;}
             }
         } else {
             QString info = tr("Import Fehler -> Falsches JSON Format, Dateiname: %1").arg(data.value("filename").toString());
-            SpreadSignal::setImportInfo(info, true);
-            return false;
+            Spread::Instance()->setImportInfo(info, true);
+            ok = false;
         }
-
     }
-    return true;
+    if (!ok) {
+        bool sql_ok = dbc.rollback();
+        emit database_error(QString("Rollback = %1,%2 %3").arg(sql_ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
+    }
+
+    return ok;
+}
+
+bool ImportWorker::importTagged(QJsonObject data)
+{
+    QJsonArray taggedData = data.value("printtagged").toArray();
+    bool ok = false;
+
+    foreach (const QJsonValue & value, taggedData) {
+        QJsonObject obj = value.toObject();
+        ok = obj.contains("customerText") && obj.contains("printer") && obj.contains("items");
+        if (ok) {
+            DocumentPrinter p;
+            p.printTagged(obj);
+        } else {
+            QString info = tr("Import Fehler -> Falsches JSON Format, Dateiname: %1").arg(data.value("filename").toString());
+            Spread::Instance()->setImportInfo(info, true);
+            ok = false;
+        }
+    }
+
+    return ok;
 }
 
 bool ImportWorker::fileMover(QString filename, QString ext)
@@ -227,15 +310,16 @@ bool ImportWorker::fileMover(QString filename, QString ext)
     QStringList filter;
     filter.append(fi.baseName() + ext + "*");
     QFileInfoList fIL;
-    fIL = directory.entryInfoList(filter, QDir::Files, QDir::Name);
+    fIL = directory.entryInfoList(filter, QDir::Files, QDir::Time);
+
     if (fIL.size()>0) {
-        QFileInfo fi = fIL.last();
+        QFileInfo fi = fIL.first();
         QString e = fi.fileName().section(".", -1,-1);
         if (e == ext.section(".", -1,-1)) {
             ext = ".001";
         } else {
             int i = e.toInt() +1;
-            ext = "." + QString("%1").arg(i, 3, 'g', -1, '0');;
+            ext = "." + QString("%1").arg(i, e.size(), 'g', -1, '0');;
         }
         QFile f(originalfilename);
         return f.rename(filename + ext);

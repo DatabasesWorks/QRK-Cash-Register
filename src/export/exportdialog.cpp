@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,12 +45,10 @@ ExportDialog::ExportDialog( bool save2dir, QWidget *parent)
     m_toDT->setDate(QDate::currentDate());
     m_toDT->setTime(QTime::fromString("23:59:59"));
 
-    connect(ui->cancelButton, SIGNAL(clicked()), this, SLOT(reject()));
-    connect(ui->exportButton, SIGNAL(clicked()), this, SLOT(onExportButton_clicked()));
-
-    connect(ui->dateEditFrom, SIGNAL(dateChanged(QDate)), this, SLOT(onDateEditFrom_dateChanged(QDate)));
-    connect(ui->dateEditTo, SIGNAL(dateChanged(QDate)), this, SLOT(onDateEditTo_dateChanged(QDate)));
-
+    connect(ui->cancelButton, &QPushButton::clicked, this, &ExportDialog::reject);
+    connect(ui->exportButton, &QPushButton::clicked, this, &ExportDialog::onExportButton_clicked);
+    connect(ui->dateEditFrom, &QDateEdit::dateChanged, this, &ExportDialog::onDateEditFrom_dateChanged);
+    connect(ui->dateEditTo, &QDateEdit::dateChanged, this, &ExportDialog::onDateEditTo_dateChanged);
 }
 
 ExportDialog::~ExportDialog()

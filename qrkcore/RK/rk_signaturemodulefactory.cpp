@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,13 @@
 RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool demomode) {
 
     QrkSettings settings;
+    bool onlinetestmode = false;;
+
     if (reader.isNull() || reader.isEmpty())
         reader = settings.value("currentCardReader", "").toString();
 
     if (demomode && reader.isEmpty()) {
+        onlinetestmode = true;
         reader = "u123456789@123456789@https://hs-abnahme.a-trust.at/asignrkonline/v2";
     } else if (reader.isEmpty()) {
         reader = settings.value("atrust_connection", "").toString();
@@ -54,7 +57,7 @@ RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool
         return new RKSmartCardInfo(reader);
 
     if (reader.split("@").size() == 3) {
-        qDebug("A-Trust Online");
+        (onlinetestmode)?qDebug("A-Trust Online (Testserver)"): qDebug("A-Trust Online (Liveserver)");
         return new ASignOnline(reader);
     }
 
@@ -92,8 +95,7 @@ RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool
  */
 QString RKSignatureModuleFactory::getATR(QString reader)
 {
-    RKSmartCardInfo *sc = new RKSmartCardInfo(reader);
-    QString ATR = sc->getATR();
-    delete sc;
+    RKSmartCardInfo sc(reader);
+    QString ATR = sc.getATR();
     return ATR;
 }

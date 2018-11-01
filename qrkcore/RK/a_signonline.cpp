@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,10 @@ ASignOnline::ASignOnline(QString connectionstring)
 ASignOnline::~ASignOnline()
 {
     logout();
+    if (m_manager) {
+        delete m_manager;
+        m_manager = 0;
+    }
 }
 
 QString ASignOnline::getCardType()
@@ -60,31 +64,33 @@ QString ASignOnline::getCardType()
 
 QString ASignOnline::signReceipt(QString data)
 {
-    QString ZDA = getZDA();
+    // QString ZDA = getZDA();
 
     QString jwsDataToBeSigned = RKSignatureModule::getDataToBeSigned(data);
     QString hashValue = RKSignatureModule::HashValue(jwsDataToBeSigned);
 
-    QByteArray ba = 0;
-    ba.append(hashValue);
-    ba = QByteArray::fromHex(ba);
+    if (!m_sessionId.isEmpty()) {
+        QByteArray ba = 0;
+        ba.append(hashValue);
+        ba = QByteArray::fromHex(ba);
 
-    QUrl reqUrl(m_url + "/Session/" + m_sessionId + "/Sign/Hash");
-    QNetworkRequest req(reqUrl);
+        QUrl reqUrl(m_url + "/Session/" + m_sessionId + "/Sign/Hash");
+        QNetworkRequest req(reqUrl);
 
-    //Creating the JSON-Data
-    QJsonObject *jsondata = new QJsonObject();
+        //Creating the JSON-Data
+        QJsonObject *jsondata = new QJsonObject();
 
-    jsondata->insert("request", "POST");
-    jsondata->insert("sessionKey", m_sessionKey);
-    jsondata->insert("hash", (QString)ba.toBase64());
+        jsondata->insert("request", "POST");
+        jsondata->insert("sessionKey", m_sessionKey);
+        jsondata->insert("hash", (QString)ba.toBase64());
 
-    req.setHeader(QNetworkRequest::ContentTypeHeader,QVariant("application/json"));
-    req.setHeader(QNetworkRequest::ContentLengthHeader, QByteArray::number(QJsonDocument(*jsondata).toJson().size()));
+        req.setHeader(QNetworkRequest::ContentTypeHeader,QVariant("application/json"));
+        req.setHeader(QNetworkRequest::ContentLengthHeader, QByteArray::number(QJsonDocument(*jsondata).toJson().size()));
 
-    if (doRequest(req, *jsondata)) {
-        QString JWS_Signature =  jsondata->value("signature").toString();
-        return jwsDataToBeSigned + "." + JWS_Signature;
+        if (doRequest(req, *jsondata)) {
+            QString JWS_Signature =  jsondata->value("signature").toString();
+            return jwsDataToBeSigned + "." + JWS_Signature;
+        }
     }
 
     QString JWS_Signature = base64Url_encode("Sicherheitseinrichtung ausgefallen");
@@ -144,11 +150,11 @@ QString ASignOnline::getCertificate(bool base64)
  */
 QString ASignOnline::getCertificateSerial(bool hex)
 {
-    QStringList l = signReceipt("check").split('.');
-    if (l.size() == 3) {
-        if (RKSignatureModule::base64Url_decode(l.at(2)) == "Sicherheitseinrichtung ausgefallen")
-            return "0";
-    }
+//    QStringList l = signReceipt("check").split('.');
+//    if (l.size() == 3) {
+//        if (RKSignatureModule::base64Url_decode(l.at(2)) == "Sicherheitseinrichtung ausgefallen")
+//            return "0";
+//    }
 
     if (m_certificateserial.isEmpty())
         getCertificate();
@@ -252,7 +258,8 @@ bool ASignOnline::doRequest(QNetworkRequest req, QJsonObject &obj)
     else
         return false;
 
-    QObject::connect(m_manager, SIGNAL(finished(QNetworkReply*)), &eventLoop, SLOT(quit()));
+    QObject::connect(m_manager, &QNetworkAccessManager::finished, &eventLoop, &QEventLoop::quit);
+
     // the HTTP request
     eventLoop.exec(); // blocks stack until "finished()" has been called
 

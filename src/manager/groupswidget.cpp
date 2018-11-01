@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 
 #include "groupedit.h"
 #include "groupswidget.h"
+#include "database.h"
+#include "ui_groupwidget.h"
 
 #include <QSqlTableModel>
 #include <QSortFilterProxyModel>
@@ -37,12 +39,12 @@ GroupsWidget::GroupsWidget(QWidget *parent)
 {
   ui->setupUi(this);
 
-  QSqlDatabase dbc = QSqlDatabase::database("CN");
+  QSqlDatabase dbc = Database::database();
 
-  connect(ui->plus, SIGNAL(clicked()), this, SLOT(plusSlot()));
-  connect(ui->minus, SIGNAL(clicked()), this, SLOT(minusSlot()));
-  connect(ui->edit, SIGNAL(clicked()), this, SLOT(editSlot()));
-  connect(ui->groupFilter, SIGNAL(textChanged(const QString &)), this, SLOT(filterGroup(const QString &)));
+  connect(ui->plus, &QPushButton::clicked, this, &GroupsWidget::plusSlot);
+  connect(ui->minus, &QPushButton::clicked, this, &GroupsWidget::minusSlot);
+  connect(ui->edit, &QPushButton::clicked, this, &GroupsWidget::editSlot);
+  connect(ui->groupFilter, &QLineEdit::textChanged, this, &GroupsWidget::filterGroup);
 
   m_model = new QSqlTableModel(this, dbc);
   m_model->setTable("groups");
@@ -71,6 +73,11 @@ GroupsWidget::GroupsWidget(QWidget *parent)
 //  ui->tableView->horizontalHeader()->setSectionResizeMode(model->fieldIndex("name"), QHeaderView::Stretch);
   ui->tableView->horizontalHeader()->setStretchLastSection(true);
 
+}
+
+GroupsWidget::~GroupsWidget()
+{
+    delete ui;
 }
 
 //--------------------------------------------------------------------------------

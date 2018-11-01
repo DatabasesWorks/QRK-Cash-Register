@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,9 +27,11 @@
 #include "preferences/qrksettings.h"
 #include "pluginmanager/Interfaces/barcodesinterface.h"
 
-#include "ui_qrkregister.h"
+class QButtonGroup;
 
-//class QSqlQueryModel;
+namespace Ui {
+  class QRKRegister;
+}
 
 class QRKRegister : public QWidget
 {
@@ -55,8 +57,6 @@ class QRKRegister : public QWidget
     void onButtonGroup_payNow_clicked(int payedBy);
     void quickProductButtons(int id);
     void addProductToOrderList(int id);
-    void totallyupSlot();
-    void totallyupExitSlot();
     void receiptToInvoiceSlot();
     void onCancelRegisterButton_clicked();
     void setButtonGroupEnabled(bool enabled);
@@ -86,12 +86,11 @@ class QRKRegister : public QWidget
     bool finishReceipts(int, int = 0, bool = false);
 
     void initPlugins();
-    BarcodesInterface *barcodesInterface;
+    BarcodesInterface *barcodesInterface = 0;
 
     int m_currentReceipt;
     ReceiptItemModel *m_orderListModel;
 
-    bool m_totallyup;
     bool m_useInputNetPrice;
     bool m_useDiscount;
     bool m_useMaximumItemSold;

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,9 +53,8 @@ FONInfo::FONInfo(QWidget *parent) :
     ui->serialLabel->setText(serial);
 
     delete signatureModule;
-    connect(ui->okPushButton, SIGNAL(clicked(bool)),this, SLOT(close()));
-    connect(ui->printPushButton, SIGNAL(clicked(bool)),this, SLOT(printFonInfo()));
-
+    connect(ui->okPushButton, &QPushButton::clicked, this, &FONInfo::close);
+    connect(ui->printPushButton, &QPushButton::clicked, this, &FONInfo::printFonInfo);
 }
 
 FONInfo::~FONInfo()

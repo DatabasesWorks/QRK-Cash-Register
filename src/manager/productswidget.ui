@@ -51,8 +51,8 @@
         <string>Neu</string>
        </property>
        <property name="icon">
-        <iconset resource="../qrk.qrc">
-         <normaloff>:/icons/new.png</normaloff>:/icons/new.png</iconset>
+        <iconset resource="../../qrk.qrc">
+         <normaloff>:src/icons/new.png</normaloff>:src/icons/new.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -80,8 +80,8 @@
         <string>Löschen</string>
        </property>
        <property name="icon">
-        <iconset resource="../qrk.qrc">
-         <normaloff>:/icons/eraser.png</normaloff>:/icons/eraser.png</iconset>
+        <iconset resource="../../qrk.qrc">
+         <normaloff>:src/icons/eraser.png</normaloff>:src/icons/eraser.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -109,8 +109,8 @@
         <string>Ändern</string>
        </property>
        <property name="icon">
-        <iconset resource="../qrk.qrc">
-         <normaloff>:/icons/edit.png</normaloff>:/icons/edit.png</iconset>
+        <iconset resource="../../qrk.qrc">
+         <normaloff>:src/icons/edit.png</normaloff>:src/icons/edit.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -174,7 +174,8 @@
   </layout>
  </widget>
  <resources>
-  <include location="../qrk.qrc"/>
+  <include location="../../qrk.qrc"/>
+  <include location="../../qrk.qrc"/>
  </resources>
  <connections/>
 </ui>

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -387,24 +387,8 @@ void Barcodes::setupUi()
 {
     BarcodesSettings *barcodesettings = new BarcodesSettings();
 
-    QPushButton *pushButton = new QPushButton;
-    pushButton->setMinimumHeight(60);
-    pushButton->setMinimumWidth(0);
-
-    QIcon icon = QIcon(":icons/ok.png");
-    QSize size = QSize(24,24);
-    pushButton->setIcon(icon);
-    pushButton->setIconSize(size);
-    pushButton->setText(tr("OK"));
-
-    QHBoxLayout *buttonLayout = new QHBoxLayout;
-    QSpacerItem* spacer = new QSpacerItem( 0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding );
-    buttonLayout->addItem(spacer);
-    buttonLayout->addWidget(pushButton);
-
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(barcodesettings);
-    mainLayout->addLayout(buttonLayout);
     mainLayout->addStretch(1);
     mainLayout->addSpacing(12);
     m_root->setLayout(mainLayout);
@@ -414,13 +398,10 @@ void Barcodes::setupUi()
 
     if ( QApplication::desktop()->height() < 650 )
     {
-        pushButton->setMinimumHeight(0);
         m_root->setFixedHeight(550);
     }
 
-    pushButton->setMinimumHeight(0);
-
-    connect(pushButton, SIGNAL(clicked()), m_root, SLOT(accept()));
+    connect(barcodesettings, &BarcodesSettings::cancelClicked, m_root, &QDialog::accept);
 }
 
 QDialog *Barcodes::SettingsDialog()

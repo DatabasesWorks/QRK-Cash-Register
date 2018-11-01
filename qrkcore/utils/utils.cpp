@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include <QStringList>
 #include <QPixmap>
 #include <QtMath>
+#include <QStorageInfo>
 #include <QDebug>
 
 Utils::Utils()
@@ -48,19 +49,19 @@ Utils::~Utils()
 {
 }
 
-
 QString Utils::getSignature(QJsonObject data)
 {
 
-    SpreadSignal::setProgressBarWait(true);
+    Spread::Instance()->setProgressBarWait(true);
     RKSignatureModule *RKSignature = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
     RKSignature->selectApplication();
 
     QString taxlocation =  Database::getTaxLocation();
-    QSqlDatabase dbc= QSqlDatabase::database("CN");
+    QSqlDatabase dbc= Database::database();
     QSqlQuery query(dbc);
 
     QJsonObject sign;
+    bool error = false;
 
     sign["Kassen-ID"] = data.value("kasse").toString();
     sign["Belegnummer"] = QString::number(data.value("receiptNum").toInt());
@@ -70,8 +71,10 @@ QString Utils::getSignature(QJsonObject data)
     query.bindValue(":taxlocation", taxlocation);
 
     bool ok = query.exec();
-    if (!ok)
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
+    if (!ok) {
+        qCritical() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
+        error = true;
+    }
 
     qlonglong counter = 0;
     while(query.next()){
@@ -85,11 +88,12 @@ QString Utils::getSignature(QJsonObject data)
     }
 
     QString concatenatedValue = sign["Kassen-ID"].toString() + sign["Belegnummer"].toString();
-
+    QString lastUsedCertificateSerial = "";
     QString last_signature = getLastReceiptSignature();
-    qlonglong turnOverCounter = getTurnOverCounter();
+    if (last_signature.isEmpty()) error = true;
+    qlonglong turnOverCounter = getTurnOverCounter(RKSignature, lastUsedCertificateSerial, error);
+
     turnOverCounter += counter;
-    updateTurnOverCounter(turnOverCounter);
 
     QString symmetricKey = RKSignature->getPrivateTurnoverKey();
     QString base64encryptedTurnOverCounter = RKSignature->encryptTurnoverCounter(concatenatedValue, turnOverCounter, symmetricKey);
@@ -99,16 +103,14 @@ QString Utils::getSignature(QJsonObject data)
     else
         sign["Stand-Umsatz-Zaehler-AES256-ICM"] = base64encryptedTurnOverCounter;
 
-
     bool safetyDevice;
     QString certificateSerial = RKSignature->getCertificateSerial(true);
-    if (certificateSerial == "0") {
+    if (certificateSerial == "0" || certificateSerial.isEmpty()) {
         safetyDevice = false;
-        certificateSerial = RKSignature->getLastUsedSerial();
+        certificateSerial = lastUsedCertificateSerial;
         if (!RKSignature->isSignatureModuleSetDamaged())
             RKSignature->setSignatureModuleDamaged();
     } else {
-        RKSignature->updateLastUsedSerial(certificateSerial);
         safetyDevice = true;
     }
 
@@ -123,8 +125,11 @@ QString Utils::getSignature(QJsonObject data)
 
     delete RKSignature;
 
-    SpreadSignal::setProgressBarWait(false);
-    SpreadSignal::setSafetyDevice(safetyDevice);
+    Spread::Instance()->setProgressBarWait(false);
+    Spread::Instance()->setSafetyDevice(safetyDevice);
+
+    if (certificateSerial.isEmpty() || last_signature.isEmpty() || error)
+        return "";
 
     return signature;
 }
@@ -147,15 +152,17 @@ QString Utils::getReceiptSignature(int id, bool full)
 {
     qDebug() << "Function Name: " << Q_FUNC_INFO << " id: " << id;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT data FROM dep WHERE receiptNum=:receiptNum");
     query.bindValue(":receiptNum", id);
 
     bool ok = query.exec();
-    if (!ok)
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
+    if (!ok) {
+        qCritical() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
+        return QString();
+    }
 
     if (query.next())
     {
@@ -167,8 +174,6 @@ QString Utils::getReceiptSignature(int id, bool full)
         return s.split('.').at(2);
     }
 
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " return: cashregister id";
-    Utils::resetTurnOverCounter();
     return Database::getCashRegisterId();
 }
 
@@ -206,49 +211,65 @@ QString Utils::getReceiptShortJson(QJsonObject sig)
 
 }
 
-void Utils::resetTurnOverCounter()
+qlonglong Utils::getTurnOverCounter(RKSignatureModule *sm, QString &lastSerial, bool &error)
 {
-    updateTurnOverCounter(0);
-}
+    QString key = RKSignatureModule::getPrivateTurnoverKey();
 
-qlonglong Utils::getTurnOverCounter()
-{
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
-    QSqlQuery query(dbc);
-
-    query.prepare(QString("SELECT value FROM globals WHERE name='turnovercounter'"));
-    bool ok = query.exec();
-    if (!ok)
-        qCritical() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
-
-    if (query.next())
-        return query.value("value").toLongLong();
-
-    return 0;
-
-}
-
-void Utils::updateTurnOverCounter(qlonglong toc)
-{
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
-    QSqlQuery query(dbc);
-
-    query.prepare("SELECT value FROM globals WHERE name='turnovercounter'");
-    query.exec();
-
-    if (query.next()) {
-        query.prepare("UPDATE globals set value=:toc WHERE name='turnovercounter'");
-    } else {
-        query.prepare("INSERT INTO globals (name, value) VALUES('turnovercounter', :toc)");
+    QString lastReceiptSignature = Utils::getLastReceiptSignature();
+    if (lastReceiptSignature.isEmpty()) {
+        error = true;
+        return 0;
     }
-    query.bindValue(":toc", toc);
-    query.exec();
 
+    if (Database::getCashRegisterId() == lastReceiptSignature)
+        return 0;
+
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery query(dbc);
+
+    query.prepare("SELECT data FROM dep");
+
+    bool ok = query.exec();
+    if (!ok) {
+        qCritical() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
+        error = true;
+        return 0;
+    }
+
+    qlonglong counter = 0;
+    QString payload;
+    if (query.last()) {
+        payload = RKSignatureModule::base64Url_decode(query.value("data").toString().split('.').at(1));
+        QStringList list = payload.split('_');
+        QString encTOC = list.at(10);
+        lastSerial = list.at(11);
+
+        while (encTOC == "U1RP" && query.previous()) {
+            qlonglong counter2 = 0;
+            for (int y = 5; y < 9; y++) {
+                QString current = list.at(y);
+                counter2 += current.replace(",","").toLongLong();
+            }
+            counter += counter2;
+
+            payload = RKSignatureModule::base64Url_decode(query.value("data").toString().split('.').at(1));
+            list = payload.split('_');
+            encTOC = list.at(10);
+        }
+
+        QString con = list.at(2) + list.at(3);
+        QString decTOC = sm->decryptTurnoverCounter(con, encTOC, key);
+        qlonglong TurnOverCounter = decTOC.toLongLong() + counter;
+        return TurnOverCounter;
+    }
+
+    error = true;
+    return 0;
 }
 
 double Utils::getYearlyTotal(int year)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     QDateTime from;
@@ -288,61 +309,84 @@ bool Utils::isDirectoryWritable(QString path)
 
 QString Utils::wordWrap(QString text, int width, QFont font)
 {
-  QFontMetrics fm(font);
-  QString result;
-  int space = 0;
+    QFontMetrics fm(font);
+    QString result;
+    int space = 0;
 
-  for (;;) {
-    int i = 0;
-    while (i < text.length()) {
-      if (fm.width(text.left(++i + 1)) > width) {
-        int j = text.lastIndexOf(' ', i);
-        space = 0;
-        if (j > 0) {
-          i = j;
-          space = 1;
+    for (;;) {
+        int i = 0;
+        while (i < text.length()) {
+            if (fm.width(text.left(++i + 1)) > width) {
+                int j = text.indexOf('\n');
+                if (j > i) {
+                    if (j <  i*2)
+                        text.replace(j,1,' ');
+                    j = -1;
+                }
+                if (j < 0)
+                    j = text.lastIndexOf(' ', i);
+
+                space = 0;
+                if (j >= 0) {
+                    i = j;
+                    space = 1;
+                }
+                result += text.left(i);
+                result += '\n';
+                text = text.mid(i + space);
+                break;
+            }
         }
-        result += text.left(i);
-        result += '\n';
-        text = text.mid(i + space);
-        break;
-      }
+        if (i >= text.length())
+            break;
     }
-    if (i >= text.length())
-      break;
-  }
-  return result + text;
+    return result + text;
 }
 
-bool Utils::checkTurnOverCounter()
+bool Utils::checkTurnOverCounter(QStringList &error)
 {
     QString key = RKSignatureModule::getPrivateTurnoverKey();
     RKSignatureModule *sm = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
-    query.prepare("SELECT data FROM dep ORDER BY id");
+    bool ret = true;
+
+    if (Utils::getLastReceiptSignature().isEmpty()) {
+        error.append(QObject::tr("Fehlerhaftes DEP-7 Tabellenschema. Keine DEP-7 Einträge gefunden."));
+        ret = false;
+    }
+
+    query.prepare("SELECT id, receiptNum, data FROM dep ORDER BY id");
     query.exec();
 
     qlonglong counter = 0;
-    bool ret = true;
     while(query.next()) {
-        QString payload = RKSignatureModule::base64Url_decode(query.value(0).toString().split('.').at(1));
+        QString payload = RKSignatureModule::base64Url_decode(query.value("data").toString().split('.').at(1));
         QStringList list = payload.split('_');
         qlonglong counter2 = 0;
         QString con = list.at(2) + list.at(3);
         QString encTOC = list.at(10);
+        QString serial = list.at(11);
+        QString receiptNum = list.at(3);
+
+        if (serial.isEmpty())
+            error.append(QObject::tr("Fehlende Seriennummer bei BON %1").arg(receiptNum));
+        QString decTOC = sm->decryptTurnoverCounter(con, encTOC, key);
         for (int y = 5; y < 9; y++) {
             QString current = list.at(y);
             counter2 += current.replace(",","").toLongLong();
         }
         counter += counter2;
+//        qDebug() << "#" << list.at(3) << "decTOC " << decTOC << " Counter " << counter << " L:" << list;
         QString newEncTOC = sm->encryptTurnoverCounter(con,counter,key);
 
         if (newEncTOC.compare(encTOC) != 0) {
-            if (encTOC != "U1RP")
+            if (encTOC != "U1RP") {
+                error.append(QObject::tr("Fehler beim Umsatzzähler für BON %1, Wert=%2 statt %3").arg(receiptNum).arg(decTOC).arg(counter));
                 ret = false;
+            }
         }
     }
     delete sm;
@@ -447,9 +491,121 @@ QPixmap Utils::getQRCode(int id, bool &isDamaged )
         qr_code_rep = qr_code_rep + "_" + RKSignatureModule::base64Url_decode(signature.split('.').at(2)).toBase64();
         if (signature.split('.').at(2) == RKSignatureModule::base64Url_encode("Sicherheitseinrichtung ausgefallen"))
             isDamaged = true;
+    } else {
+        isDamaged = true;
     }
+
     QRCode qr;
     QPixmap QR = qr.encodeTextToPixmap(qr_code_rep);
 
     return QR;
+}
+
+void Utils::diskSpace(QString path, qint64 &size, qint64 &bytesAvailable, double &percent)
+{
+    QStorageInfo storage = QStorageInfo::root();
+    storage.setPath(path);
+
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " storage rootpath: " << storage.rootPath();
+    if (storage.isReadOnly())
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " isReadOnly:" << storage.isReadOnly();
+
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " name:" << storage.name();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " fileSystemType:" << storage.fileSystemType();
+
+    size = storage.bytesTotal() /1024/1025;
+    bytesAvailable = storage.bytesAvailable() /1024/1024;
+
+    qint64 usedspace = size - bytesAvailable;
+    percent = ((double) usedspace / (double) size);
+    if (percent < 0) percent = 0;
+    if (percent > 0.9) percent = 0.9;
+
+}
+
+bool Utils::isNumber(QVariant number)
+{
+    bool check;
+    number.toDouble(&check);
+    return check;
+}
+
+bool Utils::compareNames(const QString& s1,const QString& s2)
+{
+    {
+        // ignore common prefix..
+        int i = 0;
+        while ((i < s1.length()) && (i < s2.length()) && (s1.at(i).toLower() == s2.at(i).toLower()))
+            ++i;
+        ++i;
+        // something left to compare?
+        if ((i < s1.length()) && (i < s2.length()))
+        {
+            // get number prefix from position i - doesnt matter from which string
+            int k = i-1;
+            //If not number return native comparator
+            if(!s1.at(k).isNumber() || !s2.at(k).isNumber())
+            {
+                return QString::compare(s1, s2, Qt::CaseSensitive) < 0;
+            }
+            QString n = "";
+            k--;
+            while ((k >= 0) && (s1.at(k).isNumber()))
+            {
+                n = s1.at(k)+n;
+                --k;
+            }
+            // get relevant/signficant number string for s1
+            k = i-1;
+            QString n1 = "";
+            while ((k < s1.length()) && (s1.at(k).isNumber()))
+            {
+                n1 += s1.at(k);
+                ++k;
+            }
+
+            // get relevant/signficant number string for s2
+            //Decrease by
+            k = i-1;
+            QString n2 = "";
+            while ((k < s2.length()) && (s2.at(k).isNumber()))
+            {
+                n2 += s2.at(k);
+                ++k;
+            }
+
+            // got two numbers to compare?
+            if (!n1.isEmpty() && !n2.isEmpty())
+            {
+                return (n+n1).toInt() < (n+n2).toInt();
+            }
+            else
+            {
+                // not a number has to win over a number.. number could have ended earlier... same prefix..
+                if (!n1.isEmpty())
+                    return false;
+                if (!n2.isEmpty())
+                    return true;
+                return s1.at(i) < s2.at(i);
+            }
+        }
+        else {
+            // shortest string wins
+            return s1.length() < s2.length();
+        }
+    }
+}
+
+QString Utils::getTaxString(QBCMath tax, bool zero)
+{
+    QString taxPercent;
+    if (Database::getTaxLocation() == "CH")
+        taxPercent = QString("%1").arg(QString::number(tax.toDouble(),'f',2));
+    else
+        taxPercent = QString("%1").arg(tax.toInt());
+
+    if (zero && taxPercent == "0") taxPercent = "00";
+
+    return taxPercent;
+
 }

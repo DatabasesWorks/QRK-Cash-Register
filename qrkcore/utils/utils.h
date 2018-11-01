@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "3rdparty/qbcmath/bcmath.h"
 #include <QString>
 #include <QVariant>
 
@@ -38,11 +39,9 @@ class QRK_EXPORT Utils
 
     QString getSignature(QJsonObject data);
 
-    static bool checkTurnOverCounter();
+    static bool checkTurnOverCounter(QStringList &error);
     static double getYearlyTotal(int year);
-    static qlonglong getTurnOverCounter();
-    static void resetTurnOverCounter();
-    static void updateTurnOverCounter(qlonglong);
+    static qlonglong getTurnOverCounter(RKSignatureModule *sm, QString &lastSerial, bool &error);
     static bool isDirectoryWritable(QString path);
     static QString getReceiptSignature(int id, bool full = false);
     static QString getLastReceiptSignature();
@@ -55,6 +54,10 @@ class QRK_EXPORT Utils
     static double getNet(double gross, double tax);
     static double getGross(double net, double tax);
     static QPixmap getQRCode(int id, bool &isDamaged);
+    static void diskSpace(QString path, qint64 &size, qint64 &bytesAvailable, double &percent);
+    static bool isNumber(QVariant number);
+    static bool compareNames(const QString& s1,const QString& s2);
+    static QString getTaxString(QBCMath tax, bool zero = false);
 
 };
 

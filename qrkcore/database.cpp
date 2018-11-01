@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,10 @@
 #include "databasedefinition.h"
 #include "utils/demomode.h"
 #include "preferences/qrksettings.h"
+#include "databasemanager.h"
 
 #include <QDebug>
+#include <QApplication>
 #include <QMessageBox>
 #include <QFile>
 #include <QSqlDatabase>
@@ -34,6 +36,8 @@
 #include <QDir>
 #include <QDate>
 #include <QStandardPaths>
+
+QMap<QString, QString> globalStringValues;
 
 Database::Database(QObject *parent)
     : QObject(parent)
@@ -50,7 +54,7 @@ QDateTime Database::getLastJournalEntryDate()
 {
     QDateTime lastDateTime;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT DateTime FROM journal WHERE id = (SELECT MAX(id) FROM journal)");
@@ -84,18 +88,18 @@ QString Database::getDayCounter()
     dateTo.setDate(QDate::currentDate());
     dateTo.setTime(QTime::currentTime());
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     /* Summe */
-    query.prepare(QString("SELECT sum(ROUND(gross,2)) FROM receipts WHERE timestamp BETWEEN :fromdate AND :todate AND payedBy < 3"));
+    query.prepare(QString("SELECT sum(gross) as total FROM receipts WHERE timestamp BETWEEN :fromdate AND :todate AND payedBy < 3"));
     query.bindValue(":fromdate", dateFrom.toString(Qt::ISODate));
     query.bindValue(":todate", dateTo.toString(Qt::ISODate));
 
     query.exec();
     query.next();
 
-    return QString::number(query.value(0).toDouble(), 'f', 2);
+    return QString::number(query.value("total").toDouble(), 'f', 2);
 }
 
 QString Database::getMonthCounter()
@@ -110,18 +114,18 @@ QString Database::getMonthCounter()
     dateTo.setDate(QDate::currentDate());
     dateTo.setTime(QTime::currentTime());
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     /* Summe */
-    query.prepare(QString("SELECT sum(ROUND(gross,2)) FROM receipts WHERE timestamp BETWEEN :fromdate AND :todate AND payedBy < 3"));
+    query.prepare(QString("SELECT sum(gross) as total FROM receipts WHERE timestamp BETWEEN :fromdate AND :todate AND payedBy < 3"));
     query.bindValue(":fromdate", dateFrom.toString(Qt::ISODate));
     query.bindValue(":todate", dateTo.toString(Qt::ISODate));
 
     query.exec();
     query.next();
 
-    return QString::number(query.value(0).toDouble(), 'f', 2);
+    return QString::number(query.value("total").toDouble(), 'f', 2);
 }
 
 QString Database::getYearCounter()
@@ -138,27 +142,41 @@ QString Database::getYearCounter()
     dateTo.setDate(QDate::currentDate());
     dateTo.setTime(QTime::currentTime());
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     /* Summe */
-    query.prepare(QString("SELECT sum(ROUND(gross,2)) FROM receipts WHERE timestamp BETWEEN :fromdate AND :todate AND payedBy < 3"));
+    query.prepare(QString("SELECT sum(gross) as total FROM receipts WHERE timestamp BETWEEN :fromdate AND :todate AND payedBy < 3"));
     query.bindValue(":fromdate", dateFrom.toString(Qt::ISODate));
     query.bindValue(":todate", dateTo.toString(Qt::ISODate));
 
     query.exec();
     query.next();
 
-    return QString::number(query.value(0).toDouble(), 'f', 2);
+    return QString::number(query.value("total").toDouble(), 'f', 2);
 }
 
 QString Database::getSalesPerPaymentSQLQueryString()
 {
+    return "SELECT actionTypes.actionText, orders.tax, (orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount) as total from orders "
+            " LEFT JOIN receipts on orders.receiptId=receipts.receiptNum"
+            " LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId"
+            " WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3"
+            " ORDER BY receipts.payedBy, orders.tax";
+    /*
+    return "SELECT actionTypes.actionText, orders.tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total from orders "
+           " LEFT JOIN receipts on orders.receiptId=receipts.receiptNum"
+           " LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId"
+           " WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3"
+           " GROUP BY orders.tax, receipts.payedBy ORDER BY receipts.payedBy, orders.tax";
+*/
+    /*
     return "SELECT actionTypes.actionText, orders.tax, SUM((orders.count * orders.gross) - round(((orders.count * orders.gross / 100) * orders.discount),2)) as total from orders "
            " LEFT JOIN receipts on orders.receiptId=receipts.receiptNum"
            " LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId"
            " WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3"
            " GROUP BY orders.tax, receipts.payedBy ORDER BY receipts.payedBy, orders.tax";
+           */
 }
 
 //--------------------------------------------------------------------------------
@@ -168,7 +186,7 @@ void Database::updateProductSold(double count, QString product)
     if (product.startsWith("Zahlungsbeleg für Rechnung"))
         return;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("UPDATE products SET sold=sold+:sold WHERE name=:name"));
@@ -182,15 +200,20 @@ void Database::updateProductSold(double count, QString product)
 
 QString Database::getTaxLocation()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    if (globalStringValues.contains("taxlocation"))
+        return globalStringValues.value("taxlocation");
+
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT strValue FROM globals WHERE name='taxlocation'");
     query.exec();
     if (query.next()) {
         QString ret = query.value(0).toString();
-        if (!ret.isEmpty())
-            return ret;
+        if (!ret.isEmpty()) {
+            globalStringValues.insert("taxlocation", ret);
+            return globalStringValues.value("taxlocation");
+        }
     }
 
     return Database::updateGlobals("taxlocation", NULL, "AT");
@@ -200,15 +223,20 @@ QString Database::getTaxLocation()
 
 QString Database::getDefaultTax()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    if (globalStringValues.contains("defaulttax"))
+        return globalStringValues.value("defaulttax");
+
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT strValue FROM globals WHERE name='defaulttax' LIMIT 1"));
     query.exec();
     if (query.next()) {
         QString ret = query.value(0).toString();
-        if (!ret.isEmpty())
-            return ret;
+        if (!ret.isEmpty()) {
+            globalStringValues.insert("defaulttax", ret);
+            return globalStringValues.value("defaulttax");
+        }
     }
 
     return Database::updateGlobals("defaulttax", NULL, "20");
@@ -218,6 +246,9 @@ QString Database::getDefaultTax()
 
 QString Database::getShortCurrency()
 {
+    if (globalStringValues.contains("currency"))
+        return globalStringValues.value("currency");
+
     QString currency = getCurrency();
 
     if (currency == "CHF")
@@ -230,30 +261,44 @@ QString Database::getShortCurrency()
 
 QString Database::getCurrency()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
-    QSqlQuery query(dbc);
+    if (!globalStringValues.contains("currency")) {
+        QSqlDatabase dbc = Database::database();
+        QSqlQuery query(dbc);
 
-    query.prepare("SELECT strValue FROM globals WHERE name='currency'");
-    query.exec();
-    if (query.next())
-        return query.value(0).toString();
+        query.prepare("SELECT strValue FROM globals WHERE name='currency'");
+        query.exec();
+        if (query.next()) {
+            globalStringValues.insert("currency", query.value(0).toString());
+        } else {
+            return Database::updateGlobals("currency", NULL, query.value(0).toString());
+        }
+    }
 
-    return Database::updateGlobals("currency", NULL, "EUR");
+    return globalStringValues.value("currency");
 }
 
 //--------------------------------------------------------------------------------
 
 QString Database::getCashRegisterId()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    if (globalStringValues.contains("shopCashRegisterId")) {
+        if (DemoMode::isDemoMode())
+            return "DEMO-" + globalStringValues.value("shopCashRegisterId");
+        else
+            return globalStringValues.value("shopCashRegisterId");
+    }
+
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT strValue FROM globals WHERE name='shopCashRegisterId'");
     query.exec();
     if (query.next()) {
         QString id = query.value(0).toString();
-        if (id.isNull() || id.isEmpty())
+        if (id.isEmpty())
             return QString();
+
+        globalStringValues.insert("shopCashRegisterId", id);
         if (DemoMode::isDemoMode())
             return "DEMO-" + id;
 
@@ -268,7 +313,7 @@ QString Database::getCashRegisterId()
 QStringList Database::getMaximumItemSold()
 {
     QStringList list;
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT max(sold), name, tax, gross FROM products LIMIT 1;");
@@ -288,7 +333,7 @@ QStringList Database::getMaximumItemSold()
 
 bool Database::addCustomerText(int id, QString text)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     QString q = QString("INSERT INTO customer (receiptNum, text) VALUES (:receiptNum, :text)");
     bool ok = query.prepare(q);
@@ -313,7 +358,7 @@ bool Database::addCustomerText(int id, QString text)
 
 QString Database::getCustomerText(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     bool ok = query.prepare("SELECT text FROM customer WHERE receiptNum=:receiptNum");
 
@@ -340,7 +385,7 @@ QString Database::getCustomerText(int id)
 
 int Database::getProductIdByName(QString name)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     QString q = QString("SELECT id FROM products WHERE name=:name");
     bool ok = query.prepare(q);
@@ -365,7 +410,7 @@ int Database::getProductIdByBarcode(QString code)
     if (code.isEmpty())
         return -1;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     QString q = QString("SELECT id FROM products WHERE barcode=:barcode");
     bool ok = query.prepare(q);
@@ -413,7 +458,7 @@ bool Database::addProduct(const QList<QVariant> &data)
         return true;
 
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     QString q = QString("INSERT INTO products (name, itemnum, barcode, tax, net, gross, visible, `group`) VALUES (:name, '', '', :tax, :net, :gross, :visible, :group)");
     bool ok = query.prepare(q);
@@ -445,7 +490,7 @@ bool Database::addProduct(const QList<QVariant> &data)
 
 bool Database::exists(const QString type, const QString &name)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT id FROM %1 WHERE name=:name").arg(type));
@@ -462,7 +507,7 @@ bool Database::exists(const QString type, const QString &name)
 
 int Database::getLastReceiptNum(bool realReceipt)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     if (realReceipt)
@@ -487,7 +532,7 @@ QStringList Database::getLastReceipt()
     if (lastReceipt == 0)
         return list;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT timestamp, receiptNum, payedBy, gross FROM receipts WHERE receiptNum=%1").arg(lastReceipt));
@@ -509,7 +554,7 @@ QDate Database::getLastReceiptDate()
 
 QDateTime Database::getLastReceiptDateTime()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT infodate FROM receipts where receiptNum IN (SELECT value FROM globals WHERE name='lastReceiptNum')");
@@ -538,7 +583,7 @@ QString Database::getDatabaseType()
 QString Database::getShopName()
 {
     QString name;
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT strValue FROM globals WHERE name='shopName'");
@@ -554,7 +599,7 @@ QString Database::getShopMasterData()
 {
     QString name;
     QString tmp;
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT strValue FROM globals WHERE name='shopOwner'");
@@ -583,7 +628,7 @@ QString Database::getShopMasterData()
 
 QString Database::getLastVersionInfo()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT version FROM journal WHERE id = (SELECT MAX(id) FROM journal)");
@@ -603,7 +648,7 @@ void Database::reopen()
 
 bool Database::open(bool dbSelect)
 {
-    const int CURRENT_SCHEMA_VERSION = 16;
+    const int CURRENT_SCHEMA_VERSION = 18;
     // read global defintions (DB, ...)
     QrkSettings settings;
 
@@ -639,15 +684,19 @@ bool Database::open(bool dbSelect)
     if (!dir.exists())
         dir.mkpath(".");
 
-    if (!QFile::exists(QString(dataDir + "/%1-QRK.db").arg(date.year())))
-        if (QFile::exists(QString(dataDir + "/%1-QRK.db").arg(date.year() - 1)))
-            QFile::copy(QString(dataDir + "/%1-QRK.db").arg(date.year() - 1), QString(dataDir + "/%1-QRK.db").arg(date.year()));
+    QFileInfo fi(settings.fileName());
+    QString basename = fi.baseName();
+
+    if (!QFile::exists(QString(dataDir + "/%1-%2.db").arg(date.year()).arg(basename)))
+        if (QFile::exists(QString(dataDir + "/%1-%2.db").arg(date.year() - 1).arg(basename)))
+            QFile::copy(QString(dataDir + "/%1-%2.db").arg(date.year() - 1).arg(basename), QString(dataDir + "/%1-%2.db").arg(date.year()).arg(basename));
 
     QSqlDatabase currentConnection;
+
     // setup database connection
     if (dbType == "QSQLITE") {
         currentConnection = QSqlDatabase::addDatabase("QSQLITE", "CN");
-        currentConnection.setDatabaseName(QString(dataDir + "/%1-QRK.db").arg(date.year()));
+        currentConnection.setDatabaseName(QString(dataDir + "/%1-%2.db").arg(date.year()).arg(basename));
     } else if (dbType == "QMYSQL") {
         QString userName = settings.value("DB_userName", "QRK").toString();
         QString password = settings.value("DB_password", "").toString();
@@ -657,6 +706,7 @@ bool Database::open(bool dbSelect)
         currentConnection.setHostName(hostName);
         currentConnection.setUserName(userName);
         currentConnection.setPassword(password);
+        currentConnection.setConnectOptions("MYSQL_OPT_RECONNECT=1;MYSQL_OPT_CONNECT_TIMEOUT=86400;MYSQL_OPT_READ_TIMEOUT=60");
     }
 
     bool ok = currentConnection.open();
@@ -673,28 +723,43 @@ bool Database::open(bool dbSelect)
 
     if (dbType == "QMYSQL") {
         QSqlQuery query(currentConnection);
-        query.exec("SHOW DATABASES LIKE 'QRK'");
-        if (!query.next())    // db does not exist
-            query.exec("CREATE DATABASE QRK");
+        query.prepare(QString("SHOW DATABASES LIKE '%1'").arg(basename));
+        query.exec();
+        QString errorText = "";
+        if (!query.next()) {    // db does not exist
+            query.prepare(QString("CREATE DATABASE %1").arg(basename));
+            query.exec();
+            errorText = query.lastError().text();
+            qDebug() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
+        }
 
         currentConnection.close();
-        currentConnection.setDatabaseName("QRK");
-        if (!currentConnection.open())
+        currentConnection.setDatabaseName(basename);
+        if (!currentConnection.open()) {
+            QMessageBox errorDialog;
+            errorDialog.setIcon(QMessageBox::Critical);
+            errorDialog.addButton(QMessageBox::Ok);
+            errorDialog.setText(errorText + "\n" + currentConnection.lastError().text());
+            errorDialog.setWindowTitle(QObject::tr("Datenbank Verbindungsfehler"));
+            errorDialog.exec();
             return false;
+        }
     }
 
+    QString lastError;
     if (dbType == "QSQLITE") {
-        if (QFile::exists(QString(dataDir + "/%1-QRK.db-journal").arg(date.year()))) {
+        if (QFile::exists(QString(dataDir + "/%1-%2.db-journal").arg(date.year()).arg(basename))) {
             QSqlQuery query(currentConnection);
             currentConnection.transaction();
             query.exec("create table force_journal_cleanup (id integer primary key);");
             currentConnection.rollback();
+            lastError = query.lastError().text();
         }
-        if (QFile::exists(QString(dataDir + "/%1-QRK.db-journal").arg(date.year()))) {
+        if (QFile::exists(QString(dataDir + "/%1-%2.db-journal").arg(date.year()).arg(basename))) {
             QMessageBox errorDialog;
             errorDialog.setIcon(QMessageBox::Critical);
             errorDialog.addButton(QMessageBox::Ok);
-            errorDialog.setText(currentConnection.lastError().text());
+            errorDialog.setText(lastError + ".\n" + tr("Eventuell müssen andere geöffnete Anwendungen geschlossen werden."));
             errorDialog.setWindowTitle(QObject::tr("Datenbank Fehler"));
             errorDialog.exec();
             return false;
@@ -707,9 +772,9 @@ bool Database::open(bool dbSelect)
         QFile f;
 
         if (dbType == "QSQLITE") {
-            f.setFileName(":/sql/QRK-sqlite.sql");
+            f.setFileName(":src/sql/QRK-sqlite.sql");
         } else if (dbType == "QMYSQL") {
-            f.setFileName(":/sql/QRK-mysql.sql");
+            f.setFileName(":src/sql/QRK-mysql.sql");
             currentConnection.setConnectOptions("MYSQL_OPT_RECONNECT=1");
         }
 
@@ -761,12 +826,12 @@ bool Database::open(bool dbSelect)
             QFile f;
 
             if (dbType == "QSQLITE")
-                f.setFileName(QString(":/sql/QRK-sqlite-update-%1.sql").arg(i));
+                f.setFileName(QString(":src/sql/QRK-sqlite-update-%1.sql").arg(i));
             else if (dbType == "QMYSQL")
-                f.setFileName(QString(":/sql/QRK-mysql-update-%1.sql").arg(i));
+                f.setFileName(QString(":src/sql/QRK-mysql-update-%1.sql").arg(i));
 
             if (!f.open(QIODevice::ReadOnly)) {
-                qWarning("could not load internal update file %s", qPrintable(f.fileName()));
+                qCritical("could not load internal update file %s", qPrintable(f.fileName()));
                 return false;  // should never happen
             }
 
@@ -778,8 +843,9 @@ bool Database::open(bool dbSelect)
                     continue;
                 ok = query.exec(command);
                 if (!ok) {
-                    qWarning() << "Function Name: " << Q_FUNC_INFO << " " << query.lastError().text();
-                    qWarning() << "Function Name: " << Q_FUNC_INFO << " " << Database::getLastExecutedQuery(query);
+                    qCritical() << "Function Name: " << Q_FUNC_INFO << " " << query.lastError().text();
+                    qCritical() << "Function Name: " << Q_FUNC_INFO << " " << Database::getLastExecutedQuery(query);
+                    return false;
                 }
             }
 
@@ -799,8 +865,9 @@ bool Database::open(bool dbSelect)
             if (i == 14) {
                 ok = query.exec(QString("UPDATE journal SET `text`='%1' WHERE id=1").arg("Id\tProgrammversion\tKassen-Id\tKonfigurationsänderung\tBeschreibung\tErstellungsdatum"));
                 if (!ok) {
-                    qWarning() << "Function Name: " << Q_FUNC_INFO << " " << query.lastError().text();
-                    qWarning() << "Function Name: " << Q_FUNC_INFO << " " << Database::getLastExecutedQuery(query);
+                    qCritical() << "Function Name: " << Q_FUNC_INFO << " " << query.lastError().text();
+                    qCritical() << "Function Name: " << Q_FUNC_INFO << " " << Database::getLastExecutedQuery(query);
+                    return false;
                 }
             }
         }
@@ -811,9 +878,10 @@ bool Database::open(bool dbSelect)
 
     }
 
-    if (dbType == "QSQLITE")
+    if (dbType == "QSQLITE") {
         // enforce foreign key constraint
         query.exec("PRAGMA foreign_keys = 1;");
+    }
 
     return true;
 }
@@ -822,7 +890,7 @@ bool Database::open(bool dbSelect)
 
 int Database::getPayedBy(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT payedBy FROM receipts WHERE receiptNum=%1").arg(id));
@@ -836,7 +904,7 @@ int Database::getPayedBy(int id)
 
 int Database::getActionTypeByName(const QString &name)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT actionId FROM actionTypes WHERE actionText=:actionText"));
@@ -851,7 +919,7 @@ int Database::getActionTypeByName(const QString &name)
 
 QString Database::getActionType(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT actionText FROM actionTypes WHERE actionId=%1").arg(id));
@@ -865,7 +933,7 @@ QString Database::getActionType(int id)
 
 QString Database::getTaxType(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare(QString("SELECT comment FROM taxTypes WHERE tax=%1").arg(id));
@@ -879,7 +947,7 @@ QString Database::getTaxType(int id)
 
 void Database::setStorno(int id, int value)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("UPDATE receipts SET storno=:value WHERE receiptNum=:receiptNum");
@@ -896,7 +964,7 @@ void Database::setStorno(int id, int value)
 
 void Database::setStornoId(int sId, int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     // Beleg wurde von 'sId' storniert
@@ -927,7 +995,7 @@ void Database::setStornoId(int sId, int id)
 
 int Database::getStorno(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT storno FROM receipts WHERE receiptNum=:receiptNum");
@@ -947,7 +1015,7 @@ int Database::getStorno(int id)
 
 int Database::getStornoId(int id)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT stornoId FROM receipts WHERE receiptNum=:receiptNum");
@@ -964,7 +1032,7 @@ int Database::getStornoId(int id)
 
 void Database::setCashRegisterInAktive()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery q(dbc);
 
     q.prepare("SELECT value FROM globals WHERE name=:name");
@@ -978,7 +1046,7 @@ void Database::setCashRegisterInAktive()
         if (q.value("value").toInt() == 1)
             return;
         else
-            q.prepare("UPDATE globals set name=:name, value=:value;");
+            q.prepare("UPDATE globals set value=:value WHERE name=:name;");
     } else {
         q.prepare("INSERT INTO globals (name, value) VALUES(:name, :value)");
     }
@@ -991,7 +1059,7 @@ void Database::setCashRegisterInAktive()
 
 bool Database::isCashRegisterInAktive()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT value FROM globals WHERE name = 'CASHREGISTER INAKTIV'");
@@ -1006,7 +1074,7 @@ bool Database::isCashRegisterInAktive()
 
 void Database::resetAllData()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery q(dbc);
 
     q.prepare("DELETE FROM journal;");
@@ -1046,9 +1114,6 @@ void Database::resetAllData()
     q.exec();
 
     q.prepare("DELETE FROM globals WHERE `name`='signatureModuleIsDamaged';");
-    q.exec();
-
-    q.prepare("UPDATE globals SET value = 0 WHERE name = 'turnovercounter';");
     q.exec();
 
     q.prepare("UPDATE globals SET value = 0 WHERE name = 'DEP';");
@@ -1101,7 +1166,10 @@ void Database::cleanup()
 
 QString Database::updateGlobals(QString name, QString defaultvalue, QString defaultStrValue)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    if (!defaultStrValue.isEmpty())
+        globalStringValues.insert(name, defaultStrValue);
+
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     QSqlQuery queryDelete(dbc);
 
@@ -1114,6 +1182,8 @@ QString Database::updateGlobals(QString name, QString defaultvalue, QString defa
         defaultvalue = query.value("value").toString().isNull() ? NULL : query.value("value").toString();
         defaultStrValue = query.value("strValue").toString().isNull() ? NULL : query.value("strValue").toString();
         insertnew = false;
+        if (!defaultStrValue.isEmpty())
+            globalStringValues.insert(name, defaultStrValue);
     }
 
     queryDelete.prepare(QString("DELETE FROM globals WHERE id=:id"));
@@ -1131,4 +1201,57 @@ QString Database::updateGlobals(QString name, QString defaultvalue, QString defa
     }
 
     return defaultvalue.isNull() ? defaultStrValue : defaultvalue;
+}
+
+QSqlDatabase Database::database()
+{
+    QString dbType = getDatabaseType();
+    if (dbType == "QSQLITE") {
+        return QSqlDatabase::database("CN");
+    }
+
+    QSqlDatabase dbc = DatabaseManager::database("CN");
+    if (!dbc.lastError().nativeErrorCode().isEmpty())
+        qDebug() << "Function Name: " << Q_FUNC_INFO << dbc.lastError().text() << " #" << dbc.lastError().nativeErrorCode();
+    return dbc;
+}
+
+bool Database::isAnyValueFunctionAvailable()
+{
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery query(dbc);
+    return query.exec("SELECT ANY_VALUE(value) FROM globals");
+}
+
+QString Database::getDatabaseVersion()
+{
+
+    if (globalStringValues.contains("databasetype"))
+        return globalStringValues.value("databasetype");
+
+    QString dbType = getDatabaseType();
+
+    if (dbType == "QSQLITE") {
+        QSqlDatabase dbc = Database::database();
+        QSqlQuery query(dbc);
+        query.exec("SELECT sqlite_version()");
+        if (query.next())
+            dbType += " " + query.value(0).toString();
+
+        dbType += " / " + QFileInfo(dbc.databaseName()).baseName();
+        globalStringValues.insert("databasetype", dbType);
+
+    } else if (dbType == "QMYSQL") {
+        QSqlDatabase dbc = Database::database();
+        QSqlQuery query(dbc);
+        query.exec("SHOW VARIABLES LIKE 'version'");
+        if (query.next())
+            dbType += " " + query.value(1).toString();
+
+        dbType += " / " + dbc.hostName() + " / " + dbc.databaseName();
+        globalStringValues.insert("databasetype", dbType);
+    }
+
+    globalStringValues.insert("databasetype", dbType);
+    return dbType;
 }

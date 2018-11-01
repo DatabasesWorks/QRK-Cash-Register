@@ -1,0 +1,9 @@
+{{BONNUMMER}}
+{{DATUM}}
+{{DATUM +30}}
+{{DATUM +5M}}
+{{DISPLAYNAME}}
+{{SUMME}}
+{{SUMME *N}}
+{{UHRZEIT}}
+{{VERSION}}

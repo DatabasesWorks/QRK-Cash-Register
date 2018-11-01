@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,9 +23,7 @@
 #ifndef MAINWIDGET_H
 #define MAINWIDGET_H
 
-#include <ui_qrk.h>
-
-#include <QWidget>
+#include <QMainWindow>
 #include <QDate>
 
 class QRKHome;
@@ -35,6 +33,11 @@ class QStackedWidget;
 class QLCDNumber;
 class QLabel;
 class QProgressBar;
+class VersionChecker;
+
+namespace Ui {
+  class MainWindow;
+}
 
 class QRK : public QMainWindow
 {
@@ -42,7 +45,7 @@ class QRK : public QMainWindow
 
 public:
 
-    QRK(bool servermode = false, QWidget *parent = 0);
+    QRK(bool servermode = false);
     ~QRK();
 
     void setShopName();
@@ -56,6 +59,9 @@ public:
 protected:
     void iniStack();
 
+signals:
+    void setServerMode(bool);
+
 private slots:
     void endOfDaySlot();
     void endOfMonthSlot();
@@ -64,6 +70,7 @@ private slots:
     void onManagerButton_clicked();
     void finishedReceipt();
     void init();
+    void initPlugins();
 
     void onDocumentButton_clicked();
     void onCancelDocumentButton_clicked();
@@ -73,10 +80,12 @@ private slots:
     void infoFON();
     void backupDEP();
     void backup();
-    void plugins();
+    void runPlugin();
+    void viewPlugins();
 
     void setSafetyDevice(bool active);
 
+    void actionAclManager();
     void actionAbout_QRK();
     void actionQRK_Forum();
     void actionLeaveDemoMode();
@@ -85,6 +94,7 @@ private slots:
 
     void fullScreenSlot();
     void exitSlot();
+    void logOnOff(bool);
 
 protected slots:
     virtual void timerDone();
@@ -123,6 +133,9 @@ private:
 
     QString m_shopName;
     bool m_previousSafetyDeviceState;
+    QThread *m_checkerThread;
+    VersionChecker *m_versionChecker;
+    void newApplicationVersionAvailable(QString version);
 
 };
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 class QSqlRelationalTableModel;
 class QSortFilterProxyModel;
 
-#include <ui_productswidget.h>
 class ProductEdit;
 
 //--------------------------------------------------------------------------------
@@ -43,6 +42,7 @@ class ProductsWidget : public QWidget
 
   public:
     ProductsWidget(QWidget *parent);
+    ~ProductsWidget();
 
   private slots:
     void filterProduct(const QString &filter);

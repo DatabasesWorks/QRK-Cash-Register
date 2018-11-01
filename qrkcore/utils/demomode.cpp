@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,11 +25,13 @@
 
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <QSqlError>
 #include <QVariant>
+#include <QDebug>
 
 bool DemoMode::isDemoMode()
 {
-  QSqlDatabase dbc = QSqlDatabase::database("CN");
+  QSqlDatabase dbc = Database::database();
   QSqlQuery query(dbc);
   query.prepare("SELECT value FROM globals WHERE name='demomode'");
   query.exec();
@@ -42,10 +44,16 @@ bool DemoMode::isDemoMode()
 
 bool DemoMode::isModeNotSet()
 {
-  QSqlDatabase dbc = QSqlDatabase::database("CN");
+  QSqlDatabase dbc = Database::database();
+
   QSqlQuery query(dbc);
-  query.prepare("SELECT value FROM globals WHERE name='demomode'");
-  query.exec();
+  bool ok = query.prepare("SELECT value FROM globals WHERE name='demomode'");
+  ok = query.exec();
+  if (!ok) {
+      qWarning() << "Function Name: " << Q_FUNC_INFO << " " << query.lastError().text();
+      qWarning() << "Function Name: " << Q_FUNC_INFO << " " << Database::getLastExecutedQuery(query);
+      qWarning() << "Function Name: " << Q_FUNC_INFO << " " << dbc.lastError().text();
+  }
   if (query.next())
     return false;
 
@@ -61,7 +69,7 @@ bool DemoMode::isModeNotSet()
 
 void DemoMode::leaveDemoMode()
 {
-  QSqlDatabase dbc = QSqlDatabase::database("CN");
+  QSqlDatabase dbc = Database::database();
   QSqlQuery query(dbc);
   query.prepare("UPDATE globals SET value=:value WHERE name='demomode'");
   query.bindValue(":value", false);

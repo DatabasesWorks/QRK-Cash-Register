@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 */
 
 #include "qrkdelegate.h"
+#include "preferences/qrksettings.h"
 #include "database.h"
 
 #include <QSpinBox>
@@ -51,17 +52,27 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         spinbox->setMaximum(99999);
         spinbox->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 
-        connect( spinbox , SIGNAL( valueChanged(int) ), this , SLOT( commitAndCloseEditor() ) ) ;
+        connect( spinbox , static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &QrkDelegate::commitAndCloseEditor) ;
 
         return spinbox;
 
     } else if (m_type == DOUBLE_SPINBOX) {
+        QrkSettings settings;
+        int digits = settings.value("decimalDigits", 2).toInt();
         QDoubleSpinBox *doublespinbox = new QDoubleSpinBox(parent);
-        doublespinbox->setMinimum(-99999.99);
-        doublespinbox->setMaximum(99999.99);
+        if (digits > 2) {
+            doublespinbox->setMinimum(-99999.999);
+            doublespinbox->setMaximum(99999.999);
+            doublespinbox->setSingleStep(0.001);
+        } else {
+            doublespinbox->setMinimum(-99999.99);
+            doublespinbox->setMaximum(99999.99);
+            doublespinbox->setSingleStep(0.01);
+        }
+        doublespinbox->setDecimals(digits);
         doublespinbox->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 
-        connect( doublespinbox , SIGNAL( valueChanged(double) ), this , SLOT( commitAndCloseEditor() ) ) ;
+        // connect( doublespinbox , static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &QrkDelegate::commitAndCloseEditor) ;
 
         return doublespinbox;
 
@@ -70,7 +81,7 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         combo->setEditable(false);
         combo->setInsertPolicy(QComboBox::InsertAfterCurrent);
         combo->setDuplicatesEnabled(false);
-        QSqlDatabase dbc= QSqlDatabase::database("CN");
+        QSqlDatabase dbc= Database::database();
         QSqlQuery query(dbc);
         query.prepare(QString("SELECT tax FROM taxTypes WHERE taxlocation=:taxlocation ORDER BY id"));
         query.bindValue(":taxlocation", m_taxlocation);
@@ -87,25 +98,24 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
     } else if (m_type == PRODUCTS) {
         QLineEdit *editor = new QLineEdit( parent );
         editor->setPlaceholderText(tr("Artikelname"));
-        QSqlDatabase dbc = QSqlDatabase::database("CN");
+        QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
         query.prepare("SELECT name FROM products WHERE visible = 1");
         query.exec();
 
-        QStringList* list = new QStringList();
+        QStringList list;
 
         while(query.next()){
             QString value = query.value("name").toString();
-            *list   << value;
+            list << value;
         }
 
-        QCompleter * editorCompleter = new QCompleter( *list ) ;
+        QCompleter *editorCompleter = new QCompleter( list ) ;
         editorCompleter->setCaseSensitivity( Qt::CaseInsensitive ) ;
         editorCompleter->setFilterMode( Qt::MatchContains );
         editor->setCompleter( editorCompleter );
 
-        //    connect( editor , SIGNAL( editingFinished() ), this , SLOT( commitAndCloseEditor() ) ) ;
-        connect( editor , SIGNAL(textChanged(QString)), this , SLOT( commitAndCloseEditor() ) ) ;
+        connect( editor , &QLineEdit::textChanged, this, &QrkDelegate::commitAndCloseEditor) ;
 
         return editor ;
     } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
@@ -150,7 +160,7 @@ QString QrkDelegate::displayText(const QVariant &value, const QLocale &locale) c
         if (m_taxlocation == "CH")
             formattedNum = QString("%1 %").arg(locale.toString(value.toDouble()));
         else
-            formattedNum = QString("%1 %").arg(locale.toString(value.toInt()));
+            formattedNum = QString("%1 %").arg(locale.toString(value.toDouble(), 'f', 0));
 
         return formattedNum;
 
@@ -165,7 +175,6 @@ QString QrkDelegate::displayText(const QVariant &value, const QLocale &locale) c
 
     return QStyledItemDelegate::displayText(value, locale);
 }
-
 
 void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
@@ -182,7 +191,6 @@ void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
         // Put the value into the SpinBox
         QDoubleSpinBox *doublespinbox = static_cast<QDoubleSpinBox*>(editor);
         doublespinbox->setValue(value);
-
     } else if (m_type == COMBO_TAX) {
         if(index.data().canConvert<QString>()){
             QString taxTitle= index.data().value<QString>();
@@ -200,7 +208,6 @@ void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
         QLineEdit* line = static_cast<QLineEdit*>(editor);
         line->setText(QString().setNum(value));
     }
-
 }
 
 void QrkDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const

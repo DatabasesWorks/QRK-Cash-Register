@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "database.h"
 #include "utils/utils.h"
 #include "preferences/qrksettings.h"
+#include <ui_productedit.h>
 
 #include <QDoubleValidator>
 #include <QSqlRelationalTableModel>
@@ -61,7 +62,7 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     ui->net->setValidator(doubleVal);
     ui->gross->setValidator(doubleVal);
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
 
     m_groupsModel = new QSqlRelationalTableModel(this, dbc);
     m_groupsModel->setQuery("SELECT id, name FROM groups WHERE id > 1", dbc);
@@ -121,13 +122,12 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
         ui->colorComboBox->setCurrentIndex(i);
 
     }
-    connect (ui->taxComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(taxComboChanged(int)));
-    connect (ui->net, SIGNAL(editingFinished()), this, SLOT(netChanged()));
-    connect (ui->gross, SIGNAL(editingFinished()), this, SLOT(grossChanged()));
-    connect (ui->colorComboBox, SIGNAL(currentIndexChanged(int)),this,SLOT(colorComboChanged(int)));
-
-    connect (ui->okButton, SIGNAL(clicked(bool)),this,SLOT(accept()));
-    connect (ui->cancelButton, SIGNAL(clicked(bool)),this,SLOT(reject()));
+    connect (ui->taxComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ProductEdit::taxComboChanged);
+    connect (ui->net, &QLineEdit::editingFinished, this, &ProductEdit::netChanged);
+    connect (ui->gross, &QLineEdit::editingFinished, this, &ProductEdit::grossChanged);
+    connect (ui->colorComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ProductEdit::colorComboChanged);
+    connect (ui->okButton, &QPushButton::clicked, this, &ProductEdit::accept);
+    connect (ui->cancelButton, &QPushButton::clicked, this, &ProductEdit::reject);
 
     QrkSettings settings;
     m_barcodeReaderPrefix = settings.value("barcodeReaderPrefix", Qt::Key_F11).toInt();
@@ -137,6 +137,11 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     ui->collectionReceiptLabel->setVisible(printCollectionReceipt);
     ui->collectionReceiptCheckBox->setVisible(printCollectionReceipt);
 
+}
+
+ProductEdit::~ProductEdit()
+{
+    delete ui;
 }
 
 //--------------------------------------------------------------------------------
@@ -229,7 +234,7 @@ void ProductEdit::accept()
     }
     m_id = id;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     QString color = ui->colorComboBox->model()->index(ui->colorComboBox->currentIndex(), 0).data(Qt::BackgroundColorRole).toString();

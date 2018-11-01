@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "csvimportwizardpage2.h"
 #include "comboboxdelegate.h"
 #include "preferences/qrksettings.h"
+#include "ui_csvimportwizardpage2.h"
 
 #include <QStandardItemModel>
 
@@ -111,7 +112,7 @@ void CsvImportWizardPage2::initializePage()
   m_assignmentModel->setHeaderData(0, Qt::Horizontal, "QRK Datenbank");
   m_assignmentModel->setHeaderData(1, Qt::Horizontal, "CSV Datei");
 
-  connect(m_assignmentModel, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)), this, SLOT(itemChangedSlot(const QModelIndex&, const QModelIndex&)));
+  connect(m_assignmentModel, &QStandardItemModel::dataChanged, this, &CsvImportWizardPage2::itemChangedSlot);
 
   QList<QString> list;
   list << "itemnum" << "barcode" << "name" << "net" << "gross" << "tax" << "group" << "color" << "coupon";

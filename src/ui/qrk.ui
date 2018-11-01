@@ -23,8 +23,8 @@
    <string>MainWindow</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../qrk.qrc">
-    <normaloff>:/icons/logo.png</normaloff>:/icons/logo.png</iconset>
+   <iconset>
+    <normaloff>:src/icons/logo.png</normaloff>:src/icons/logo.png</iconset>
   </property>
   <property name="iconSize">
    <size>
@@ -36,7 +36,20 @@
    <bool>false</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_3"/>
+   <layout class="QGridLayout" name="gridLayout_3">
+    <property name="leftMargin">
+     <number>3</number>
+    </property>
+    <property name="topMargin">
+     <number>3</number>
+    </property>
+    <property name="rightMargin">
+     <number>3</number>
+    </property>
+    <property name="bottomMargin">
+     <number>3</number>
+    </property>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -44,7 +57,7 @@
      <x>0</x>
      <y>0</y>
      <width>1024</width>
-     <height>29</height>
+     <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuDatei">
@@ -86,8 +99,6 @@
     <addaction name="actionAbout_QT"/>
     <addaction name="separator"/>
     <addaction name="actionQRK_Forum"/>
-    <addaction name="separator"/>
-    <addaction name="actionPlugins"/>
    </widget>
    <widget class="QMenu" name="menuDEMOMODUS">
     <property name="title">
@@ -105,10 +116,16 @@
     </property>
     <addaction name="actionResuscitationCashRegister"/>
    </widget>
+   <widget class="QMenu" name="menuPlugins">
+    <property name="title">
+     <string>&amp;Plugins</string>
+    </property>
+   </widget>
    <addaction name="menuDatei"/>
    <addaction name="menuHilfe"/>
    <addaction name="menuDEMOMODUS"/>
    <addaction name="menuNEUE_KASSE_ERSTELLEN"/>
+   <addaction name="menuPlugins"/>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="autoFillBackground">
@@ -157,7 +174,7 @@
   </action>
   <action name="export_CSV">
    <property name="text">
-    <string>&amp;Journal als Csv</string>
+    <string>DEP-131 (&amp;Journal) als Csv</string>
    </property>
    <property name="toolTip">
     <string>Journal als Csv</string>
@@ -165,7 +182,7 @@
   </action>
   <action name="export_JSON">
    <property name="text">
-    <string>DEP &amp;als JSON</string>
+    <string>DEP-7 &amp;als JSON</string>
    </property>
    <property name="toolTip">
     <string>DEP als JSON</string>
@@ -183,7 +200,7 @@
   </action>
   <action name="actionDEPexternalBackup">
    <property name="text">
-    <string>DEP &amp;extern sichern</string>
+    <string>DEP-7 &amp;extern sichern</string>
    </property>
   </action>
   <action name="actionPlugins">
@@ -202,9 +219,17 @@
     <bool>true</bool>
    </property>
   </action>
+  <action name="actionAclManager">
+   <property name="text">
+    <string>&amp;Acl Manager</string>
+   </property>
+  </action>
+  <action name="actionRoles_Manager">
+   <property name="text">
+    <string>&amp;Roles Manager</string>
+   </property>
+  </action>
  </widget>
- <resources>
-  <include location="../qrk.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

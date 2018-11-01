@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2017 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "rk_signaturemodule.h"
 #include "base32decode.h"
 #include "base32encode.h"
+#include "database.h"
 
 #include <stdio.h>
 
@@ -41,6 +42,8 @@
 
 using namespace std;
 using namespace CryptoPP;
+
+bool SignatureModuleSetDamaged = false;
 
 /**
  * @brief RKSignatureModule::RKSignatureModule
@@ -311,7 +314,7 @@ QString RKSignatureModule::decryptCTR(std::string concatenatedHashValue, QString
  */
 QString RKSignatureModule::getPrivateTurnoverKey()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT value, strValue FROM globals WHERE name='PrivateTurnoverKey'");
     query.exec();
@@ -354,7 +357,7 @@ QString RKSignatureModule::getPrivateTurnoverKeyCheckValueBase64Trimmed()
  */
 QJsonObject RKSignatureModule::getCertificateMap()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT value, strValue FROM globals WHERE name='certificate'");
     query.exec();
@@ -377,7 +380,7 @@ bool RKSignatureModule::isCertificateInDB(int serial)
     if (serial == 0)
         return false;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT value FROM globals WHERE name='certificate' AND value=:serial");
     query.bindValue(":serial", serial);
@@ -399,7 +402,7 @@ void RKSignatureModule::putCertificate(int serial, QString certificateB64)
     if (serial == 0)
         return;
 
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT value FROM globals WHERE name='certificate' AND value=:serial");
     query.bindValue(":serial", serial);
@@ -414,48 +417,21 @@ void RKSignatureModule::putCertificate(int serial, QString certificateB64)
     query.exec();
 }
 
-QString RKSignatureModule::getLastUsedSerial()
-{
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
-    QSqlQuery query(dbc);
-    query.prepare("SELECT strValue FROM globals WHERE name='lastUsedCertificate'");
-    query.exec();
-    if (query.next())
-        return query.value(0).toString();
-
-    return "";
-}
-
-void RKSignatureModule::updateLastUsedSerial(QString serial)
-{
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
-    QSqlQuery query(dbc);
-
-    if (RKSignatureModule::getLastUsedSerial() == "") {
-        query.prepare("INSERT INTO globals (name, strValue) VALUES('lastUsedCertificate', :serial)");
-        query.bindValue(":serial", serial);
-    } else {
-        query.prepare("UPDATE globals SET strValue=:serial WHERE name='lastUsedCertificate'");
-        query.bindValue(":serial", serial);
-    }
-
-    query.exec();
-}
-
 void RKSignatureModule::setSignatureModuleDamaged()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("INSERT INTO globals (name, strValue) VALUES('signatureModuleIsDamaged', :date)");
     query.bindValue(":date", QDateTime::currentDateTime().toString(Qt::ISODate) );
 
     query.exec();
+    SignatureModuleSetDamaged = true;
 }
 
 bool RKSignatureModule::isSignatureModuleSetDamaged()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     query.prepare("SELECT strValue FROM globals WHERE name='signatureModuleIsDamaged'");
@@ -464,12 +440,12 @@ bool RKSignatureModule::isSignatureModuleSetDamaged()
     if (query.next())
         return true;
 
-    return false;
+    return SignatureModuleSetDamaged;
 }
 
 QString RKSignatureModule::resetSignatureModuleDamaged()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     QString ISODate = "";
@@ -483,6 +459,7 @@ QString RKSignatureModule::resetSignatureModuleDamaged()
     query.prepare("DELETE FROM globals WHERE name='signatureModuleIsDamaged'");
     query.exec();
 
+    SignatureModuleSetDamaged = false;
     return ISODate;
 
 }
@@ -514,7 +491,7 @@ QString RKSignatureModule::generatePrivateTurnoverHexKey()
  */
 bool RKSignatureModule::isDEPactive()
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT value FROM globals WHERE name='DEP'");
     query.exec();
@@ -533,7 +510,7 @@ bool RKSignatureModule::isDEPactive()
  */
 void RKSignatureModule::setDEPactive(bool active)
 {
-    QSqlDatabase dbc = QSqlDatabase::database("CN");
+    QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT value FROM globals WHERE name='DEP'");
     query.exec();
