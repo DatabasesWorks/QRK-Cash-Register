@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +20,14 @@
  *
 */
 
+#include "database.h"
 #include "databasemanager.h"
 
 #include <QSqlDatabase>
 #include <QMutexLocker>
 #include <QThread>
 #include <QSqlError>
+#include <QJsonObject>
 #include <QDebug>
 
 QMutex DatabaseManager::s_databaseMutex;
@@ -44,7 +46,7 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
             QMap<QString, QSqlDatabase>::iterator it_conn = it_thread.value().find(connectionName);
             if (it_conn != it_thread.value().end()) {
                 QSqlDatabase connection = it_conn.value();
-    //            qDebug() << "Function Name: " << Q_FUNC_INFO << " found SQL connection instances Thread: " << thread->currentThreadId() << " Name: " << connectionName;
+                qDebug() << "Function Name: " << Q_FUNC_INFO << " found SQL connection instances Thread: " << thread << " Name: " << connectionName;
                 if (connection.isValid())
                     return it_conn.value();
             }
@@ -52,11 +54,27 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
     }
 
     QString objectname = QString::number((long long)QThread::currentThread(), 16);
+
     thread->setObjectName(objectname);
     // otherwise, create a new connection for this thread
-    QSqlDatabase connection = QSqlDatabase::cloneDatabase(
+
+    // cloneDatabase will not work with QT 5.11
+    /*    QSqlDatabase connection = QSqlDatabase::cloneDatabase(
                                   QSqlDatabase::database(connectionName),
                                   QString("%1_%2").arg(connectionName).arg(objectname));
+    */
+
+    QJsonObject connectionDefinition = Database::getConnectionDefinition();
+    QString dbtype = connectionDefinition.value("dbtype").toString();
+    QSqlDatabase connection = QSqlDatabase::addDatabase(dbtype, QString("%1_%2").arg(connectionName).arg(objectname));
+
+    if (dbtype == "QMYSQL") {
+        connection.setHostName(connectionDefinition.value("databasehost").toString());
+        connection.setUserName(connectionDefinition.value("databaseusername").toString());
+        connection.setPassword(connectionDefinition.value("databasepassword").toString());
+        connection.setConnectOptions(connectionDefinition.value("databaseoptions").toString());
+    }
+    connection.setDatabaseName(connectionDefinition.value("databasename").toString());
 
     // open the database connection
     // initialize the database connection

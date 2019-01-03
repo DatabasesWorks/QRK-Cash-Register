@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -112,9 +112,13 @@ void createAppDataLocation()
 void setApplicationFont()
 {
   QrkSettings settings;
-    QList<QString> systemFontList = settings.value("systemfont").toString().split(",");
-  if (systemFontList.count() < 3)
-    return;
+  QList<QString> systemFontList = settings.value("systemfont").toString().split(",");
+  if (systemFontList.count() < 3) {
+      QFont font = QApplication::font();
+      font.setPointSize(11);
+      QApplication::setFont(font);
+      return;
+  }
 
   QFont sysFont(systemFontList.at(0));
   sysFont.setPointSize(systemFontList.at(1).toInt());
@@ -273,23 +277,30 @@ int main(int argc, char *argv[])
     noPrinter = true;
 #endif
 
+    QrkSettings settings;
+
     if (parser.isSet(restartOption)) {
-        QrkSettings settings;
         settings.removeSettings("QRK_RUNNING", false);
     }
 
+    QSize buttonsize = settings.value("ButtonSize", QSize(150, 60)).toSize();
+
     qApp->setStyleSheet("QFileDialog QPushButton, QWizard QPushButton, QMessageBox QPushButton {"
-                        "min-width: 100px;"
-                        "min-height: 50px;}"
+                        "min-width: " + QString::number(buttonsize.width() * 0.85) + "px;"
+                        "min-height: " + QString::number(buttonsize.height() * 0.85) + "px;}"
+                        "QScrollBar:vertical {"
+                        "width: 25px;}"
                         );
 
     if (parser.isSet(styleSheetOption)) {
         loadStyleSheet(parser.value(styleSheetOption));
     }
 
+    splash->setHidden(true);
     if (isQRKrunning())
       return 0;
 
+    splash->setVisible(true);
     splash->showMessage(QObject::tr("Schriftarten werden geladen ..."),topRight, Qt::black);
     setApplicationFont();
 
@@ -304,6 +315,7 @@ int main(int argc, char *argv[])
 
     // DateTime check
     if (Database::getLastJournalEntryDate().secsTo(QDateTime::currentDateTime()) < 0) {
+        splash->setHidden(true);
         QMessageBox messageBox(QMessageBox::Critical,
                                QObject::tr("Eventueller Datum/Uhrzeit Fehler"),
                                QObject::tr("ACHTUNG! Die Uhrzeit des Computers ist eventuell falsch.\n\nLetzter Datenbankeintrag: %1\nDatum/Uhrzeit: %2").arg(Database::getLastJournalEntryDate().toString()).arg(QDateTime::currentDateTime().toString()),
@@ -319,16 +331,18 @@ int main(int argc, char *argv[])
 
             return 0;
         }
+        splash->setVisible(true);
     }
 
-    QRK *mainWidget = new QRK(servermode);
-    UserLogin *userLogin = new UserLogin(mainWidget);
+    QRK mainWidget(servermode);
+    UserLogin *userLogin = new UserLogin(&mainWidget);
 
     splash->showMessage(QObject::tr("DEP-7 wird überprüft ..."),topRight, Qt::black);
 
     // DEP-7 Check
     QStringList error;
     if (!Database::isCashRegisterInAktive() && !DemoMode::isDemoMode() && RKSignatureModule::isDEPactive() && !Utils::checkTurnOverCounter(error)) {
+        splash->setHidden(true);
         QMessageBox messageBox(QMessageBox::Critical,
                                QObject::tr("DEP-7 Fehler"),
                                QObject::tr("ACHTUNG! Das gespeicherte DEP-7 hat einen oder mehrere Fehler.\nEvtl. gibt es Zugriffsprobleme auf Ihre Datenbank.\nBitte sichern Sie Ihre Daten. Melden Sie die Kasse bei FON ab und nochmals neu an.\nBis dahin müssen Sie Belege per Hand erstellen und in der neuen Kasse erfassen.\nFür Infos steht Ihnen das Forum zu Verfügung."),
@@ -340,18 +354,19 @@ int main(int argc, char *argv[])
         if (messageBox.exec() == QMessageBox::Yes )
         {
             RBAC::Instance()->setuserId(0);
-            mainWidget->closeCashRegister();
+            mainWidget.closeCashRegister();
             return 0;
         }
+        splash->setVisible(true);
     }
 
-    mainWidget->setResuscitationCashRegister(Database::isCashRegisterInAktive());
+    mainWidget.setResuscitationCashRegister(Database::isCashRegisterInAktive());
 
     splash->showMessage(QObject::tr("Einstellungen werden geladen ..."),topRight, Qt::black);
 
-    mainWidget->statusBar()->setStyleSheet(
-                "QStatusBar { border-top: 1px solid lightgrey; border-radius: 1px;"
-                "background: lightgrey; spacing: 3px; /* spacing between items in the tool bar */ }"
+    mainWidget.statusBar()->setStyleSheet(
+                "QStatusBar { border-top: 1px solid darkgrey; border-radius: 1px;"
+                "background: darkgrey; spacing: 3px; /* spacing between items in the tool bar */ }"
                 );
 
     setNoPrinter(noPrinter);
@@ -362,12 +377,13 @@ int main(int argc, char *argv[])
     app.setProperty("debugMsg", debugMsg);
 
     if (fullScreen && !minimize)
-        mainWidget->setWindowState(mainWidget->windowState() ^ Qt::WindowFullScreen);
+        mainWidget.setWindowState(mainWidget.windowState() ^ Qt::WindowFullScreen);
     else if (minimize && !fullScreen)
-        mainWidget->setWindowState(mainWidget->windowState() ^ Qt::WindowMinimized);
+        mainWidget.setWindowState(mainWidget.windowState() ^ Qt::WindowMinimized);
 
     /*check if we have SET Demomode*/
     if (DemoMode::isModeNotSet()) {
+        splash->setHidden(true);
 
         QMessageBox messageBox(QMessageBox::Question,
                                QObject::tr("DEMOMODUS"),
@@ -381,7 +397,9 @@ int main(int argc, char *argv[])
         {
             DemoMode::leaveDemoMode();
         }
+        splash->setVisible(true);
     } else if (DemoMode::isDemoMode() && RKSignatureModule::isDEPactive()) {
+        splash->setHidden(true);
         QrkTimedMessageBox messageBox(5,
                                QMessageBox::Warning,
                                QObject::tr("DEMOMODUS"),
@@ -392,29 +410,44 @@ int main(int argc, char *argv[])
         messageBox.setDefaultButton(QMessageBox::Yes);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("OK"));
         messageBox.exec();
+        splash->setVisible(true);
     }
 
     /*Check for MasterData*/
     QString cri = Database::getCashRegisterId();
     if ( cri.isEmpty() ) {
+        splash->setHidden(true);
         QMessageBox::warning(0, QObject::tr("Kassenidentifikationsnummer"), QObject::tr("Stammdaten müssen vollständig ausgefüllt werden.."));
         RBAC::Instance()->setuserId(0);
         SettingsDialog tab;
         tab.exec();
         if ( Database::getCashRegisterId().replace("DEMO-", "").isEmpty() ) {
+            QrkTimedMessageBox messageBox(5,
+                                   QMessageBox::Warning,
+                                   QObject::tr("Kassenidentifikationsnummer"),
+                                   QObject::tr("Stammdaten wurden nicht vollständig ausgefüllt. QRK wird beendet."),
+                                   QMessageBox::Yes
+                                   );
+
+            messageBox.setDefaultButton(QMessageBox::Yes);
+            messageBox.setButtonText(QMessageBox::Yes, QObject::tr("OK"));
+            messageBox.exec();
             sighandler(0);
             return 0;
         }
+        splash->setVisible(true);
     }
 
-    mainWidget->setShopName();
+    mainWidget.setShopName();
 
     UniqueMachineFingerprint fp;
     qInfo() << "Serialnumber: " << fp.getSystemUniqueId();
 
+    splash->finish(&mainWidget);
+
 #if defined(_WIN32) || defined(__APPLE__)
     // Set feed URL before doing anything else
-    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.08/Appcast.xml");
+    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.10/Appcast.xml");
     FvUpdater::sharedUpdater()->setRequiredSslFingerPrint("c3b038cb348c7d06328579fb950a48eb");	// Optional
     FvUpdater::sharedUpdater()->setHtAuthCredentials("username", "password");	// Optional
     FvUpdater::sharedUpdater()->setUserCredentials(Database::getShopName() + "/" + Database::getCashRegisterId() + "/" + QApplication::applicationVersion());
@@ -427,15 +460,13 @@ int main(int argc, char *argv[])
     FvUpdater::sharedUpdater()->CheckForUpdatesSilent();
 #endif
 
-    splash->finish(mainWidget);
-
     /*
     QGraphicsBlurEffect *effect = new QGraphicsBlurEffect;
     effect->setBlurHints(QGraphicsBlurEffect::PerformanceHint);
     effect->setBlurRadius(17);
     mainWidget.setGraphicsEffect(effect);
     */
-    mainWidget->show();
+    mainWidget.show();
 
     if (RBAC::Instance()->Login()) {
         userLogin->show();

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ class CKVSOFT_EXPORT Crypto : QObject
 
     public:
         Crypto(QObject *parent = 0);
-        static QString encrypt(const SecureByteArray &password);
+        static QString encrypt(const SecureByteArray &plain);
+        static QString encrypt(const SecureByteArray &plain, const SecureByteArray &password);
         static QString decrypt(const QString &encryptedHex, const SecureByteArray &password);
 
         static void makeKeyandIvFromPassword(const SecureByteArray &password, SecureByteArray &key, SecureByteArray &iv);

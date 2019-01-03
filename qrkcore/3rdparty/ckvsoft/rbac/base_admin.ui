@@ -92,7 +92,7 @@
            <bool>true</bool>
           </property>
           <property name="handleWidth">
-           <number>5</number>
+           <number>16</number>
           </property>
           <widget class="QWidget" name="layoutWidget">
            <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,0">
@@ -302,8 +302,8 @@ erl = erlauben, ver = verweigern, ign = ignorieren</string>
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>365</width>
-                 <height>237</height>
+                 <width>372</width>
+                 <height>228</height>
                 </rect>
                </property>
                <property name="accessibleName">
@@ -348,7 +348,7 @@ erl = erlauben, ver = verweigern, ign = ignorieren</string>
            </spacer>
           </item>
           <item>
-           <widget class="QPushButton" name="saveButton">
+           <widget class="QrkPushButton" name="saveButton">
             <property name="minimumSize">
              <size>
               <width>150</width>
@@ -372,7 +372,7 @@ speichern</string>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="exitButton">
+           <widget class="QrkPushButton" name="exitButton">
             <property name="minimumSize">
              <size>
               <width>150</width>
@@ -403,6 +403,13 @@ speichern</string>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>ListView</tabstop>
   <tabstop>nameEdit</tabstop>

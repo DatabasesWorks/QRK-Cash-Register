@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,10 +45,16 @@ void Backup::create(QString dataDir)
     if (!confname.isEmpty())
         confname = "_" + confname;
 
-    QString infile = QString("%1/%2-QRK%3.db").arg(dataDir).arg(QDate::currentDate().year()).arg(confname);
+    QDir directory(dataDir);
+    QStringList infileList = directory.entryList(QStringList() << QString("%1-QRK%2.db*").arg(QDate::currentDate().year()).arg(confname),QDir::Files);
+    QStringList fullpathFilelist;
+    foreach(QString filename, infileList) {
+        fullpathFilelist.append(dataDir + "/" + filename);
+    }
+
     QString outfile = QString("%1/data_%2.zip").arg(backupDir).arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"));
 
-    bool ok = JlCompress::compressFile( outfile, infile );
+    bool ok = JlCompress::compressFiles( outfile, fullpathFilelist );
     if (!ok)
         qWarning() << "Function Name: " << Q_FUNC_INFO << " JlCompress::compressFile:" << ok;
 

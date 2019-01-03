@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "defines.h"
 #include "database.h"
+#include "databasemanager.h"
 #include "qrkdocument.h"
 #include "documentprinter.h"
 #include "preferences/qrksettings.h"
@@ -36,6 +37,7 @@
 #include <QDesktopWidget>
 #include <QJsonObject>
 #include <QSqlRecord>
+#include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
 
@@ -61,6 +63,11 @@ QRKDocument::QRKDocument(QWidget *parent)
     connect(ui->invoiceCompanyPrintcopyButton, &QPushButton::clicked, this, &QRKDocument::onInvoiceCompanyButton_clicked);
     connect(ui->cancellationButton, &QPushButton::clicked, this, &QRKDocument::onCancellationButton_clicked);
 
+}
+
+QRKDocument::~QRKDocument()
+{
+    delete ui;
 }
 
 //--------------------------------------------------------------------------------
@@ -125,6 +132,12 @@ void QRKDocument::documentList(bool servermode)
 }
 
 //----------------SLOTS-----------------------------------------------------------
+
+void QRKDocument::cancelDocumentButton_clicked()
+{
+    DatabaseManager::removeCurrentThread("CN");
+    emit cancelDocumentButton();
+}
 
 void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItemSelection & )
 {

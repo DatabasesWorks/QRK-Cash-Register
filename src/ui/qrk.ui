@@ -57,7 +57,7 @@
      <x>0</x>
      <y>0</y>
      <width>1024</width>
-     <height>30</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuDatei">
@@ -76,6 +76,8 @@
      </property>
      <addaction name="export_CSV"/>
      <addaction name="export_JSON"/>
+     <addaction name="separator"/>
+     <addaction name="exportProducts_CSV"/>
     </widget>
     <widget class="QMenu" name="menuDatensicherung">
      <property name="title">
@@ -85,8 +87,8 @@
      <addaction name="actionDEPexternalBackup"/>
     </widget>
     <addaction name="menuImport"/>
-    <addaction name="menu_Exportieren"/>
     <addaction name="separator"/>
+    <addaction name="menu_Exportieren"/>
     <addaction name="menuDatensicherung"/>
    </widget>
    <widget class="QMenu" name="menuHilfe">
@@ -227,6 +229,11 @@
   <action name="actionRoles_Manager">
    <property name="text">
     <string>&amp;Roles Manager</string>
+   </property>
+  </action>
+  <action name="exportProducts_CSV">
+   <property name="text">
+    <string>Artikel als Csv</string>
    </property>
   </action>
  </widget>

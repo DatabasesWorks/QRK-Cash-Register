@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -239,11 +239,14 @@ QJsonObject ReceiptItemModel::compileData(int id)
     int positions = query.value(0).toInt();
 
     // sum Year
-    QString year = receiptTime.toString("yyyy");
+    int year = receiptTime.toString("yyyy").toInt();
+/*
     query.prepare(QString("SELECT SUM(gross) AS Total FROM receipts where timestamp like '%1%'").arg(year));
     query.exec();
     query.next();
     double sumYear = query.value(0).toDouble();
+*/
+    double sumYear = Utils::getYearlyTotal(year);
 
     // AdvertisingText
     query.prepare("SELECT strValue FROM globals WHERE name='printAdvertisingText'");

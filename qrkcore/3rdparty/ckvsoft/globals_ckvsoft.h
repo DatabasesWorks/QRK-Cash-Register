@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,14 +25,15 @@
 
 #include <QtCore/qglobal.h>
 
-#ifdef CKVSOFT_STATIC
-#define CKVSOFT_EXPORT
-#else
-#if defined(CKVSOFT_BUILD)
-#define CKVSOFT_EXPORT Q_DECL_EXPORT
-#else
+#ifndef CKVSOFT_STATIC
+#ifndef CKVSOFT_BUILD
 #define CKVSOFT_EXPORT Q_DECL_IMPORT
+#else
+ #define CKVSOFT_EXPORT Q_DECL_EXPORT
 #endif
+#else
+ #define CKVSOFT_EXPORT
+
 #endif // CKVSOFT_STATIC
 
 #endif // GLOBALS_CKVSOFT_H

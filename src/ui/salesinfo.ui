@@ -87,7 +87,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="closePushButton">
+        <widget class="QrkPushButton" name="closePushButton">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -98,7 +98,7 @@
           <string>OK</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/ok.png</normaloff>:src/icons/ok.png</iconset>
          </property>
          <property name="iconSize">
@@ -115,9 +115,13 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../../qrk.qrc"/>
-  <include location="../../qrk.qrc"/>
- </resources>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
  <connections/>
 </ui>

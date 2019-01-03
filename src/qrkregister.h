@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "receiptitemmodel.h"
 #include "preferences/qrksettings.h"
 #include "pluginmanager/Interfaces/barcodesinterface.h"
+#include "defines.h"
 
 class QButtonGroup;
 
@@ -46,6 +47,7 @@ class QRKRegister : public QWidget
   signals:
     void cancelRegisterButton_clicked();
     void finishedReceipt();
+    void fullScreen(bool);
 
   public slots:
     void safetyDevice(bool active);
@@ -64,6 +66,9 @@ class QRKRegister : public QWidget
     void finishedPlus();
     void createCheckReceipt(bool);
     void setColumnHidden(int col);
+    void splitterMoved(int pos, int idx);
+    void numPadToogle(bool);
+    void barcodeFinderButton_clicked(bool);
 
   protected:
     bool eventFilter(QObject *obj, QEvent *event);
@@ -86,6 +91,15 @@ class QRKRegister : public QWidget
     bool finishReceipts(int, int = 0, bool = false);
 
     void initPlugins();
+    void categoryButton(bool clicked);
+    void writeSettings();
+    void readSettings();
+    void upPushButton(bool clicked);
+    void downPushButton(bool clicked);
+    void setButtonsHidden();
+
+    void numPadValueButtonPressed(const QString &text, REGISTER_COL column);
+
     BarcodesInterface *barcodesInterface = 0;
 
     int m_currentReceipt;
@@ -98,12 +112,20 @@ class QRKRegister : public QWidget
     bool m_useGivenDialog;
     bool m_isR2B;
     bool m_receiptPrintDialog;
+    bool m_minstockDialog;
+
+    bool m_orderlistTaxColumnHidden = false;
+    bool m_orderlistSinglePriceColumnHidden = false;
+
+    bool m_barcodeInputLineEditDefault = false;
 
     QButtonGroup *m_buttonGroupGroups;
     QButtonGroup *m_buttonGroupProducts;
 
     int m_barcodeReaderPrefix;
-
+    int m_decimaldigits = 2;
+    int m_maximumWindowsHeight;
+    QSize m_quickButtonSize;
 
 };
 

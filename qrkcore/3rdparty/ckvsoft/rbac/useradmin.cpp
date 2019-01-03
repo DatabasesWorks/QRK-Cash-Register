@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <QCheckBox>
 #include <QMessageBox>
 #include <QRadioButton>
+#include <QButtonGroup>
 #include <QFileDialog>
 #include <QKeyEvent>
 #include <QDebug>
@@ -482,7 +483,7 @@ void UserAdmin::manageUserRoles()
 
     QListIterator<QString> i(allroles);
     if (allroles.size() == 0) {
-        QPushButton *createRoles = new QPushButton(widget);
+        QrkPushButton *createRoles = new QrkPushButton(widget);
         createRoles->setText(tr("erstellen"));
         connect(createRoles, &QPushButton::clicked, this, &UserAdmin::createRoles);
         usergridLayout->addWidget(new QLabel(tr("Keine Rolle vorhanden.")), 0, 0, 1, 3, Qt::AlignCenter);
@@ -598,8 +599,8 @@ void UserAdmin::userProfile()
     else
         femaleRadioButton->setChecked(true);
 
-    QPushButton *avatarButton = new QPushButton(tr("Avatar"), widget);
-    QPushButton *passwordButton = new QPushButton(tr("Kennwort"), widget);
+    QrkPushButton *avatarButton = new QrkPushButton(tr("Avatar"), widget);
+    QrkPushButton *passwordButton = new QrkPushButton(tr("Kennwort"), widget);
 
     connect(passwordButton, &QPushButton::clicked, this, &UserAdmin::changePassword);
     connect(avatarButton, &QPushButton::clicked, this, &UserAdmin::avatarButtonClicked);

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,9 +40,15 @@ Crypto::Crypto(QObject *parent) : QObject(parent)
 
 QString Crypto::encrypt(const SecureByteArray &plain)
 {
+    SecureByteArray password = plain;
+    return encrypt(plain, password);
+}
+
+QString Crypto::encrypt(const SecureByteArray &plain, const SecureByteArray &password)
+{
     StreamTransformationFilter::BlockPaddingScheme padding = StreamTransformationFilter::PKCS_PADDING;
     SecureByteArray key(AES::MAX_KEYLENGTH, static_cast<char>(0)), IV(AES::BLOCKSIZE, static_cast<char>(0));
-    makeKeyandIvFromPassword(plain, key, IV);
+    makeKeyandIvFromPassword(password, key, IV);
 
     CBC_Mode<AES>::Encryption enc;
     enc.SetKeyWithIV(reinterpret_cast<const byte *>(key.constData()), key.size(), reinterpret_cast<const byte *>(IV.constData()));

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,11 @@ class QRKDocument : public QWidget
   public:
 
     explicit QRKDocument(QWidget *parent = 0);
+    ~QRKDocument();
     void documentList(bool);
 
   signals:
-    void cancelDocumentButton_clicked();
+    void cancelDocumentButton();
     void documentButton_clicked();
 
   public slots:
@@ -52,6 +53,7 @@ class QRKDocument : public QWidget
     void onPrintcopyButton_clicked(bool = false);
     void onInvoiceCompanyButton_clicked();
     void sortChanged();
+    void cancelDocumentButton_clicked();
 
 
   protected slots:

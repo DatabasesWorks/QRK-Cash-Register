@@ -90,7 +90,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="okButton">
+        <widget class="QrkPushButton" name="okButton">
          <property name="minimumSize">
           <size>
            <width>150</width>
@@ -101,7 +101,7 @@
           <string>OK</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/ok.png</normaloff>:src/icons/ok.png</iconset>
          </property>
          <property name="iconSize">
@@ -113,7 +113,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="cancelButton">
+        <widget class="QrkPushButton" name="cancelButton">
          <property name="minimumSize">
           <size>
            <width>150</width>
@@ -124,7 +124,7 @@
           <string>Abbrechen</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/cancel.png</normaloff>:src/icons/cancel.png</iconset>
          </property>
          <property name="iconSize">
@@ -141,9 +141,13 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../../qrk.qrc"/>
-  <include location="../../qrk.qrc"/>
- </resources>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
  <connections/>
 </ui>

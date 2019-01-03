@@ -31,7 +31,7 @@
    <item>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QPushButton" name="plus">
+      <widget class="QrkPushButton" name="plus">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -48,7 +48,7 @@
         <string>Neu</string>
        </property>
        <property name="icon">
-        <iconset resource="../../qrk.qrc">
+        <iconset>
          <normaloff>:src/icons/new.png</normaloff>:src/icons/new.png</iconset>
        </property>
        <property name="iconSize">
@@ -60,7 +60,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="minus">
+      <widget class="QrkPushButton" name="minus">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -77,7 +77,7 @@
         <string>Löschen</string>
        </property>
        <property name="icon">
-        <iconset resource="../../qrk.qrc">
+        <iconset>
          <normaloff>:src/icons/eraser.png</normaloff>:src/icons/eraser.png</iconset>
        </property>
        <property name="iconSize">
@@ -89,7 +89,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="edit">
+      <widget class="QrkPushButton" name="edit">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -106,7 +106,7 @@
         <string>Ändern</string>
        </property>
        <property name="icon">
-        <iconset resource="../../qrk.qrc">
+        <iconset>
          <normaloff>:src/icons/edit.png</normaloff>:src/icons/edit.png</iconset>
        </property>
        <property name="iconSize">
@@ -173,9 +173,13 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../../qrk.qrc"/>
-  <include location="../../qrk.qrc"/>
- </resources>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
  <connections/>
 </ui>

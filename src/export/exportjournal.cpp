@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "exportdialog.h"
 #include "database.h"
 #include "singleton/spreadsignal.h"
+#include "3rdparty/ckvsoft/rbac/crypto.h"
 
 #include <QTextStream>
 #include <QSqlDatabase>
@@ -76,15 +77,17 @@ bool ExportJournal::journalExport(QString outputFilename, QString from, QString 
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
-    query.prepare(QString("SELECT text FROM journal WHERE id < 5"));
+    query.prepare(QString("SELECT data FROM journal WHERE id < 5"));
     query.exec();
     while (query.next())
     {
         // Write the line to the file
-        outStream << query.value(0).toString() + '\n';
+        QString data = query.value("data").toString();
+        data = Crypto::decrypt(data, SecureByteArray("Journal")).replace("\t", ";");
+        outStream << data + '\n';
     }
 
-    query.prepare(QString("SELECT version, cashregisterid, text FROM journal WHERE datetime BETWEEN :fromDate AND :toDate AND id > 4"));
+    query.prepare(QString("SELECT version, cashregisterid, data FROM journal WHERE datetime BETWEEN :fromDate AND :toDate AND id > 4"));
     query.bindValue(":fromDate", from);
     query.bindValue(":toDate", to);
 
@@ -102,7 +105,18 @@ bool ExportJournal::journalExport(QString outputFilename, QString from, QString 
     {
         i++;
         Spread::Instance()->setProgressBarValue(((float)i / (float)numberOfRows) * 100);
-        QString s = QString("%1\t%2\t%3\t%4\n").arg(i).arg(query.value(0).toString()).arg(query.value(1).toString()).arg(query.value(2).toString());
+        QString data = query.value("data").toString();
+        data = Crypto::decrypt(data, SecureByteArray("Journal"));
+        QStringList datalist = data.split('\t');
+
+        int j = 0;
+        foreach (const QString &str, datalist) {
+            datalist[j] = QString("\"%1\"").arg(str);
+            j++;
+        }
+        data = datalist.join(';');
+
+        QString s = QString("%1;%2;%3;%4\n").arg(i).arg(query.value("version").toString()).arg(query.value("cashregisterid").toString()).arg(data);
         outStream << s;
     }
     outStream.flush();

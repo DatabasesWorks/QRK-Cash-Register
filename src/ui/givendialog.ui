@@ -99,7 +99,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
+        <widget class="QrkPushButton" name="pushButton">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -110,7 +110,7 @@
           <string>Weiter</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/arrow-right.png</normaloff>:src/icons/arrow-right.png</iconset>
          </property>
          <property name="iconSize">
@@ -122,7 +122,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="cancelButton">
+        <widget class="QrkPushButton" name="cancelButton">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -133,7 +133,7 @@
           <string>Abbruch</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/cancel.png</normaloff>:src/icons/cancel.png</iconset>
          </property>
          <property name="iconSize">
@@ -150,9 +150,13 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../../qrk.qrc"/>
-  <include location="../../qrk.qrc"/>
- </resources>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
  <connections/>
 </ui>

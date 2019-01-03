@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ QString ASignACOS_04::signReceipt(QString data)
     ASignResponse response = signHash(pin, hash);
 
     for (uint i = 0; i < response.length; i++)
-        JWS_Signature[i] = (const char)response.data[i];
+        JWS_Signature[i] = response.data[i]; // (const char)response.data[i];
 
     if (response.length > 0) {
         JWS_Signature = JWS_Signature.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);

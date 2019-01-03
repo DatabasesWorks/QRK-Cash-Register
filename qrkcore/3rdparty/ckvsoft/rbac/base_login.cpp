@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -192,7 +192,7 @@ base_login::base_login(QWidget *parent)
 
     hboxLayout->addItem(horizontalSpacer);
 
-    okPushButton = new QPushButton(footerFrame);
+    okPushButton = new QrkPushButton(footerFrame);
     okPushButton->setMinimumHeight(60);
     okPushButton->setIconSize(QSize(32,32));
     QIcon icon;
@@ -201,7 +201,7 @@ base_login::base_login(QWidget *parent)
 
     hboxLayout->addWidget(okPushButton);
 
-    cancelPushButton = new QPushButton(footerFrame);
+    cancelPushButton = new QrkPushButton(footerFrame);
     cancelPushButton->setMinimumHeight(60);
     cancelPushButton->setIconSize(QSize(32,32));
     QIcon icon2;

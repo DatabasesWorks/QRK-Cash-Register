@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "versionchecker.h"
 #include "database.h"
+#include "databasemanager.h"
 #include "RK/rk_signaturemodule.h"
 
 #include <QJsonDocument>
@@ -37,6 +38,7 @@ VersionChecker::VersionChecker(QObject *parent) :
 
 VersionChecker::~VersionChecker()
 {
+    DatabaseManager::removeCurrentThread("CN");
     delete m_manager;
     timer->stop();
 }

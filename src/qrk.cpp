@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "reports.h"
 #include "export/exportdep.h"
 #include "export/exportjournal.h"
+#include "export/exportproducts.h"
 #include "qrkhome.h"
 #include "qrkdocument.h"
 #include "qrkregister.h"
@@ -63,6 +64,7 @@
 #include <QProgressBar>
 #include <QTreeView>
 #include <QThread>
+#include <QScreen>
 
 //-----------------------------------------------------------------------
 
@@ -99,6 +101,9 @@ QRK::QRK(bool servermode)
     m_dateLcd->setSegmentStyle (QLCDNumber::Flat);
     m_dateLcd->setFrameStyle (QFrame::NoFrame);
 
+    QLabel *configName = new QLabel(QrkSettings::getConfigName(), this);
+    configName->setForegroundRole(QPalette::ButtonText);
+    statusBar()->addWidget(configName,0);
     statusBar()->addPermanentWidget(m_dep,0);
     statusBar()->addPermanentWidget(m_depPX,0);
     statusBar()->addPermanentWidget(m_safetyDevicePX,0);
@@ -112,10 +117,6 @@ QRK::QRK(bool servermode)
     connect (m_timer, &QTimer::timeout, this, &QRK::timerDone);
 
     m_currentRegisterYear = QDateTime::currentDateTime().toString("yyyy").toInt();
-    QFont font = QApplication::font();
-    font.setPointSize(11);
-    QApplication::setFont(font);
-
     // setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
 
     PluginManager::instance()->initialize();
@@ -132,6 +133,7 @@ QRK::QRK(bool servermode)
     connect(ui->export_CSV, &QAction::triggered, this, &QRK::export_CSV);
     connect(ui->import_CSV, &QAction::triggered, this, &QRK::import_CSV);
     connect(ui->export_JSON, &QAction::triggered, this, &QRK::export_JSON);
+    connect(ui->exportProducts_CSV, &QAction::triggered, this, &QRK::exportProducts_CSV);
     connect(ui->actionDEPexternalBackup, &QAction::triggered, this, &QRK::backupDEP);
     connect(ui->actionDatenbank_sichern, &QAction::triggered, this, &QRK::backup);
     connect(ui->actionAbout_QRK, &QAction::triggered, this, &QRK::actionAbout_QRK);
@@ -158,18 +160,16 @@ QRK::QRK(bool servermode)
 
     connect(m_qrk_register, &QRKRegister::cancelRegisterButton_clicked, this, &QRK::onCancelRegisterButton_clicked);
     connect(m_qrk_register, &QRKRegister::finishedReceipt, this, &QRK::finishedReceipt);
+    connect(m_qrk_register, &QRKRegister::fullScreen, this, &QRK::setFullScreenMode);
 
-    connect(m_qrk_document, &QRKDocument::cancelDocumentButton_clicked, this, &QRK::onCancelDocumentButton_clicked);
+    connect(m_qrk_document, &QRKDocument::cancelDocumentButton, this, &QRK::onCancelDocumentButton_clicked);
     connect(m_qrk_document, &QRKDocument::documentButton_clicked, this, &QRK::onDocumentButton_clicked);
 
     QString title = QString("QRK V%1.%2 - Qt Registrier Kasse - %3").arg(QRK_VERSION_MAJOR).arg(QRK_VERSION_MINOR).arg(Database::getShopName());
     setWindowTitle ( title );
 
     init();
-
-    QrkSettings settings;
-    restoreGeometry(settings.value("mainWindowGeometry").toByteArray());
-    restoreState(settings.value("mainWindowState").toByteArray());
+    restore();
 
     m_checkerThread = new QThread;
     m_versionChecker = new VersionChecker;
@@ -177,12 +177,18 @@ QRK::QRK(bool servermode)
     connect(m_versionChecker, &VersionChecker::Version, this, &QRK::newApplicationVersionAvailable);
     connect(m_checkerThread, &QThread::started, m_versionChecker, &VersionChecker::run);
     m_checkerThread->start();
+
 }
 
 //--------------------------------------------------------------------------------
 
 QRK::~QRK()
 {
+
+    m_versionChecker->deleteLater();
+    DatabaseManager::removeCurrentThread("CN");
+    DatabaseManager::clear();
+
     delete ui;
     PluginManager::instance()->uninitialize();
     m_timer->stop();
@@ -202,6 +208,7 @@ void QRK::iniStack()
     m_stackedWidget->addWidget(m_qrk_document);
 
     m_stackedWidget->setCurrentWidget(m_qrk_home);
+
 }
 
 //--------------------------------------------------------------------------------
@@ -414,6 +421,13 @@ void QRK::init()
     }
 }
 
+void QRK::restore()
+{
+    QrkSettings settings;
+    restoreGeometry(settings.value("mainWindowGeometry").toByteArray());
+    restoreState(settings.value("mainWindowState").toByteArray());
+}
+
 void QRK::logOnOff(bool)
 {
     if (RBAC::Instance()->Login()) {
@@ -488,6 +502,12 @@ void QRK::export_JSON()
 {
     ExportDEP xport;
     xport.dExport();
+}
+
+void QRK::exportProducts_CSV()
+{
+    ExportProducts xport;
+    xport.Export();
 }
 
 void QRK::infoFON()
@@ -586,15 +606,28 @@ void QRK::onDocumentButton_clicked()
 void QRK::fullScreenSlot()
 {
     QrkSettings settings;
-    if ( isFullScreen() )
-    {
+    if ( isFullScreen() ) {
         setWindowState(windowState() ^ Qt::WindowFullScreen);
         restoreGeometry(settings.value("mainWindowGeometry").toByteArray());
         restoreState(settings.value("mainWindowState").toByteArray());
     } else {
-        settings.value("mainWindowGeometry", saveGeometry());
-        settings.value("mainWindowState", saveState());
+        settings.save2Settings("mainWindowGeometry", saveGeometry(), false);
+        settings.save2Settings("mainWindowState", saveState(), false);
         showFullScreen();
+    }
+}
+
+void QRK::setFullScreenMode(bool set)
+{
+    QrkSettings settings;
+    if ( set ) {
+        settings.save2Settings("numKeyPadGeometry", saveGeometry(), false);
+        settings.save2Settings("numKeyPadState", saveState(), false);
+        showFullScreen();
+    } else {
+//        setWindowState(windowState() ^ Qt::WindowFullScreen);
+        restoreGeometry(settings.value("numKeyPadGeometry").toByteArray());
+        restoreState(settings.value("numKeyPadState").toByteArray());
     }
 }
 
@@ -630,7 +663,7 @@ void QRK::closeEvent (QCloseEvent *event)
             settings.save2Settings("mainWindowState", saveState(), false);
         }
         PluginManager::instance()->uninitialize();
-        DatabaseManager::clear();
+        DatabaseManager::removeCurrentThread("CN");
         QApplication::exit();
     } else {
         event->ignore();

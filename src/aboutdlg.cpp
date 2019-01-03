@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,9 +49,9 @@ QString AboutDlg::getSerialNumber()
 void AboutDlg::readLicense()
 {
     QFile file;
-    file.setFileName(QCoreApplication::applicationDirPath() + "/gpl-3.0." + QLocale::system().name() + ".txt");
+    file.setFileName(":/src/txt/gpl-3.0." + QLocale::system().name() + ".txt");
     if(!file.exists())
-        file.setFileName(QCoreApplication::applicationDirPath() + "/gpl-3.0.txt");
+        file.setFileName(":/src/txt/gpl-3.0.txt");
 
     ui->textBrowser->clear();
     if(file.exists()) {

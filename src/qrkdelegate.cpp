@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -163,14 +163,6 @@ QString QrkDelegate::displayText(const QVariant &value, const QLocale &locale) c
             formattedNum = QString("%1 %").arg(locale.toString(value.toDouble(), 'f', 0));
 
         return formattedNum;
-
-    } else if (m_type == DISCOUNT) {
-        QString formattedNum;
-        double val = value.toDouble();
-        if (val > 0)
-            val *= -1;
-        formattedNum = QString("%1 %").arg(locale.toString(val));
-        return formattedNum;
     }
 
     return QStyledItemDelegate::displayText(value, locale);
@@ -181,7 +173,8 @@ void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
 
     if (m_type == SPINBOX) {
         // Get the value via index of the Model
-        int value = index.model()->data(index, Qt::EditRole).toInt();
+        // use toDuble while toInt gives someone 0
+        double value = index.model()->data(index, Qt::EditRole).toDouble();
         // Put the value into the SpinBox
         QSpinBox *spinbox = static_cast<QSpinBox*>(editor);
         spinbox->setValue(value);

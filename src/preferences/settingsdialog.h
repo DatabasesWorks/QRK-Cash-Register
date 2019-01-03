@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ class QSpinBox;
 class QLineEdit;
 class QRadioButton;
 class QLabel;
-class QPushButton;
+class QrkPushButton;
 class QGroupBox;
 class QListWidget;
 class ASignSmartCard;
@@ -61,31 +61,94 @@ class Widget: public QWidget
         }
 };
 
+class ReceiptMainTab : public Widget
+{
+    Q_OBJECT
+
+public:
+    explicit ReceiptMainTab(QWidget *parent = 0);
+    bool getInputNetPrice();
+    bool getDiscount();
+    bool getMaximumItemSold();
+    int getDecimalDigits();
+    bool getDecimalQuantity();
+    QSize getQuickButtonSize();
+    QSize getButtonSize();
+    QSize getNumpadButtonSize();
+    bool hideDebitcardButton();
+    bool hideCreditcardButton();
+    QString getDefaultTax();
+    bool useVirtualNumPad();
+
+signals:
+    void maximumSoldItemChanged(bool enabled);
+
+private:
+    QCheckBox *m_useInputNetPriceCheck;
+    QCheckBox *m_useDiscountCheck;
+    QCheckBox *m_useMaximumItemSoldCheck;
+    QCheckBox *m_useDecimalQuantityCheck;
+    QSpinBox *m_decimalRoundSpin;
+    QCheckBox *m_hideDebitcardCheck;
+    QCheckBox *m_hideCreditcardCheck;
+    QCheckBox *m_useVirtualNumPadCheck;
+
+    QComboBox *m_defaultTaxComboBox;
+
+    QSpinBox *m_quickButtonWidth;
+    QSpinBox *m_quickButtonHeight;
+    QSpinBox *m_fixedButtonHeight;
+    QSpinBox *m_minimumButtonWidth;
+    QSpinBox *m_fixedNumpadButtonHeight;
+    QSpinBox *m_fixedNumpadButtonWidth;
+
+};
+
+class BarcodeTab : public Widget
+{
+    Q_OBJECT
+
+public:
+    explicit BarcodeTab(QWidget *parent = 0);
+    int getBarcodePrefix();
+    QString getBarcodeSuccessSound();
+    QString getBarcodeFailureSound();
+    bool getBarcodeSuccessSoundEnabled();
+    bool getBarcodeFailureSoundEnabled();
+    bool getBarcodeAsDefault();
+    void play();
+    QString getMultimediaPath();
+    void setMultimediaPath();
+
+private:
+    QLineEdit *m_barcodeMultimediaPath;
+    QComboBox *m_barcodePrefixesComboBox;
+    QCheckBox *m_barcodeSoundSuccess;
+    QCheckBox *m_barcodeSoundFailure;
+    QCheckBox *m_barcodeInputLineEditDefault;
+    QComboBox *m_barcodeSuccessCombo;
+    QComboBox *m_barcodeFailureCombo;
+};
+
 class ExtraTab : public Widget
 {
     Q_OBJECT
 
 public:
     explicit ExtraTab(QWidget *parent = 0);
-    bool getInputNetPrice();
-    bool getDiscount();
-    bool getMaximumItemSold();
-    int getDecimalDigits();
-    bool getDecimalQuantity();
     bool getGivenDialog();
+    bool getStockDialog();
     bool getSalesWidget();
     bool getReceiptPrintedDialog();
     bool getProductGroup();
     bool isFontsGroup();
-    bool hideDebitcardButton();
-    bool hideCreditcardButton();
     QString getSystemFont();
     QString getPrinterFont();
     QString getReceiptPrinterFont();
-    QString getDefaultTax();
-    int getBarcodePrefix();
 
 signals:
+public slots:
+    void maximumSoldItemChanged(bool enabled);
 
 private slots:
     void systemFontButton_clicked(bool);
@@ -94,29 +157,19 @@ private slots:
     void printerTestButton_clicked(bool);
     void receiptPrinterTestButton_clicked(bool);
     void fontsGroup_toggled(bool toggled);
-    void maximumSoldItemChanged(bool enabled);
 
 private:
-    QCheckBox *m_useInputNetPriceCheck;
-    QCheckBox *m_useDiscountCheck;
-    QCheckBox *m_useMaximumItemSoldCheck;
-    QCheckBox *m_useDecimalQuantityCheck;
     QCheckBox *m_useProductGroupCheck;
-    QSpinBox *m_decimalRoundSpin;
     QCheckBox *m_useGivenDialogCheck;
     QCheckBox *m_salesWidgetCheck;
     QCheckBox *m_useReceiptPrintedDialogCheck;
-    QCheckBox *m_hideDebitcardCheck;
-    QCheckBox *m_hideCreditcardCheck;
-
-    QComboBox *m_barcodePrefixesComboBox;
-    QComboBox *m_defaultTaxComboBox;
+    QCheckBox *m_useStockDialogCheck;
 
     QGroupBox *m_fontsGroup;
 
-    QPushButton *m_systemFontButton;
-    QPushButton *m_printerFontButton;
-    QPushButton *m_receiptPrinterFontButton;
+    QrkPushButton *m_systemFontButton;
+    QrkPushButton *m_printerFontButton;
+    QrkPushButton *m_receiptPrinterFontButton;
 
     QLabel *m_systemFontSizeLabel;
     QLabel *m_printerFontSizeLabel;
@@ -141,6 +194,7 @@ public:
     QString getImportDirectory();
     QString getImportCodePage();
     bool getServerFullscreen();
+    bool getServerCriticalMessageBox();
 
 private slots:
     void importDirectoryButton_clicked();
@@ -149,6 +203,7 @@ private:
     QLineEdit *m_importDirectoryEdit;
     QComboBox *m_codePageCombo;
     QCheckBox *m_serverFullscreen;
+    QCheckBox *m_serverCriticalMessageBox;
 
 };
 
@@ -402,7 +457,7 @@ private:
     QGroupBox *m_onlineGroup;
     QListWidget *m_infoWidget;
 
-    QPushButton *m_scardActivateButton;
+    QrkPushButton *m_scardActivateButton;
 
     RKSignatureModule *m_rkSignature;
 };
@@ -426,7 +481,9 @@ private:
     MasterDataTab *m_master;
     PrinterTab *m_printer;
     ReceiptPrinterTab *m_receiptprinter;
+    ReceiptMainTab *m_receiptmain;
     ReceiptTab *m_receipt;
+    BarcodeTab *m_barcode;
     ReceiptEnhancedTab *m_receiptenhanced;
     ExtraTab *m_extra;
     ServerTab *m_server;

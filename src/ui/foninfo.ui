@@ -315,7 +315,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="printPushButton">
+        <widget class="QrkPushButton" name="printPushButton">
          <property name="minimumSize">
           <size>
            <width>150</width>
@@ -326,7 +326,7 @@
           <string>Drucken</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/print.png</normaloff>:src/icons/print.png</iconset>
          </property>
          <property name="iconSize">
@@ -338,7 +338,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="okPushButton">
+        <widget class="QrkPushButton" name="okPushButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
            <horstretch>0</horstretch>
@@ -355,7 +355,7 @@
           <string>OK</string>
          </property>
          <property name="icon">
-          <iconset resource="../../qrk.qrc">
+          <iconset>
            <normaloff>:src/icons/ok.png</normaloff>:src/icons/ok.png</iconset>
          </property>
          <property name="iconSize">
@@ -372,9 +372,13 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../../qrk.qrc"/>
-  <include location="../../qrk.qrc"/>
- </resources>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
  <connections/>
 </ui>

@@ -94,5 +94,24 @@
         <file>src/icons/products.png</file>
         <file>src/sql/QRK-sqlite-update-18.sql</file>
         <file>src/sql/QRK-mysql-update-18.sql</file>
+        <file>src/icons/arrow-down.png</file>
+        <file>src/icons/arrow-up.png</file>
+        <file>src/icons/backward.png</file>
+        <file>src/icons/count.png</file>
+        <file>src/icons/discount.png</file>
+        <file>src/icons/singleprice.png</file>
+        <file>src/icons/sum.png</file>
+        <file>src/icons/numpad.png</file>
+        <file>src/icons/barcode.png</file>
+        <file>src/icons/backspace.png</file>
+        <file>src/icons/transfer.png</file>
+        <file>src/icons/magnifying_glass.png</file>
+        <file>src/icons/playsound.png</file>
+        <file>src/multimedia/failure.wav</file>
+        <file>src/multimedia/success.wav</file>
+        <file>src/sql/QRK-mysql-update-19.sql</file>
+        <file>src/sql/QRK-sqlite-update-19.sql</file>
+        <file>src/txt/gpl-3.0.de_AT.txt</file>
+        <file>src/txt/gpl-3.0.txt</file>
     </qresource>
 </RCC>

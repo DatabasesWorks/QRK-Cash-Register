@@ -29,7 +29,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QPushButton" name="settingsButton">
+        <widget class="QrkPushButton" name="settingsButton">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -65,7 +65,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="closeButton">
+        <widget class="QrkPushButton" name="closeButton">
          <property name="minimumSize">
           <size>
            <width>0</width>
@@ -93,6 +93,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../../qrk.qrc"/>
   <include location="../../qrk.qrc"/>

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include <QThread>
 #include <QWidget>
 #include <QTextCodec>
+#include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
 
@@ -159,7 +160,7 @@ bool ImportWorker::loadJSonFile(QString filename)
             return true;
 
         } else {
-            if (!fileMover(filename, ".old"))
+            if (!fileMover(filename, ".false"))
                 Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
             Spread::Instance()->setImportInfo(tr("Import %1 -> Fehler").arg(data.value("filename").toString()), true);
         }
@@ -229,6 +230,12 @@ bool ImportWorker::importR2B(QJsonObject data)
         emit database_error(QString("Rollback = %1,%2 %3").arg(sql_ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
     }
 
+    if (dbc.driverName() == "QSQLITE") {
+        QSqlQuery query(dbc);
+        query.exec("PRAGMA wal_checkpoint;");
+        query.next();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
+    }
     return ok;
 }
 
@@ -271,6 +278,13 @@ bool ImportWorker::importReceipt(QJsonObject data)
     if (!ok) {
         bool sql_ok = dbc.rollback();
         emit database_error(QString("Rollback = %1,%2 %3").arg(sql_ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
+    }
+
+    if (dbc.driverName() == "QSQLITE") {
+        QSqlQuery query(dbc);
+        query.exec("PRAGMA wal_checkpoint;");
+        query.next();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
     }
 
     return ok;

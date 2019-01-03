@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "productchart.h"
 #include "3rdparty/qbcmath/bcmath.h"
+#include "qrkpushbutton.h"
 #include "database.h"
 
 #include <QSqlDatabase>
@@ -30,7 +31,6 @@
 #include <QStandardItemModel>
 #include <QTableView>
 #include <QSplitter>
-#include <QPushButton>
 #include <QComboBox>
 #include <QLabel>
 #include <QHeaderView>
@@ -92,7 +92,7 @@ void ProductChart::setupViews()
     comboLayout->addWidget(m_combo);
     comboLayout->addItem(comboSpacer);
 
-    QPushButton *pushButton = new QPushButton;
+    QrkPushButton *pushButton = new QrkPushButton;
     pushButton->setMinimumHeight(60);
     pushButton->setMinimumWidth(0);
 

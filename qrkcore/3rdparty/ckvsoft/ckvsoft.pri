@@ -1,7 +1,7 @@
 #
 # This file is part of QRK - Qt Registrier Kasse
 #
-# Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+# Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ HEADERS += $$PWD/ckvtemplate.h \
     $$PWD/rbac/base_login.h \
     $$PWD/rbac/tempuserlogin.h \
     $$PWD/uniquemachinefingerprint.h \
-    $$PWD/horizontalscrollarea.h
+    $$PWD/numerickeypad.h
 
 SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/acl.cpp \
@@ -54,7 +54,8 @@ SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/resetpassword.cpp \
     $$PWD/rbac/base_login.cpp \
     $$PWD/rbac/tempuserlogin.cpp \
-    $$PWD/uniquemachinefingerprint.cpp
+    $$PWD/uniquemachinefingerprint.cpp \
+    $$PWD/numerickeypad.cpp
 
 FORMS += \
     $$PWD/rbac/base_admin.ui

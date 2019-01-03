@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,6 +63,8 @@ ProductsWidget::ProductsWidget(QWidget *parent)
   m_model->setHeaderData(7, Qt::Horizontal, tr("Gruppe"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("visible"), Qt::Horizontal, tr("sichtbar"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("tax"), Qt::Horizontal, tr("MwSt"), Qt::DisplayRole);
+  m_model->setHeaderData(m_model->fieldIndex("stock"), Qt::Horizontal, tr("Lagerbestand"), Qt::DisplayRole);
+  m_model->setHeaderData(m_model->fieldIndex("minstock"), Qt::Horizontal, tr("Mindestbestand"), Qt::DisplayRole);
 
   m_proxyModel = new QSortFilterProxyModel(this);
   m_proxyModel->setSourceModel(m_model);

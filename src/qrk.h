@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@ private slots:
     void import_CSV();
     void export_CSV();
     void export_JSON();
+    void exportProducts_CSV();
     void infoFON();
     void backupDEP();
     void backup();
@@ -93,8 +94,10 @@ private slots:
     void actionResuscitationCashRegister();
 
     void fullScreenSlot();
+    void setFullScreenMode(bool);
     void exitSlot();
     void logOnOff(bool);
+    void restore();
 
 protected slots:
     virtual void timerDone();

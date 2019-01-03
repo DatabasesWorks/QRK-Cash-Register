@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>920</width>
-    <height>610</height>
+    <width>878</width>
+    <height>468</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -884,17 +884,23 @@
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_3">
               <item>
-               <widget class="QPushButton" name="dayPushButton">
+               <widget class="QrkPushButton" name="dayPushButton">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>60</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
-                  <height>60</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="text">
@@ -911,7 +917,7 @@
               <item>
                <widget class="QLCDNumber" name="lcdNumberDay">
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                 <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
@@ -925,7 +931,7 @@
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
-                  <height>60</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="palette">
@@ -1149,17 +1155,23 @@
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_8">
               <item>
-               <widget class="QPushButton" name="monthPushButton">
+               <widget class="QrkPushButton" name="monthPushButton">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>60</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
-                  <height>60</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="text">
@@ -1190,7 +1202,7 @@
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
-                  <height>60</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="palette">
@@ -1411,17 +1423,23 @@
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_9">
               <item>
-               <widget class="QPushButton" name="yearPushButton">
+               <widget class="QrkPushButton" name="yearPushButton">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>60</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
-                  <height>60</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="text">
@@ -1452,7 +1470,7 @@
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
-                  <height>60</height>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="palette">
@@ -1792,11 +1810,23 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="logOnOffButton">
+             <widget class="QrkPushButton" name="logOnOffButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="minimumSize">
                <size>
                 <width>0</width>
-                <height>60</height>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
                </size>
               </property>
               <property name="text">
@@ -1929,7 +1959,7 @@
         <number>10</number>
        </property>
        <item>
-        <widget class="QPushButton" name="registerButton">
+        <widget class="QrkPushButton" name="registerButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -1939,7 +1969,13 @@
          <property name="minimumSize">
           <size>
            <width>150</width>
-           <height>60</height>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -1958,7 +1994,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="documentButton">
+        <widget class="QrkPushButton" name="documentButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -1968,7 +2004,13 @@
          <property name="minimumSize">
           <size>
            <width>150</width>
-           <height>60</height>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -1987,7 +2029,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="taskButton">
+        <widget class="QrkPushButton" name="taskButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -1997,7 +2039,13 @@
          <property name="minimumSize">
           <size>
            <width>150</width>
-           <height>60</height>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -2016,7 +2064,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="managerButton">
+        <widget class="QrkPushButton" name="managerButton">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -2029,7 +2077,13 @@
          <property name="minimumSize">
           <size>
            <width>150</width>
-           <height>60</height>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -2064,7 +2118,13 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="menuButton">
+        <widget class="QrkPushButton" name="menuButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="minimumSize">
           <size>
            <width>60</width>
@@ -2074,7 +2134,7 @@
          <property name="maximumSize">
           <size>
            <width>60</width>
-           <height>60</height>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -2098,6 +2158,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../../qrk.qrc"/>
   <include location="../../qrk.qrc"/>

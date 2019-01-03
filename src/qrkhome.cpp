@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "utils/utils.h"
 #include "salesinfo.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
+#include "qrkpushbutton.h"
 #include "ui_qrkhome.h"
 
 #include <QMessageBox>
@@ -61,34 +62,28 @@ QRKHome::QRKHome(bool servermode, QWidget *parent)
 
     // create the menu popup
     {
-        m_menu = new QFrame(this, Qt::Popup);
+        m_menu = new QFrame(this, Qt::Popup /* Qt::FramelessWindowHint | Qt::Tool */);
         m_menu->setFrameStyle(QFrame::StyledPanel);
         m_menu->hide();
         QVBoxLayout *vbox = new QVBoxLayout(m_menu);
 
-        QPushButton *b;
-        b = new QPushButton(QIcon(":src/icons/exit.png"), tr("Beenden"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        QrkPushButton *b;
+        b = new QrkPushButton(QIcon(":src/icons/exit.png"), tr("Beenden"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::exitButton_clicked);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::exitButton_clicked);
         vbox->addWidget(b);
 
-        b = new QPushButton(QIcon(":src/icons/view-fullscreen.png"), tr("Vollbild"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        b = new QrkPushButton(QIcon(":src/icons/view-fullscreen.png"), tr("Vollbild"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::fullScreenButton_clicked);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::fullScreenButton_clicked);
         vbox->addWidget(b);
 
-        b = new QPushButton(QIcon(":src/icons/settings.png"), tr("Einstellungen"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        b = new QrkPushButton(QIcon(":src/icons/settings.png"), tr("Einstellungen"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::settingsSlot);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::settingsSlot);
         vbox->addWidget(b);
 
-        connect(ui->menuButton, &QPushButton::clicked, this, &QRKHome::menuSlot);
+        connect(ui->menuButton, &QrkPushButton::clicked, this, &QRKHome::menuSlot);
 
     }
 
@@ -99,47 +94,39 @@ QRKHome::QRKHome(bool servermode, QWidget *parent)
         m_manager->hide();
         QVBoxLayout *vbox = new QVBoxLayout(m_manager);
 
-        QPushButton *b;
-        b = new QPushButton(QIcon(":src/icons/products.png"), tr("Artikel Manager"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        QrkPushButton *b;
+        b = new QrkPushButton(QIcon(":src/icons/products.png"), tr("Artikel Manager"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::productmanagerButton_clicked);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::productmanagerButton_clicked);
         vbox->addWidget(b);
 
-        b = new QPushButton(QIcon(":src/icons/useradmin.png"), tr("Benutzer Manager"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        b = new QrkPushButton(QIcon(":src/icons/useradmin.png"), tr("Benutzer Manager"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::usermanagerButton_clicked);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::usermanagerButton_clicked);
         vbox->addWidget(b);
 
-        connect(ui->managerButton, &QPushButton::clicked, this, &QRKHome::managerSlot);
+        connect(ui->managerButton, &QrkPushButton::clicked, this, &QRKHome::managerSlot);
     }
 
     // create the task popup
     {
-        m_task = new QFrame(this, Qt::Popup);
+        m_task = new QFrame(this, Qt::Popup/* Qt::FramelessWindowHint | Qt::Tool */ );
         m_task->setFrameStyle(QFrame::StyledPanel);
         m_task->hide();
         QVBoxLayout *vbox = new QVBoxLayout(m_task);
 
-        QPushButton *b;
-        b = new QPushButton(QIcon(":src/icons/day.png"), tr("Tagesabschluss"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        QrkPushButton *b;
+        b = new QrkPushButton(QIcon(":src/icons/day.png"), tr("Tagesabschluss"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::endOfDay);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::endOfDay);
         vbox->addWidget(b);
 
-        b = new QPushButton(QIcon(":src/icons/month.png"), tr("Monatsabschluss"));
-        b->setFixedHeight(MIN_HEIGHT);
-        b->setIconSize(QSize(32, 32));
+        b = new QrkPushButton(QIcon(":src/icons/month.png"), tr("Monatsabschluss"));
         b->setStyleSheet("Text-align:left");
-        connect(b, &QPushButton::clicked, this, &QRKHome::endOfMonth);
+        connect(b, &QrkPushButton::clicked, this, &QRKHome::endOfMonth);
         vbox->addWidget(b);
 
-        connect(ui->taskButton, &QPushButton::clicked, this, &QRKHome::taskSlot);
+        connect(ui->taskButton, &QrkPushButton::clicked, this, &QRKHome::taskSlot);
     }
 
     connect(ui->registerButton, &QPushButton::clicked, this, &QRKHome::registerButton_clicked);
@@ -161,13 +148,6 @@ QRKHome::QRKHome(bool servermode, QWidget *parent)
 
     ui->serverModeCheckBox->setChecked(servermode);
 
-    QrkSettings settings;
-    QFileInfo fi(settings.fileName());
-    QString basename = fi.baseName();
-//    if (settings.value("DB_type").toString() == "QSQLITE")
-//        ui->dataBaseLabel->setText(QString("SQLITE / %1-%2.db").arg(QDate::currentDate().year()).arg(basename));
-//    else
-//        ui->dataBaseLabel->setText(QString("MYSQL / %1 / %2").arg(settings.value("DB_hostName").toString()).arg(basename));
     ui->dataBaseLabel->setText(Database::getDatabaseVersion());
 
 }
@@ -228,8 +208,20 @@ void QRKHome::safetyDevice(bool active)
         if (!active) {
             ui->signatureDamagedLabel->setVisible(true);
             importInfo(tr("Signaturerstellungseinrichtung ausgefallen!"), true);
-            if (isServerMode())
-                emit serverModeCheckBox_clicked(false);
+            if (isServerMode()) {
+                serverModeCheckBox_clicked(false);
+                QrkSettings settings;
+                if (settings.value("serverCriticalMessageBox", true).toBool()) {
+                    QMessageBox messageBox(QMessageBox::Critical,
+                                           QObject::tr("Signaturerstellungseinrichtung"),
+                                           QObject::tr("ACHTUNG! Signaturerstellungseinrichtung ausgefallen!\nKontaktieren Sie Ihren Administrator wenn dieses Problem weiterhin auftritt."),
+                                           QMessageBox::Yes,
+                                           0);
+                    messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Weiter"));
+                    messageBox.setWindowFlags(messageBox.windowFlags() | Qt::WindowStaysOnTopHint);
+                    messageBox.exec();
+                }
+            }
         } else {
             ui->signatureDamagedLabel->setVisible(false);
         }
@@ -379,7 +371,7 @@ void QRKHome::init()
     QStringList list = dir.entryList();
     while(list.size() > 0){
         QString f = list.takeFirst();
-        if (QFileInfo(dir.absoluteFilePath(f)).created() < QDateTime::currentDateTime().addDays(-7)) {
+        if (QFileInfo(dir.absoluteFilePath(f)).lastModified() < QDateTime::currentDateTime().addDays(-7)) {
             QFile::remove(dir.absoluteFilePath(f));
             qInfo() << "Function Name: " << Q_FUNC_INFO << " Remove file older than 7 Days FileName: " << f;
         }

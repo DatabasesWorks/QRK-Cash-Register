@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ bool Reports::checkEOAny(QDate checkDate, bool checkDay)
         QDate date = map.value(PAYED_BY_REPORT_EOM);
         if (!date.isValid()) {
             if (!m_servermode)
-                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), tr("Monatsabschluss %1 wurde bereits erstellt.").arg( QDate::longMonthName(QDate::currentDate().month())));
+                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), tr("Monatsabschluss %1 wurde bereits erstellt.").arg( QLocale().monthName(QDate::currentDate().month())));
             return false;
         }
     }
@@ -396,7 +396,7 @@ bool Reports::endOfMonth()
                         ok = checkEOAny();
                 } else {
                     ok = false;
-                    QString text = tr("Monatsabschluss '%1' konnte nicht erstellt werden.").arg(QDate::longMonthName(checkdate.date().month()));
+                    QString text = tr("Monatsabschluss '%1' konnte nicht erstellt werden.").arg(QLocale().monthName(checkdate.date().month()));
                     checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
                 }
             }
@@ -404,7 +404,7 @@ bool Reports::endOfMonth()
     } else {
         QDate next = QDate::currentDate();
         next.setDate(next.year(), next.addMonths(1).month(), 1);
-        QString text = tr("Der Monatsabschluss für %1 wurde schon gemacht. Der nächste Abschluss kann erst ab %2 gemacht werden.").arg(QDate::longMonthName(QDate::currentDate().month())).arg(next.toString());
+        QString text = tr("Der Monatsabschluss für %1 wurde schon gemacht. Der nächste Abschluss kann erst ab %2 gemacht werden.").arg(QLocale().monthName(QDate::currentDate().month())).arg(next.toString());
         checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
     }
 

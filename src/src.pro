@@ -1,7 +1,7 @@
 #
 # This file is part of QRK - Qt Registrier Kasse
 #
-# Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+# Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -82,7 +82,10 @@ SOURCES += main.cpp \
     foninfo.cpp \
     preferences/settingsdialog.cpp \
     salesinfo.cpp \
-    preferences/textedit.cpp
+    preferences/textedit.cpp \
+    horizontalscrollarea.cpp \
+    barcodefinder.cpp \
+    export/exportproducts.cpp
 
 HEADERS  += \
     qsortfiltersqlquerymodel.h \
@@ -114,7 +117,10 @@ HEADERS  += \
     foninfo.h \
     preferences/settingsdialog.h \
     salesinfo.h \
-    preferences/textedit.h
+    preferences/textedit.h \
+    horizontalscrollarea.h \
+    barcodefinder.h \
+    export/exportproducts.h
 
 FORMS += \
     ui/qrk.ui \
@@ -134,7 +140,8 @@ FORMS += \
     import/csvimportwizardpage3.ui \
     export/exportdialog.ui \
     ui/foninfo.ui \
-    ui/salesinfo.ui
+    ui/salesinfo.ui \
+    ui/barcodefinder.ui
 
 RESOURCES += \
     ../qrk.qrc

@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "database.h"
 #include "utils/utils.h"
 #include "preferences/qrksettings.h"
+#include "3rdparty/qbcmath/bcmath.h"
 #include <ui_productedit.h>
 
 #include <QDoubleValidator>
@@ -61,6 +62,8 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
 
     ui->net->setValidator(doubleVal);
     ui->gross->setValidator(doubleVal);
+    ui->stockLineEdit->setValidator(doubleVal);
+    ui->minstockLineEdit->setValidator(doubleVal);
 
     QSqlDatabase dbc = Database::database();
 
@@ -76,44 +79,49 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     ui->taxComboBox->setModelColumn(1);  // show tax
     ui->taxComboBox->setCurrentIndex(0);
 
+    QrkSettings settings;
+    int decimals = settings.value("decimalDigits", 2).toInt();
+
     if ( m_id != -1 )
     {
-        QSqlQuery query(QString("SELECT `name`, `group`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon` FROM products WHERE id=%1").arg(id), dbc);
+        QSqlQuery query(QString("SELECT `name`, `group`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon`, `stock`, `minstock` FROM products WHERE id=%1").arg(id), dbc);
         query.next();
 
-        ui->name->setText(query.value(0).toString());
+        ui->name->setText(query.value("name").toString());
         ui->name->setReadOnly(true);
         ui->name->setToolTip(tr("Bestehende Artikelnamen dürfen nicht umbenannt werden. Versuchen Sie diesen Artikel zu löschen und legen danach einen neuen Artikel an."));
-        ui->visibleCheckBox->setChecked(query.value(2).toBool());
-        ui->net->setText(QString::number(query.value(3).toDouble(), 'f', 2));
-        ui->gross->setText(QString::number(query.value(4).toDouble(), 'f', 2));
-        ui->itemNum->setText(query.value(7).toString());
-        ui->barcode->setText(query.value(8).toString());
-        ui->collectionReceiptCheckBox->setChecked(query.value(9).toBool());
+        ui->visibleCheckBox->setChecked(query.value("visible").toBool());
+        ui->net->setText(QBCMath::bcround(query.value("net").toString(),2));
+        ui->gross->setText(QBCMath::bcround(query.value("gross").toString(),2));
+        ui->itemNum->setText(query.value("itemnum").toString());
+        ui->barcode->setText(query.value("barcode").toString());
+        ui->collectionReceiptCheckBox->setChecked(query.value("coupon").toBool());
+        ui->stockLineEdit->setText(QBCMath::bcround(query.value("stock").toString(),decimals));
+        ui->minstockLineEdit->setText(QBCMath::bcround(query.value("minstock").toString(),decimals));
 
         int i;
         for (i = 0; i < m_groupsModel->rowCount(); i++)
-            if ( query.value(1).toInt() == m_groupsModel->data(m_groupsModel->index(i, 0), Qt::DisplayRole).toInt() )
+            if ( query.value("group").toInt() == m_groupsModel->data(m_groupsModel->index(i, 0), Qt::DisplayRole).toInt() )
                 break;
 
         ui->groupComboBox->setCurrentIndex(i);
 
         for (i = 0; i < m_taxModel->rowCount(); i++)
-            if ( query.value(5).toDouble() == m_taxModel->data(m_taxModel->index(i, 1), Qt::DisplayRole).toDouble() )
+            if ( query.value("tax").toDouble() == m_taxModel->data(m_taxModel->index(i, 1), Qt::DisplayRole).toDouble() )
                 break;
 
         ui->taxComboBox->setCurrentIndex(i);
 
         for (i = 0; i <= ui->colorComboBox->count(); i++) {
             QString color = ui->colorComboBox->model()->index(i, 0).data(Qt::BackgroundColorRole).toString();
-            if ( query.value(6).toString() == color )
+            if ( query.value("color").toString() == color )
                 break;
         }
 
         if (i > ui->colorComboBox->count())
             i = 0;
 
-        QString colorValue = query.value(6).toString().trimmed();
+        QString colorValue = query.value("color").toString().trimmed();
         QPalette palette(ui->colorComboBox->palette());
         QColor color(colorValue);
         palette.setColor(QPalette::Active,QPalette::Button, color);
@@ -129,9 +137,10 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     connect (ui->okButton, &QPushButton::clicked, this, &ProductEdit::accept);
     connect (ui->cancelButton, &QPushButton::clicked, this, &ProductEdit::reject);
 
-    QrkSettings settings;
+    settings.beginGroup("BarcodeReader");
     m_barcodeReaderPrefix = settings.value("barcodeReaderPrefix", Qt::Key_F11).toInt();
     installEventFilter(this);
+    settings.endGroup();
 
     bool printCollectionReceipt = settings.value("printCollectionReceipt", false).toBool();
     ui->collectionReceiptLabel->setVisible(printCollectionReceipt);
@@ -185,32 +194,29 @@ void ProductEdit::colorComboChanged(int idx)
 
 void ProductEdit::taxComboChanged(int)
 {
-    double tax = m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble();
-    double net = ui->net->text().replace(",",".").toDouble();
-    double gross = net * (1.0 + tax / 100.0);
+    QBCMath tax(m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble());
+    QBCMath net(ui->net->text().replace(",",".").toDouble());
+    QBCMath gross(net * (1.0 + tax.toDouble() / 100.0));
 
-    ui->gross->setText(QString::number(gross, 'f', 2));
-
+    ui->gross->setText(QBCMath::bcround(gross.toString(), 2));
 }
 
 void ProductEdit::netChanged()
 {
-    double tax = m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble();
-    double net = ui->net->text().replace(",",".").toDouble();
-    double gross = net * (1.0 + tax / 100.0);
+    QBCMath tax(m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble());
+    QBCMath net(ui->net->text().replace(",",".").toDouble());
+    QBCMath gross(net * (1.0 + tax.toDouble() / 100.0));
 
-    ui->gross->setText(QString::number(gross, 'f', 2));
-
+    ui->gross->setText(QBCMath::bcround(gross.toString(), 2));
 }
 
 void ProductEdit::grossChanged()
 {
-    double tax = m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble();
-    double gross = ui->gross->text().replace(",",".").toDouble();
-    double net = gross / (1.0 + tax / 100.0);
+    QBCMath tax(m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble());
+    QBCMath gross(ui->gross->text().replace(",",".").toDouble());
+    QBCMath net(gross / (1.0 + tax.toDouble() / 100.0));
 
-    ui->net->setText(QString::number(net, 'f', 2));
-
+    ui->net->setText(QBCMath::bcround(net.toString(), 2));
 }
 
 void ProductEdit::accept()
@@ -245,9 +251,9 @@ void ProductEdit::accept()
 
     if ( m_id == -1 )  // new entry
     {
-        query.prepare(QString("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon)"));
+        query.prepare(QString("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock)"));
     } else {
-        query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, `group`=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon WHERE id=:id"));
+        query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, `group`=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock WHERE id=:id"));
         query.bindValue(":id", m_id);
     }
 
@@ -262,6 +268,8 @@ void ProductEdit::accept()
     query.bindValue(":tax", tax);
     query.bindValue(":color", color);
     query.bindValue(":coupon", collectionReceipt);
+    query.bindValue(":stock", ui->stockLineEdit->text().replace(",","."));
+    query.bindValue(":minstock", ui->minstockLineEdit->text().replace(",","."));
 
     bool ok = query.exec();
     if (!ok) {

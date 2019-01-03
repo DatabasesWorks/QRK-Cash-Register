@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 #include "utils/demomode.h"
 #include "preferences/qrksettings.h"
 #include "databasemanager.h"
+#include "journal.h"
+#include "3rdparty/qbcmath/bcmath.h"
+#include "backup.h"
 
 #include <QDebug>
 #include <QApplication>
@@ -36,6 +39,7 @@
 #include <QDir>
 #include <QDate>
 #include <QStandardPaths>
+#include <QJsonObject>
 
 QMap<QString, QString> globalStringValues;
 
@@ -194,6 +198,42 @@ void Database::updateProductSold(double count, QString product)
     query.bindValue(":name", QVariant(product));
 
     query.exec();
+
+    query.prepare(QString("UPDATE products SET stock=stock-:sold WHERE name=:name"));
+    query.bindValue(":sold", count);
+    query.bindValue(":name", QVariant(product));
+
+    query.exec();
+
+}
+
+QStringList Database::getStockInfoList()
+{
+    QrkSettings settings;
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery query(dbc);
+
+    query.prepare("select name, stock, minstock from products inner join orders on products.id=orders.product where orders.receiptId= (select max(receipts.receiptNum) from receipts) and products.stock <= products.minstock");
+    query.exec();
+
+    int decimals = settings.value("decimalDigits", 2).toInt();
+    QStringList list;
+    QBCMath stock;
+    QBCMath minstock;
+    QString name;
+    while(query.next()) {
+        name = query.value("name").toString();
+        if (name.startsWith("Zahlungsbeleg für Rechnung"))
+            continue;
+
+        stock = query.value("stock").toString();
+        minstock = query.value("minstock").toString();
+
+        list.append(QString("%1 (%2 / %3)").arg(query.value("name").toString())
+                    .arg(QBCMath::bcround(stock.toString(), decimals))
+                    .arg(QBCMath::bcround(minstock.toString(), decimals)));
+    }
+    return list;
 }
 
 //--------------------------------------------------------------------------------
@@ -646,13 +686,26 @@ void Database::reopen()
     open(false);
 }
 
+QJsonObject Database::getConnectionDefinition()
+{
+    QJsonObject jobj;
+    jobj.insert("dbtype", getDatabaseType());
+    jobj.insert("databasename", globalStringValues.value("databasename"));
+    jobj.insert("databasehost", globalStringValues.value("databasehost"));
+    jobj.insert("databaseusername", globalStringValues.value("databaseusername"));
+    jobj.insert("databasepassword", globalStringValues.value("databasepassword"));
+    jobj.insert("databaseoptions", globalStringValues.value("databaseoptions"));
+    return jobj;
+}
+
 bool Database::open(bool dbSelect)
 {
-    const int CURRENT_SCHEMA_VERSION = 18;
+    const int CURRENT_SCHEMA_VERSION = 19;
     // read global defintions (DB, ...)
     QrkSettings settings;
+    QJsonObject ConnectionDefinition = Database::getConnectionDefinition();
 
-    QString dbType = getDatabaseType();
+    QString dbType = ConnectionDefinition["dbtype"].toString();
 
     if (dbType.isEmpty() || dbSelect) {
         DatabaseDefinition dialog(0);
@@ -695,6 +748,7 @@ bool Database::open(bool dbSelect)
 
     // setup database connection
     if (dbType == "QSQLITE") {
+        globalStringValues.insert("databasename", QString(dataDir + "/%1-%2.db").arg(date.year()).arg(basename));
         currentConnection = QSqlDatabase::addDatabase("QSQLITE", "CN");
         currentConnection.setDatabaseName(QString(dataDir + "/%1-%2.db").arg(date.year()).arg(basename));
     } else if (dbType == "QMYSQL") {
@@ -707,6 +761,10 @@ bool Database::open(bool dbSelect)
         currentConnection.setUserName(userName);
         currentConnection.setPassword(password);
         currentConnection.setConnectOptions("MYSQL_OPT_RECONNECT=1;MYSQL_OPT_CONNECT_TIMEOUT=86400;MYSQL_OPT_READ_TIMEOUT=60");
+        globalStringValues.insert("databasehost", hostName);
+        globalStringValues.insert("databaseusername", userName);
+        globalStringValues.insert("databasepassword", password);
+        globalStringValues.insert("databaseoptions", "MYSQL_OPT_RECONNECT=1;MYSQL_OPT_CONNECT_TIMEOUT=86400;MYSQL_OPT_READ_TIMEOUT=60");
     }
 
     bool ok = currentConnection.open();
@@ -735,6 +793,7 @@ bool Database::open(bool dbSelect)
 
         currentConnection.close();
         currentConnection.setDatabaseName(basename);
+        globalStringValues.insert("databasename", basename);
         if (!currentConnection.open()) {
             QMessageBox errorDialog;
             errorDialog.setIcon(QMessageBox::Critical);
@@ -755,6 +814,24 @@ bool Database::open(bool dbSelect)
             currentConnection.rollback();
             lastError = query.lastError().text();
         }
+
+        {
+            QSqlQuery query(currentConnection);
+            query.exec("PRAGMA integrity_check;");
+            query.next();
+            QString result = query.value(0).toString();
+            lastError = query.lastError().text();
+            if (result != "ok") {
+                QMessageBox errorDialog;
+                errorDialog.setIcon(QMessageBox::Critical);
+                errorDialog.addButton(QMessageBox::Ok);
+                errorDialog.setText(lastError + ".\n" + tr("Die SQL-Datenbank wurde beschädigt. Stellen Sie diese von einen aktuellen Backup wieder her."));
+                errorDialog.setWindowTitle(QObject::tr("Datenbank Fehler"));
+                errorDialog.exec();
+                return false;
+            }
+        }
+
         if (QFile::exists(QString(dataDir + "/%1-%2.db-journal").arg(date.year()).arg(basename))) {
             QMessageBox errorDialog;
             errorDialog.setIcon(QMessageBox::Critical);
@@ -798,10 +875,10 @@ bool Database::open(bool dbSelect)
         query.exec(QString("INSERT INTO globals (name, value) VALUES('schemaVersion', %1)")
                    .arg(CURRENT_SCHEMA_VERSION));
 
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tKonfigurationsänderung\tBeschreibung\tErstellungsdatum')"));
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tProduktposition\tBeschreibung\tMenge\tEinzelpreis\tGesamtpreis\tUSt. Satz\tErstellungsdatum')"));
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tBeleg\tBelegtyp\tBemerkung\tNachbonierung\tBelegnummer\tDatum\tUmsatz Normal\tUmsatz Ermaessigt1\tUmsatz Ermaessigt2\tUmsatz Null\tUmsatz Besonders\tJahresumsatz bisher\tErstellungsdatum')"));
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tBeleg-Textposition\tText\tErstellungsdatum')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5652586fa564a071eb231541abf64dc1f5aa4c8845119ddc2734e836dfa394426d02609a90ad99d5ec1212988424e16c9f47f679b48253b55b0af91d0ee22dacc9f947201288d48b7f14a6fe1c895e1b4cf','DBD7ACB39B653D948DEDD342B912D66F14482DBB')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5652782f7d13ee7f6bd1725691470a0ced96ea4ef910accfa7f416797b7a73c17f239a1abe7f52887d582a719a320d480b76e90b95edfe7eda059aca296e2916d6fa0cfee77d4db0dd01a25d3720f89f633e314241be48b6078a3dc4a13fb11cea51a9c582dff0b7dae944945f9d84eb72a','08EF99A8218FA5130A2B0C58F27D897195162744')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5656545e1d75d25e2b35c2b958d9c37bc733b080292d1738c51366c0cc0e5317acdae667e3e1a166ba75be259466db75a5546ab362107a37cb7a3bd2eaf5785c3d7baa9d5aa723cb1b8333a66af9e59dfced2cbc6f233614ac425b77794d0541ab86019388693a8d32064cfadddaff462412bfd20a876c8bbf503bf224561fe52b2551258978ed8bd0d33382a5d3c5b9768f2828b512d3264dd6b8c1314b0a15856b3ae5f8ebe5830fdd5e2629c18fc2b3e8511eaa6aaf59fc359a531fb6e5f8658','5C29C8A36F5B46F46CE78FB4502F4DC8DFDCEBA6')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5656545e1d75d25e2b35c2b958d9c37bc73a79a1c487e6ea70eb7e63c6e708d983879852e1a8d9ea66167824c5312f1d12ca86ae59bd4498a5f6b4cecfd27e28218','6B4D651268E7436F43E668590BFC5D6C86F1AEE7')"));
     } else { // db already exists; check if we need to run an update
         int schemaVersion = 1;
         query.exec("SELECT value FROM globals WHERE name='schemaVersion'");
@@ -820,6 +897,9 @@ bool Database::open(bool dbSelect)
             errorDialog.exec();
             return false;
         }
+
+        if (schemaVersion < CURRENT_SCHEMA_VERSION)
+            Backup::create();
 
         // run all db update scripts from the db version + 1 to what the program currently needs
         for (int i = schemaVersion + 1; i <= CURRENT_SCHEMA_VERSION; i++) {
@@ -870,6 +950,9 @@ bool Database::open(bool dbSelect)
                     return false;
                 }
             }
+            if (i == 19) {
+                Journal::encodeJournal(currentConnection);
+            }
         }
 
         if (schemaVersion != CURRENT_SCHEMA_VERSION)
@@ -881,8 +964,16 @@ bool Database::open(bool dbSelect)
     if (dbType == "QSQLITE") {
         // enforce foreign key constraint
         query.exec("PRAGMA foreign_keys = 1;");
+        query.exec("PRAGMA journal_mode;");
+        query.next();
+        QString mode = query.value(0).toString();
+        if (mode != "wal") {
+            query.exec("PRAGMA journal_mode = WAL;");
+            qDebug() << "Function Name: " << Q_FUNC_INFO << "change SQLite mode from " << mode << " to \"wal\"";
+        }
     }
 
+    currentConnection.close();
     return true;
 }
 
@@ -1203,14 +1294,9 @@ QString Database::updateGlobals(QString name, QString defaultvalue, QString defa
     return defaultvalue.isNull() ? defaultStrValue : defaultvalue;
 }
 
-QSqlDatabase Database::database()
+QSqlDatabase Database::database(const QString &connectionname)
 {
-    QString dbType = getDatabaseType();
-    if (dbType == "QSQLITE") {
-        return QSqlDatabase::database("CN");
-    }
-
-    QSqlDatabase dbc = DatabaseManager::database("CN");
+    QSqlDatabase dbc = DatabaseManager::database(connectionname);
     if (!dbc.lastError().nativeErrorCode().isEmpty())
         qDebug() << "Function Name: " << Q_FUNC_INFO << dbc.lastError().text() << " #" << dbc.lastError().nativeErrorCode();
     return dbc;
@@ -1234,11 +1320,16 @@ QString Database::getDatabaseVersion()
     if (dbType == "QSQLITE") {
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
+
+        query.exec("PRAGMA journal_mode;");
+        query.next();
+        QString mode = query.value(0).toString();
+
         query.exec("SELECT sqlite_version()");
         if (query.next())
             dbType += " " + query.value(0).toString();
 
-        dbType += " / " + QFileInfo(dbc.databaseName()).baseName();
+        dbType += " / " + QFileInfo(dbc.databaseName()).baseName() + " / journalmode = " + mode;
         globalStringValues.insert("databasetype", dbType);
 
     } else if (dbType == "QMYSQL") {

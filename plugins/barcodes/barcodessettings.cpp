@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 */
 
 #include "barcodessettings.h"
+#include "qrkpushbutton.h"
 #include "../qrkcore/preferences/qrksettings.h"
 
 #include <QGroupBox>
@@ -31,7 +32,6 @@
 #include <QPrinter>
 #include <QPainter>
 #include <QTextDocument>
-#include <QPushButton>
 
 BarcodesSettings::BarcodesSettings(QWidget *parent)
     : QWidget(parent)
@@ -95,7 +95,7 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
 
     amountGroup->setLayout(amountLayout);
 
-    QPushButton *cancelButton = new QPushButton;
+    QrkPushButton *cancelButton = new QrkPushButton;
     cancelButton->setMinimumHeight(60);
     cancelButton->setMinimumWidth(0);
     QIcon cancelicon = QIcon(":src/icons/cancel.png");
@@ -104,7 +104,7 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
     cancelButton->setIconSize(size);
     cancelButton->setText(tr("Beenden"));
 
-    QPushButton *saveButton = new QPushButton;
+    QrkPushButton *saveButton = new QrkPushButton;
     saveButton->setMinimumHeight(60);
     saveButton->setMinimumWidth(0);
 
@@ -113,7 +113,7 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
     saveButton->setIconSize(size);
     saveButton->setText(tr("Speichern"));
 
-    QPushButton *printBarcodesButton = new QPushButton;
+    QrkPushButton *printBarcodesButton = new QrkPushButton;
     printBarcodesButton->setMinimumHeight(60);
     printBarcodesButton->setMinimumWidth(0);
 

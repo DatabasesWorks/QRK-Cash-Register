@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,9 +40,11 @@
 #include "preferences/qrksettings.h"
 #include "textedit.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
-#include "pluginmanager/pluginmanager.h"
+// #include "pluginmanager/pluginmanager.h"
 #include "pluginmanager/pluginview.h"
 #include "qrkprogress.h"
+#include "qrkpushbutton.h"
+#include "qrkmultimedia.h"
 
 class CustomTabStyle : public QProxyStyle
 {
@@ -85,8 +87,10 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     m_master = new MasterDataTab(this);
     m_printer = new PrinterTab(availablePrinters, this);
     m_receiptprinter = new ReceiptPrinterTab(availablePrinters, this);
+    m_receiptmain = new ReceiptMainTab(this);
     m_receipt = new ReceiptTab(availablePrinters, this);
     m_receiptenhanced = new ReceiptEnhancedTab(this);
+    m_barcode = new BarcodeTab(this);
     m_extra = new ExtraTab(this);
     m_server = new ServerTab(this);
     m_scardreader = new SCardReaderTab(this);
@@ -96,6 +100,11 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     PluginView *pluginview = new PluginView(this);
 
     m_tabWidget = new QTabWidget(this);
+    QTabWidget *receiptTabWidget = new QTabWidget;
+    receiptTabWidget->addTab(m_receiptmain, tr("Kassa"));
+    receiptTabWidget->addTab(m_receipt, tr("Kassa Bon"));
+    receiptTabWidget->addTab(m_receiptenhanced, tr("Kassa Bon erweitert"));
+    receiptTabWidget->addTab(m_barcode, tr("Barcode Lesegerät"));
 
     // FIXME: Apple do not Display Text with CustomTabStyle and QTabWidget::West
 #ifndef __APPLE__
@@ -105,8 +114,9 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     m_tabWidget->addTab(m_master, tr("Stammdaten"));
     m_tabWidget->addTab(m_printer, tr("Drucker"));
     m_tabWidget->addTab(m_receiptprinter, tr("BON Drucker"));
-    m_tabWidget->addTab(m_receipt, tr("Kassa BON"));
-    m_tabWidget->addTab(m_receiptenhanced, tr("Kassa BON erweitert"));
+    m_tabWidget->addTab(receiptTabWidget, tr("Kassa"));
+//    m_tabWidget->addTab(m_receipt, tr("Kassa BON"));
+//    m_tabWidget->addTab(m_receiptenhanced, tr("Kassa BON erweitert"));
     m_tabWidget->addTab(m_general, tr("Verzeichnispfade"));
     m_tabWidget->addTab(m_extra, tr("Extra"));
     m_tabWidget->addTab(m_server, tr("Import Server"));
@@ -114,27 +124,8 @@ SettingsDialog::SettingsDialog(QWidget *parent)
         m_tabWidget->addTab(m_scardreader, tr("SignaturErstellungsEinheit"));
     m_tabWidget->addTab(pluginview, tr("Plugins"));
 
-    QPushButton *OkPushButton = new QPushButton;
-    QPushButton *CancelPushButton = new QPushButton;
-    OkPushButton->setMinimumHeight(60);
-    OkPushButton->setMinimumWidth(0);
-    CancelPushButton->setMinimumHeight(60);
-    CancelPushButton->setMinimumWidth(0);
-
-    QIcon iconOk = QIcon(":src/icons/ok.png");
-    QIcon iconCancel = QIcon(":src/icons/cancel.png");
-    QSize size = QSize(32,32);
-    OkPushButton->setIcon(iconOk);
-    OkPushButton->setIconSize(size);
-    OkPushButton->setMinimumHeight(60);
-    OkPushButton->setMinimumWidth(150);
-    OkPushButton->setText(tr("Speichern"));
-
-    CancelPushButton->setIcon(iconCancel);
-    CancelPushButton->setIconSize(size);
-    CancelPushButton->setMinimumHeight(60);
-    CancelPushButton->setMinimumWidth(150);
-    CancelPushButton->setText(tr("Abbrechen"));
+    QrkPushButton *OkPushButton = new QrkPushButton(QIcon(":src/icons/ok.png"), tr("Speichern"));
+    QrkPushButton *CancelPushButton = new QrkPushButton(QIcon(":src/icons/cancel.png"), tr("Abbrechen"));
 
     QHBoxLayout *buttonLayout = new QHBoxLayout;
     QSpacerItem* spacer = new QSpacerItem( 0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding );
@@ -164,6 +155,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     connect(CancelPushButton, &QPushButton::clicked, this, &SettingsDialog::close);
     connect(m_master, &MasterDataTab::taxChanged, this, &SettingsDialog::masterTaxChanged);
     connect(m_master, &MasterDataTab::taxChanged, m_general, &GeneralTab::masterTaxChanged);
+    connect(m_receiptmain, &ReceiptMainTab::maximumSoldItemChanged, m_extra, &ExtraTab::maximumSoldItemChanged);
 
     qDebug() << "Function Name: " << Q_FUNC_INFO << "finished elapsed: " << timer.elapsed();
 }
@@ -194,10 +186,11 @@ void SettingsDialog::accept()
     settings.save2Database("shopCashRegisterId", m_master->getShopCashRegisterId());
     settings.save2Database("currency", m_master->getShopCurrency());
     settings.save2Database("taxlocation", m_master->getShopTaxes());
-    settings.save2Database("defaulttax", m_extra->getDefaultTax());
+    settings.save2Database("defaulttax", m_receiptmain->getDefaultTax());
 
     settings.save2Settings("useLogo", m_receipt->getUseLogo());
     settings.save2Settings("logo", m_receipt->getLogo());
+    settings.save2Settings("virtualNumPad", m_receiptmain->useVirtualNumPad());
 
     settings.save2Settings("useAdvertising", m_receiptenhanced->getUseAdvertising());
     settings.save2Settings("advertising", m_receiptenhanced->getAdvertising());
@@ -212,6 +205,7 @@ void SettingsDialog::accept()
     settings.save2Settings("importDirectory", m_server->getImportDirectory());
     settings.save2Settings("importCodePage", m_server->getImportCodePage());
     settings.save2Settings("importServerFullscreen", m_server->getServerFullscreen());
+    settings.save2Settings("serverCriticalMessageBox", m_server->getServerCriticalMessageBox());
 
     settings.save2Settings("backupDirectory", m_general->getBackupDirectory());
     settings.save2Settings("keepMaxBackups", m_general->getKeepMaxBackups());
@@ -228,18 +222,33 @@ void SettingsDialog::accept()
         settings.removeSettings("receiptprinterfont");
     }
 
-    settings.save2Settings("useInputNetPrice", m_extra->getInputNetPrice());
-    settings.save2Settings("useDiscount", m_extra->getDiscount());
-    settings.save2Settings("useMaximumItemSold", m_extra->getMaximumItemSold());
-    settings.save2Settings("decimalDigits", m_extra->getDecimalDigits());
-    settings.save2Settings("useDecimalQuantity", m_extra->getDecimalQuantity());
+    settings.save2Settings("useInputNetPrice", m_receiptmain->getInputNetPrice());
+    settings.save2Settings("useDiscount", m_receiptmain->getDiscount());
+    settings.save2Settings("useMaximumItemSold", m_receiptmain->getMaximumItemSold());
+    settings.save2Settings("decimalDigits", m_receiptmain->getDecimalDigits());
+    settings.save2Settings("useDecimalQuantity", m_receiptmain->getDecimalQuantity());
+
+    settings.beginGroup("BarcodeReader");
+    settings.save2Settings("barcodeReaderPrefix", m_barcode->getBarcodePrefix());
+    settings.save2Settings("barcode_success_sound", m_barcode->getBarcodeSuccessSound());
+    settings.save2Settings("barcode_failure_sound", m_barcode->getBarcodeFailureSound());
+    settings.save2Settings("barcode_success_enabled", m_barcode->getBarcodeSuccessSoundEnabled());
+    settings.save2Settings("barcode_failure_enabled", m_barcode->getBarcodeFailureSoundEnabled());
+    settings.save2Settings("barcode_multimedia_path", m_barcode->getMultimediaPath());
+    settings.save2Settings("barcode_input_default", m_barcode->getBarcodeAsDefault());
+    settings.endGroup();
+
+    settings.save2Settings("hideCreditcardButton", m_receiptmain->hideCreditcardButton());
+    settings.save2Settings("hideDebitcardButton", m_receiptmain->hideDebitcardButton());
+    settings.save2Settings("quickButtonSize", m_receiptmain->getQuickButtonSize());
+    settings.save2Settings("ButtonSize", m_receiptmain->getButtonSize());
+    settings.save2Settings("numpadButtonSize", m_receiptmain->getNumpadButtonSize());
+
     settings.save2Settings("useGivenDialog", m_extra->getGivenDialog());
     settings.save2Settings("showSalesWidget", m_extra->getSalesWidget());
     settings.save2Settings("useReceiptPrintedDialog", m_extra->getReceiptPrintedDialog());
-    settings.save2Settings("barcodeReaderPrefix", m_extra->getBarcodePrefix());
-    settings.save2Settings("hideCreditcardButton", m_extra->hideCreditcardButton());
-    settings.save2Settings("hideDebitcardButton", m_extra->hideDebitcardButton());
     settings.save2Settings("report_by_productgroup", m_extra->getProductGroup());
+    settings.save2Settings("useMinstockDialog", m_extra->getStockDialog());
 
     settings.save2Settings("reportPrinterPDF", m_printer->getReportPrinterPDF());
     settings.save2Settings("reportPrinter", m_printer->getReportPrinter());
@@ -291,39 +300,10 @@ void SettingsDialog::accept()
 
 }
 
-ExtraTab::ExtraTab(QWidget *parent)
+BarcodeTab::BarcodeTab(QWidget *parent)
     : Widget(parent)
 {
     QrkSettings settings;
-
-    m_useInputNetPriceCheck = new QCheckBox;
-    m_useInputNetPriceCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
-
-    m_useDiscountCheck = new QCheckBox;
-    m_useDiscountCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
-
-    m_useMaximumItemSoldCheck = new QCheckBox;
-    m_useMaximumItemSoldCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
-
-    m_useDecimalQuantityCheck = new QCheckBox;
-//    m_useDecimalQuantityCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
-
-    m_useProductGroupCheck = new QCheckBox;
-
-    m_decimalRoundSpin = new QSpinBox;
-    m_decimalRoundSpin->setRange(2,3);
-    m_decimalRoundSpin->setSuffix(" " + tr("Stellen"));
-    m_useGivenDialogCheck = new QCheckBox;
-
-    m_salesWidgetCheck = new QCheckBox;
-
-    m_hideDebitcardCheck = new QCheckBox;
-
-    m_hideCreditcardCheck = new QCheckBox;
-
-    m_useReceiptPrintedDialogCheck = new QCheckBox;
-    m_useReceiptPrintedDialogCheck->setEnabled(!m_useMaximumItemSoldCheck->isChecked());
-    m_useReceiptPrintedDialogCheck->setToolTip(tr("Diese Option \"Beleg wurde gedruckt\" kann nur verwendet werden wenn\ndie Option \"Meistverkauften Artikel als Standard Artikel verwenden\" nicht aktiviert ist."));
 
     /* BarcodePrefixes */
     m_barcodePrefixesComboBox = new QComboBox();
@@ -340,6 +320,198 @@ ExtraTab::ExtraTab(QWidget *parent)
     m_barcodePrefixesComboBox->addItem("F11", Qt::Key_F11);
     m_barcodePrefixesComboBox->addItem("F12", Qt::Key_F12);
 
+    m_barcodeMultimediaPath = new QLineEdit;
+    m_barcodeMultimediaPath->setReadOnly(true);
+
+    QPushButton *barcodeMultimediaPathButton = new QPushButton(QIcon(":src/icons/save.png"), "");
+    barcodeMultimediaPathButton->setIconSize(QSize(24,24));
+
+    connect(barcodeMultimediaPathButton, &QPushButton::clicked, this, &BarcodeTab::setMultimediaPath);
+
+    QStringList list = QrkMultimedia::getMultimediaFiles();
+    m_barcodeSuccessCombo = new QComboBox();
+    m_barcodeSuccessCombo->addItem("success.wav",":src/multimedia/success.wav");
+    m_barcodeFailureCombo = new QComboBox();
+    m_barcodeFailureCombo->addItem("failure.wav",":src/multimedia/failure.wav");
+
+    foreach(QString filename, list) {
+        m_barcodeSuccessCombo->addItem(filename, getMultimediaPath() + QDir::separator() + filename);
+        m_barcodeFailureCombo->addItem(filename, getMultimediaPath() + QDir::separator() + filename);
+    }
+
+    QPushButton *test_successSound = new QPushButton(QIcon(":src/icons/playsound.png"), "");
+    test_successSound->setIconSize(QSize(24,24));
+    test_successSound->setProperty("what", BARCODE_SUCCSESS);
+    connect(test_successSound, &QPushButton::clicked, this, &BarcodeTab::play);
+    QPushButton *test_failureSound = new QPushButton(QIcon(":src/icons/playsound.png"), "");
+    test_failureSound->setIconSize(QSize(24,24));
+    test_failureSound->setProperty("what", BARCODE_FAILURE);
+    connect(test_failureSound, &QPushButton::clicked, this, &BarcodeTab::play);
+
+    m_barcodeSoundSuccess = new QCheckBox();
+    m_barcodeSoundFailure = new QCheckBox();
+
+    m_barcodeInputLineEditDefault = new QCheckBox();
+
+    QGroupBox *barcodeGroup = new QGroupBox();
+    barcodeGroup->setTitle(tr("Barcode Lesegerät"));
+
+    QGridLayout *barcodeLayout = new QGridLayout;
+    barcodeLayout->setAlignment(Qt::AlignLeft);
+
+    barcodeLayout->addWidget( new QLabel(tr("Prefix:")), 1,1,1,1);
+    barcodeLayout->addWidget( m_barcodePrefixesComboBox, 1,2,1,1);
+
+    barcodeLayout->addWidget( new QLabel(tr("Barcode-Eingabe als Voreinstellung:")), 2,1,1,1);
+    barcodeLayout->addWidget( m_barcodeInputLineEditDefault, 2,2,1,1);
+
+    barcodeLayout->addWidget( new QLabel(tr("Verzeichnis für eigene Töne:")), 3,1,1,1);
+    barcodeLayout->addWidget( m_barcodeMultimediaPath, 3,2,1,2);
+    barcodeLayout->addWidget( barcodeMultimediaPathButton, 3,4,1,1);
+
+    barcodeLayout->addWidget( new QLabel(tr("Ton für erfolgreichen Scan:")), 4,1,1,1);
+    barcodeLayout->addWidget( m_barcodeSoundSuccess, 4,2,1,1);
+    barcodeLayout->addWidget( m_barcodeSuccessCombo, 4,3,1,1);
+    barcodeLayout->addWidget( test_successSound, 4,4,1,1);
+
+    barcodeLayout->addWidget( new QLabel(tr("Ton für fehlerhaften Scan:")), 5,1,1,1);
+    barcodeLayout->addWidget( m_barcodeSoundFailure, 5,2,1,1);
+    barcodeLayout->addWidget( m_barcodeFailureCombo, 5,3,1,1);
+    barcodeLayout->addWidget( test_failureSound, 5,4,1,1);
+
+    barcodeLayout->setColumnStretch(1,1);
+    barcodeLayout->setColumnStretch(3,1);
+
+    barcodeGroup->setLayout(barcodeLayout);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(barcodeGroup);
+
+    mainLayout->addStretch(1);
+    setLayout(mainLayout);
+
+    settings.beginGroup("BarcodeReader");
+    int idx = m_barcodePrefixesComboBox->findData(settings.value("barcodeReaderPrefix", Qt::Key_F11).toInt());
+    if ( idx != -1 ) {
+        m_barcodePrefixesComboBox->setCurrentIndex(idx);
+    }
+
+    idx = m_barcodeSuccessCombo->findData(settings.value("barcode_success_sound", ":src/multimedia/success.wav").toString());
+    if ( idx != -1 ) {
+        m_barcodeSuccessCombo->setCurrentIndex(idx);
+    }
+    idx = m_barcodeFailureCombo->findData(settings.value("barcode_failure_sound", ":src/multimedia/failure.wav").toString());
+    if ( idx != -1 ) {
+        m_barcodeFailureCombo->setCurrentIndex(idx);
+    }
+
+    m_barcodeSoundSuccess->setChecked(settings.value("barcode_success_enabled", false).toBool());
+    m_barcodeSoundFailure->setChecked(settings.value("barcode_failure_enabled", false).toBool());
+    m_barcodeMultimediaPath->setText(settings.value("barcode_multimedia_path", qApp->applicationDirPath()).toString());
+    m_barcodeInputLineEditDefault->setChecked(settings.value("barcode_input_default", false).toBool());
+    settings.endGroup();
+
+}
+
+bool BarcodeTab::getBarcodeAsDefault()
+{
+    return m_barcodeInputLineEditDefault->isChecked();
+}
+
+QString BarcodeTab::getMultimediaPath()
+{
+    return m_barcodeMultimediaPath->text();
+}
+
+void BarcodeTab::setMultimediaPath()
+{
+    QString path = QFileDialog::getExistingDirectory(this, tr("Verzeichnis Auswahl"),
+                                                     getMultimediaPath(),
+                                                     QFileDialog::ShowDirsOnly
+                                                     | QFileDialog::DontResolveSymlinks);
+
+    if (!path.isEmpty()) {
+        m_barcodeMultimediaPath->setText(path);
+        QStringList list = QrkMultimedia::getMultimediaFiles(getMultimediaPath());
+
+        m_barcodeFailureCombo->clear();
+        m_barcodeSuccessCombo->clear();
+        m_barcodeSuccessCombo->addItem("success.wav",":src/multimedia/success.wav");
+        m_barcodeFailureCombo->addItem("failure.wav",":src/multimedia/failure.wav");
+
+        foreach(QString filename, list) {
+            m_barcodeSuccessCombo->addItem(filename, getMultimediaPath() + QDir::separator() + filename);
+            m_barcodeFailureCombo->addItem(filename, getMultimediaPath() + QDir::separator() + filename);
+        }
+    }
+}
+
+void BarcodeTab::play()
+{
+    QPushButton* button = static_cast<QPushButton*>(sender());
+    int what = button->property("what").toInt();
+    switch (what) {
+    case BARCODE_SUCCSESS:
+        QrkMultimedia::play(getBarcodeSuccessSound());
+        break;
+    case BARCODE_FAILURE:
+        QrkMultimedia::play(getBarcodeFailureSound());
+        break;
+    default:
+        break;
+    }
+
+}
+
+int BarcodeTab::getBarcodePrefix()
+{
+    int idx  = m_barcodePrefixesComboBox->currentIndex();
+    return m_barcodePrefixesComboBox->itemData(idx).toInt();
+}
+
+QString BarcodeTab::getBarcodeSuccessSound()
+{
+    return m_barcodeSuccessCombo->currentData().toString();
+}
+
+QString BarcodeTab::getBarcodeFailureSound()
+{
+    return m_barcodeFailureCombo->currentData().toString();
+}
+
+bool BarcodeTab::getBarcodeSuccessSoundEnabled()
+{
+    return m_barcodeSoundSuccess->isChecked();
+}
+
+bool BarcodeTab::getBarcodeFailureSoundEnabled()
+{
+    return m_barcodeSoundFailure->isChecked();
+}
+
+ReceiptMainTab::ReceiptMainTab(QWidget *parent)
+    : Widget(parent)
+{
+    QrkSettings settings;
+
+    m_useInputNetPriceCheck = new QCheckBox;
+    m_useInputNetPriceCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
+
+    m_useDiscountCheck = new QCheckBox;
+    m_useDiscountCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
+
+    m_useMaximumItemSoldCheck = new QCheckBox;
+    m_useMaximumItemSoldCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
+
+    m_useDecimalQuantityCheck = new QCheckBox;
+//    m_useDecimalQuantityCheck->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
+
+    m_decimalRoundSpin = new QSpinBox;
+    m_decimalRoundSpin->setRange(2,3);
+    m_decimalRoundSpin->setSuffix(" " + tr("Stellen"));
+    m_hideDebitcardCheck = new QCheckBox;
+    m_hideCreditcardCheck = new QCheckBox;
+
     /* Default Taxes*/
     m_defaultTaxComboBox = new QComboBox();
     QSqlDatabase dbc= Database::database();
@@ -353,6 +525,211 @@ ExtraTab::ExtraTab(QWidget *parent)
       m_defaultTaxComboBox->addItem(query.value(0).toString());
     }
     m_defaultTaxComboBox->setCurrentText(Database::getDefaultTax());
+
+    /* virtual numpad*/
+    m_useVirtualNumPadCheck = new QCheckBox();
+
+    QGroupBox *registerGroup = new QGroupBox();
+    registerGroup->setTitle(tr("Kassa"));
+
+    QGridLayout *extraLayout = new QGridLayout;
+    extraLayout->setAlignment(Qt::AlignLeft);
+
+    extraLayout->addWidget( new QLabel(tr("Netto Eingabe ermöglichen:")), 1,1,1,1);
+    extraLayout->addWidget( m_useInputNetPriceCheck, 1,2,1,1);
+    extraLayout->addWidget( new QLabel(tr("Standard Steuersatz:")), 2,1,1,1);
+    extraLayout->addWidget( m_defaultTaxComboBox, 2,2,1,1);
+
+    extraLayout->addWidget( new QLabel(tr("Rabatt Eingabe ermöglichen:")), 1,3,1,1);
+    extraLayout->addWidget( m_useDiscountCheck, 1,4,1,1);
+    extraLayout->addWidget( new QLabel(tr("Kreditkarten Taste verbergen:")), 2,3,1,1);
+    extraLayout->addWidget( m_hideCreditcardCheck, 2,4,1,1);
+    extraLayout->addWidget( new QLabel(tr("Bankomat Taste verbergen:")), 3,3,1,1);
+    extraLayout->addWidget( m_hideDebitcardCheck, 3,4,1,1);
+
+    extraLayout->addWidget( new QLabel(tr("Virtuellen Ziffernblock verwenden:")),3,1,1,1);
+    extraLayout->addWidget( m_useVirtualNumPadCheck, 3,2,1,1);
+
+    extraLayout->addWidget( new QLabel(tr("Meistverkauften Artikel als Standard Artikel verwenden:")), 4,1,1,3);
+    extraLayout->addWidget( m_useMaximumItemSoldCheck, 4,4,1,2);
+
+    extraLayout->addWidget( new QLabel(tr("Dezimale Eingabe bei Anzahl Artikel:")),5,1,1,2);
+    extraLayout->addWidget( m_useDecimalQuantityCheck, 5,4,1,1);
+    extraLayout->addWidget( m_decimalRoundSpin, 5,3,1,1);
+
+    extraLayout->setColumnStretch(1,1);
+    extraLayout->setColumnStretch(3,1);
+
+    registerGroup->setLayout(extraLayout);
+
+    QGroupBox *quickButtonGroup = new QGroupBox();
+    quickButtonGroup->setTitle(tr("Schaltflächen (Tasten)"));
+
+    QGridLayout *quickButtonLayout = new QGridLayout;
+    quickButtonLayout->setAlignment(Qt::AlignLeft);
+
+    m_quickButtonWidth = new QSpinBox;
+    m_quickButtonWidth->setMinimum(100);
+    m_quickButtonWidth->setMaximum(300);
+
+    m_quickButtonHeight = new QSpinBox;
+    m_quickButtonHeight->setMinimum(50);
+    m_quickButtonHeight->setMaximum(300);
+
+    m_fixedButtonHeight = new QSpinBox;
+    m_fixedButtonHeight->setMinimum(50);
+    m_fixedButtonHeight->setMaximum(120);
+
+    m_minimumButtonWidth = new QSpinBox;
+    m_minimumButtonWidth->setMinimum(100);
+    m_minimumButtonWidth->setMaximum(300);
+
+    m_fixedNumpadButtonHeight = new QSpinBox;
+    m_fixedNumpadButtonHeight->setMinimum(30);
+    m_fixedNumpadButtonHeight->setMaximum(100);
+
+    m_fixedNumpadButtonWidth = new QSpinBox;
+    m_fixedNumpadButtonWidth->setMinimum(30);
+    m_fixedNumpadButtonWidth->setMaximum(100);
+
+    quickButtonLayout->addWidget( new QLabel(tr("Tasten Größe:")), 0,1,1,1);
+//    quickButtonLayout->addWidget( new QLabel(tr("Breite (px)")), 0,2,1,1);
+//    quickButtonLayout->addWidget( m_minimumButtonWidth, 1,2,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("Höhe (px)")), 0,3,1,1);
+    quickButtonLayout->addWidget( m_fixedButtonHeight, 1,3,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("(Neustart erforderlich)")), 0,4,1,1);
+
+    quickButtonLayout->addWidget( new QLabel(tr("Schnelltasten Größe:")), 2,1,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("Breite (px)")), 2,2,1,1);
+    quickButtonLayout->addWidget( m_quickButtonWidth, 3,2,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("Höhe (px)")), 2,3,1,1);
+    quickButtonLayout->addWidget( m_quickButtonHeight, 3,3,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("(Dynamisch)")), 2,4,1,1);
+
+    quickButtonLayout->addWidget( new QLabel(tr("Ziffernblocktasten Größe:")), 4,1,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("Breite (px)")), 4,2,1,1);
+    quickButtonLayout->addWidget( m_fixedNumpadButtonWidth, 5,2,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("Höhe (px)")), 4,3,1,1);
+    quickButtonLayout->addWidget( m_fixedNumpadButtonHeight, 5,3,1,1);
+    quickButtonLayout->addWidget( new QLabel(tr("(Neustart erforderlich)")), 4,4,1,1);
+
+    quickButtonGroup->setLayout(quickButtonLayout);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(registerGroup);
+    mainLayout->addWidget(quickButtonGroup);
+
+    mainLayout->addStretch(1);
+    setLayout(mainLayout);
+
+    m_useInputNetPriceCheck->setChecked(settings.value("useInputNetPrice", false).toBool());
+    m_useDiscountCheck->setChecked(settings.value("useDiscount", false).toBool());
+    m_useMaximumItemSoldCheck->setChecked(settings.value("useMaximumItemSold", false).toBool());
+    m_useDecimalQuantityCheck->setChecked(settings.value("useDecimalQuantity", false).toBool());
+    m_decimalRoundSpin->setValue(settings.value("decimalDigits", 2).toInt());
+    m_useVirtualNumPadCheck->setChecked(settings.value("virtualNumPad", false).toBool());
+
+    m_hideCreditcardCheck->setChecked(settings.value("hideCreditcardButton", false).toBool());
+    m_hideDebitcardCheck->setChecked(settings.value("hideDebitcardButton", false).toBool());
+
+    QSize qbuttonsize = settings.value("quickButtonSize", QSize(150, 80)).toSize();
+    m_quickButtonHeight->setValue(qbuttonsize.height());
+    m_quickButtonWidth->setValue(qbuttonsize.width());
+
+    QSize buttonsize = settings.value("ButtonSize", QSize(150, 60)).toSize();
+    m_fixedButtonHeight->setValue(buttonsize.height());
+    m_minimumButtonWidth->setValue(buttonsize.width());
+
+    QSize numpadbuttonsize = settings.value("numpadButtonSize", QSize(40, 40)).toSize();
+    m_fixedNumpadButtonHeight->setValue(numpadbuttonsize.height());
+    m_fixedNumpadButtonWidth->setValue(numpadbuttonsize.width());
+
+    connect(m_useMaximumItemSoldCheck, &QPushButton::clicked, this, &ReceiptMainTab::maximumSoldItemChanged);
+
+    if (!RBAC::Instance()->hasPermission("settings_edit_extra"))
+        disableWidgets();
+
+}
+
+QString ReceiptMainTab::getDefaultTax()
+{
+    int idx  = m_defaultTaxComboBox->currentIndex();
+    return m_defaultTaxComboBox->itemText(idx);
+}
+
+bool ReceiptMainTab::getInputNetPrice()
+{
+    return m_useInputNetPriceCheck->isChecked();
+}
+
+bool ReceiptMainTab::getDiscount()
+{
+    return m_useDiscountCheck->isChecked();
+}
+
+bool ReceiptMainTab::getMaximumItemSold()
+{
+    return m_useMaximumItemSoldCheck->isChecked();
+}
+
+int ReceiptMainTab::getDecimalDigits()
+{
+    return m_decimalRoundSpin->value();
+}
+
+QSize ReceiptMainTab::getQuickButtonSize()
+{
+    return QSize(m_quickButtonWidth->value(), m_quickButtonHeight->value());
+}
+
+QSize ReceiptMainTab::getButtonSize()
+{
+    return QSize(m_minimumButtonWidth->value(), m_fixedButtonHeight->value());
+}
+
+QSize ReceiptMainTab::getNumpadButtonSize()
+{
+    return QSize(m_fixedNumpadButtonWidth->value(), m_fixedNumpadButtonHeight->value());
+}
+
+bool ReceiptMainTab::getDecimalQuantity()
+{
+    return m_useDecimalQuantityCheck->isChecked();
+}
+
+bool ReceiptMainTab::hideCreditcardButton()
+{
+    return m_hideCreditcardCheck->isChecked();
+}
+
+bool ReceiptMainTab::hideDebitcardButton()
+{
+    return m_hideDebitcardCheck->isChecked();
+}
+
+bool ReceiptMainTab::useVirtualNumPad()
+{
+    return m_useVirtualNumPadCheck->isChecked();
+}
+
+ExtraTab::ExtraTab(QWidget *parent)
+    : Widget(parent)
+{
+    QrkSettings settings;
+
+    m_useProductGroupCheck = new QCheckBox;
+
+    m_useGivenDialogCheck = new QCheckBox;
+
+    m_salesWidgetCheck = new QCheckBox;
+
+
+    m_useReceiptPrintedDialogCheck = new QCheckBox;
+    m_useReceiptPrintedDialogCheck->setEnabled(settings.value("useReceiptPrintedDialog", true).toBool());
+    m_useReceiptPrintedDialogCheck->setToolTip(tr("Diese Option \"Beleg wurde gedruckt\" kann nur verwendet werden wenn\ndie Option \"Meistverkauften Artikel als Standard Artikel verwenden\" nicht aktiviert ist."));
+
+    m_useStockDialogCheck = new QCheckBox;
+    m_useStockDialogCheck->setChecked(settings.value("useMinstockDialog", false).toBool());
 
     /* Fonts */
 
@@ -369,38 +746,6 @@ ExtraTab::ExtraTab(QWidget *parent)
     m_receiptPrinterFont.setPointSize(receiptPrinterFontList.at(1).toInt());
     m_receiptPrinterFont.setStretch(receiptPrinterFontList.at(2).toInt());
 
-    QGroupBox *registerGroup = new QGroupBox();
-    registerGroup->setTitle(tr("Kasse"));
-
-    QGridLayout *extraLayout = new QGridLayout;
-    extraLayout->setAlignment(Qt::AlignLeft);
-
-    extraLayout->addWidget( new QLabel(tr("Netto Eingabe ermöglichen:")), 1,1,1,1);
-    extraLayout->addWidget( m_useInputNetPriceCheck, 1,2,1,1);
-    extraLayout->addWidget( new QLabel(tr("Standard Steuersatz:")), 2,1,1,1);
-    extraLayout->addWidget( m_defaultTaxComboBox, 2,2,1,1);
-    extraLayout->addWidget( new QLabel(tr("Barcodereader prefix:")), 3,1,1,1);
-    extraLayout->addWidget( m_barcodePrefixesComboBox, 3,2,1,1);
-
-    extraLayout->addWidget( new QLabel(tr("Rabatt Eingabe ermöglichen:")), 1,3,1,1);
-    extraLayout->addWidget( m_useDiscountCheck, 1,4,1,1);
-    extraLayout->addWidget( new QLabel(tr("Kreditkarten Taste verbergen:")), 2,3,1,1);
-    extraLayout->addWidget( m_hideCreditcardCheck, 2,4,1,1);
-    extraLayout->addWidget( new QLabel(tr("Bankomat Taste verbergen:")), 3,3,1,1);
-    extraLayout->addWidget( m_hideDebitcardCheck, 3,4,1,1);
-
-    extraLayout->addWidget( new QLabel(tr("Meistverkauften Artikel als Standard Artikel verwenden:")), 4,1,1,3);
-    extraLayout->addWidget( m_useMaximumItemSoldCheck, 4,4,1,2);
-
-    extraLayout->addWidget( new QLabel(tr("Dezimale Eingabe bei Anzahl Artikel:")),5,1,1,2);
-    extraLayout->addWidget( m_useDecimalQuantityCheck, 5,4,1,1);
-    extraLayout->addWidget( m_decimalRoundSpin, 5,3,1,1);
-
-    extraLayout->setColumnStretch(1,1);
-    extraLayout->setColumnStretch(3,1);
-
-    registerGroup->setLayout(extraLayout);
-
     QGridLayout *groupLayout = new QGridLayout;
     groupLayout->setAlignment(Qt::AlignLeft);
     groupLayout->setColumnStretch(1,1);
@@ -412,6 +757,7 @@ ExtraTab::ExtraTab(QWidget *parent)
     dialogLayout->setAlignment(Qt::AlignLeft);
     dialogLayout->addRow(tr("Betrag gegeben:"),m_useGivenDialogCheck);
     dialogLayout->addRow(tr("Beleg wurde gedruckt:"), m_useReceiptPrintedDialogCheck);
+    dialogLayout->addRow(tr("Mindestbestand wurde erreicht:"), m_useStockDialogCheck);
 
     dialogGroup->setLayout(dialogLayout);
 
@@ -448,7 +794,7 @@ ExtraTab::ExtraTab(QWidget *parent)
     fontsLayout->addWidget( new QLabel(tr("Druckerschrift:")), 2,1,1,1);
     fontsLayout->addWidget( new QLabel(tr("BON - Druckerschrift:")), 3,1,1,1);
 
-    m_systemFontButton = new QPushButton(m_systemFont.family());
+    m_systemFontButton = new QrkPushButton(m_systemFont.family());
     m_systemFontButton->setFont(m_systemFont);
     m_systemFontSizeLabel = new QLabel(QString::number(m_systemFont.pointSize()));
     m_systemFontStretchLabel = new QLabel(QString::number(m_systemFont.stretch()));
@@ -457,7 +803,7 @@ ExtraTab::ExtraTab(QWidget *parent)
     QString sPrinterFontInfo = printerFontInfo.family();
 
     m_printerFont.setFamily(sPrinterFontInfo);
-    m_printerFontButton = new QPushButton(sPrinterFontInfo);
+    m_printerFontButton = new QrkPushButton(sPrinterFontInfo);
     m_printerFontButton->setFont(m_printerFont);
     m_printerFontSizeLabel = new QLabel(QString::number(m_printerFont.pointSize()));
     m_printerFontStretchLabel = new QLabel(QString::number(m_printerFont.stretch()));
@@ -466,13 +812,13 @@ ExtraTab::ExtraTab(QWidget *parent)
     QString sReceiptPrinterFontInfo = receiptPrinterFontInfo.family();
 
     m_receiptPrinterFont.setFamily(sReceiptPrinterFontInfo);
-    m_receiptPrinterFontButton = new QPushButton(sReceiptPrinterFontInfo);
+    m_receiptPrinterFontButton = new QrkPushButton(sReceiptPrinterFontInfo);
     m_receiptPrinterFontButton->setFont(m_receiptPrinterFont);
     m_receiptPrinterFontSizeLabel = new QLabel(QString::number(m_receiptPrinterFont.pointSize()));
     m_receiptPrinterFontStretchLabel = new QLabel(QString::number(m_receiptPrinterFont.stretch()));
 
-    QPushButton *printerTestButton = new QPushButton(tr("Drucktest"));
-    QPushButton *receiptPrinterTestButton = new QPushButton(tr("Drucktest"));
+    QrkPushButton *printerTestButton = new QrkPushButton(tr("Drucktest"));
+    QrkPushButton *receiptPrinterTestButton = new QrkPushButton(tr("Drucktest"));
 
     fontsLayout->addWidget( m_systemFontButton, 1,2,1,1);
     fontsLayout->addWidget( m_printerFontButton, 2,2,1,1);
@@ -500,8 +846,6 @@ ExtraTab::ExtraTab(QWidget *parent)
     m_fontsGroup->setLayout(fontsLayout);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(registerGroup);
-    //mainLayout->addWidget(dialogGroup);
     mainLayout->addLayout(groupLayout);
     mainLayout->addWidget(productGroup);
     mainLayout->addWidget(m_fontsGroup);
@@ -509,31 +853,19 @@ ExtraTab::ExtraTab(QWidget *parent)
     mainLayout->addStretch(1);
     setLayout(mainLayout);
 
-    m_useInputNetPriceCheck->setChecked(settings.value("useInputNetPrice", false).toBool());
-    m_useDiscountCheck->setChecked(settings.value("useDiscount", false).toBool());
-    m_useMaximumItemSoldCheck->setChecked(settings.value("useMaximumItemSold", false).toBool());
-    m_useDecimalQuantityCheck->setChecked(settings.value("useDecimalQuantity", false).toBool());
     m_useProductGroupCheck->setChecked(settings.value("report_by_productgroup", false).toBool());
-    m_decimalRoundSpin->setValue(settings.value("decimalDigits", 2).toInt());
     m_useGivenDialogCheck->setChecked(settings.value("useGivenDialog", false).toBool());
     m_salesWidgetCheck->setChecked(settings.value("showSalesWidget", true).toBool());
+
+    m_useReceiptPrintedDialogCheck->setDisabled(settings.value("useMaximumItemSold", false).toBool());
     if (m_useReceiptPrintedDialogCheck->isEnabled())
         m_useReceiptPrintedDialogCheck->setChecked(settings.value("useReceiptPrintedDialog", true).toBool());
     else
         m_useReceiptPrintedDialogCheck->setChecked(false);
 
-    int idx = m_barcodePrefixesComboBox->findData(settings.value("barcodeReaderPrefix", Qt::Key_F11).toInt());
-    if ( idx != -1 ) {
-        m_barcodePrefixesComboBox->setCurrentIndex(idx);
-    }
-
-    m_hideCreditcardCheck->setChecked(settings.value("hideCreditcardButton", false).toBool());
-    m_hideDebitcardCheck->setChecked(settings.value("hideDebitcardButton", false).toBool());
-
     connect(m_systemFontButton, &QPushButton::clicked, this, &ExtraTab::systemFontButton_clicked);
     connect(m_printerFontButton, &QPushButton::clicked, this, &ExtraTab::printerFontButton_clicked);
     connect(m_receiptPrinterFontButton, &QPushButton::clicked, this, &ExtraTab::receiptPrinterFontButton_clicked);
-    connect(m_useMaximumItemSoldCheck, &QPushButton::clicked, this, &ExtraTab::maximumSoldItemChanged);
 
     connect(printerTestButton, &QPushButton::clicked, this, &ExtraTab::printerTestButton_clicked);
     connect(receiptPrinterTestButton, &QPushButton::clicked, this, &ExtraTab::receiptPrinterTestButton_clicked);
@@ -545,35 +877,24 @@ ExtraTab::ExtraTab(QWidget *parent)
 
 }
 
-void ExtraTab::maximumSoldItemChanged(bool enabled)
-{
-    m_useReceiptPrintedDialogCheck->setEnabled(!enabled);
-    if (enabled)
-        m_useReceiptPrintedDialogCheck->setChecked(!enabled);
-}
-
-QString ExtraTab::getDefaultTax()
-{
-    int idx  = m_defaultTaxComboBox->currentIndex();
-    return m_defaultTaxComboBox->itemText(idx);
-}
-
-int ExtraTab::getBarcodePrefix()
-{
-    int idx  = m_barcodePrefixesComboBox->currentIndex();
-    return m_barcodePrefixesComboBox->itemData(idx).toInt();
-}
-
 bool ExtraTab::getProductGroup()
 {
     return m_useProductGroupCheck->isChecked();
 }
 
+void ExtraTab::maximumSoldItemChanged(bool enabled)
+{
+    QrkSettings settings;
+    m_useReceiptPrintedDialogCheck->setDisabled(enabled);
+    if (enabled)
+        m_useReceiptPrintedDialogCheck->setChecked(!enabled);
+    else
+        m_useReceiptPrintedDialogCheck->setChecked(settings.value("useReceiptPrintedDialog", true).toBool());
+}
+
 void ExtraTab::fontsGroup_toggled(bool toggled)
 {
-    if (toggled) {
-
-    } else {
+    if (!toggled) {
         QFont font;
         font.setFamily(font.defaultFamily());
         QApplication::setFont(font);
@@ -602,33 +923,32 @@ QString ExtraTab::getReceiptPrinterFont()
 
 void ExtraTab::printerTestButton_clicked(bool)
 {
-    DocumentPrinter *p = new DocumentPrinter();
-    p->printTestDocument(m_printerFont);
+    DocumentPrinter p;
+    p.printTestDocument(m_printerFont);
 }
 
 void ExtraTab::receiptPrinterTestButton_clicked(bool)
 {
-    ReceiptItemModel *reg = new ReceiptItemModel(this);
+    ReceiptItemModel reg;
 
     int id = Database::getLastReceiptNum();
-    reg->setCurrentReceiptNum(id);
+    reg.setCurrentReceiptNum(id);
 
-    QJsonObject data = reg->compileData();
+    QJsonObject data = reg.compileData();
 
     data["isTestPrint"] = true;
     data["comment"] = "DRUCKTEST BELEG";
     data["headerText"] = Database::getCustomerText(id);
 
-    DocumentPrinter *p = new DocumentPrinter();
-    p->printReceipt(data);
-    delete p;
+    DocumentPrinter p;
+    p.printReceipt(data);
 }
 
 void ExtraTab::systemFontButton_clicked(bool)
 {
-    FontSelector *fontSelect = new FontSelector(m_systemFont);
-    if ( fontSelect->exec() == FontSelector::Accepted ) {
-        m_systemFont = fontSelect->getFont();
+    FontSelector fontSelect(m_systemFont);
+    if ( fontSelect.exec() == FontSelector::Accepted ) {
+        m_systemFont = fontSelect.getFont();
         m_systemFontButton->setText(m_systemFont.family());
         m_systemFontSizeLabel->setText(QString::number(m_systemFont.pointSize()));
         m_systemFontStretchLabel->setText(QString::number(m_systemFont.stretch()));
@@ -638,9 +958,9 @@ void ExtraTab::systemFontButton_clicked(bool)
 
 void ExtraTab::printerFontButton_clicked(bool)
 {
-    FontSelector *fontSelect = new FontSelector(m_printerFont);
-    if ( fontSelect->exec() == FontSelector::Accepted ) {
-        m_printerFont = fontSelect->getFont();
+    FontSelector fontSelect(m_printerFont);
+    if ( fontSelect.exec() == FontSelector::Accepted ) {
+        m_printerFont = fontSelect.getFont();
         m_printerFontButton->setText(m_printerFont.family());
         m_printerFontButton->setFont(m_printerFont);
         m_printerFontSizeLabel->setText(QString::number(m_printerFont.pointSize()));
@@ -650,9 +970,9 @@ void ExtraTab::printerFontButton_clicked(bool)
 
 void ExtraTab::receiptPrinterFontButton_clicked(bool)
 {
-    FontSelector *fontSelect = new FontSelector(m_receiptPrinterFont);
-    if ( fontSelect->exec() == FontSelector::Accepted ) {
-        m_receiptPrinterFont = fontSelect->getFont();
+    FontSelector fontSelect(m_receiptPrinterFont);
+    if ( fontSelect.exec() == FontSelector::Accepted ) {
+        m_receiptPrinterFont = fontSelect.getFont();
         m_receiptPrinterFontButton->setText(m_receiptPrinterFont.family());
         m_receiptPrinterFontButton->setFont(m_receiptPrinterFont);
         m_receiptPrinterFontSizeLabel->setText(QString::number(m_receiptPrinterFont.pointSize()));
@@ -660,34 +980,14 @@ void ExtraTab::receiptPrinterFontButton_clicked(bool)
     }
 }
 
-bool ExtraTab::getInputNetPrice()
-{
-    return m_useInputNetPriceCheck->isChecked();
-}
-
-bool ExtraTab::getDiscount()
-{
-    return m_useDiscountCheck->isChecked();
-}
-
-bool ExtraTab::getMaximumItemSold()
-{
-    return m_useMaximumItemSoldCheck->isChecked();
-}
-
-int ExtraTab::getDecimalDigits()
-{
-    return m_decimalRoundSpin->value();
-}
-
-bool ExtraTab::getDecimalQuantity()
-{
-    return m_useDecimalQuantityCheck->isChecked();
-}
-
 bool ExtraTab::getGivenDialog()
 {
     return m_useGivenDialogCheck->isChecked();
+}
+
+bool ExtraTab::getStockDialog()
+{
+    return m_useStockDialogCheck->isChecked();
 }
 
 bool ExtraTab::getSalesWidget()
@@ -700,16 +1000,6 @@ bool ExtraTab::getReceiptPrintedDialog()
     return m_useReceiptPrintedDialogCheck->isChecked();
 }
 
-bool ExtraTab::hideCreditcardButton()
-{
-    return m_hideCreditcardCheck->isChecked();
-}
-
-bool ExtraTab::hideDebitcardButton()
-{
-    return m_hideDebitcardCheck->isChecked();
-}
-
 ServerTab::ServerTab(QWidget *parent)
     : Widget(parent)
 {
@@ -720,6 +1010,7 @@ ServerTab::ServerTab(QWidget *parent)
     m_codePageCombo->addItem("Windows-1252",1);
     m_codePageCombo->addItem("IBM-850",2);
     m_serverFullscreen = new QCheckBox();
+    m_serverCriticalMessageBox = new QCheckBox();
 
     QPushButton *importDirectoryButton = new QPushButton;
 
@@ -728,17 +1019,19 @@ ServerTab::ServerTab(QWidget *parent)
 
     importDirectoryButton->setIcon(icon);
     importDirectoryButton->setIconSize(size);
-    importDirectoryButton->setText(tr("Auswahl"));
+//    importDirectoryButton->setText(tr("Auswahl"));
 
     QGroupBox *serverGroup = new QGroupBox;
     QGridLayout *serverLayout = new QGridLayout;
     serverLayout->addWidget(new QLabel(tr("Server Mode Import Verzeichnis:")), 1,1);
     serverLayout->addWidget(new QLabel(tr("Import Zeichensatz:")), 2,1);
     serverLayout->addWidget(new QLabel(tr("Import Info Vollbild:")), 3,1);
+    serverLayout->addWidget(new QLabel(tr("Fehlermeldungsdialog:")), 4,1);
 
     serverLayout->addWidget(m_importDirectoryEdit, 1,2);
     serverLayout->addWidget(m_codePageCombo, 2,2);
     serverLayout->addWidget(m_serverFullscreen, 3,2);
+    serverLayout->addWidget(m_serverCriticalMessageBox, 4,2);
 
     serverLayout->addWidget(importDirectoryButton, 1,3);
     serverGroup->setLayout(serverLayout);
@@ -755,6 +1048,7 @@ ServerTab::ServerTab(QWidget *parent)
     m_importDirectoryEdit->setText(settings.value("importDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString());
     m_codePageCombo->setCurrentText(settings.value("importCodePage", "UTF-8").toString());
     m_serverFullscreen->setChecked(settings.value("importServerFullscreen", false).toBool());
+    m_serverCriticalMessageBox->setChecked(settings.value("serverCriticalMessageBox", true).toBool());
 
     if (!RBAC::Instance()->hasPermission("settings_edit_extra"))
         disableWidgets();
@@ -789,19 +1083,24 @@ bool ServerTab::getServerFullscreen()
     return m_serverFullscreen->isChecked();
 }
 
+bool ServerTab::getServerCriticalMessageBox()
+{
+    return m_serverCriticalMessageBox->isChecked();
+}
+
 GeneralTab::GeneralTab(QWidget *parent)
     : Widget(parent)
 {
     m_dataDirectoryEdit = new QLineEdit();
-    m_dataDirectoryEdit->setEnabled(false);
+    m_dataDirectoryEdit->setReadOnly(true);
     m_backupDirectoryEdit = new QLineEdit();
-    m_backupDirectoryEdit->setEnabled(false);
+    m_backupDirectoryEdit->setReadOnly(true);
     m_keepMaxBackupSpinBox = new QSpinBox();
     m_keepMaxBackupSpinBox->setMinimum(-1);
     m_pdfDirectoryEdit = new QLineEdit();
-    m_pdfDirectoryEdit->setEnabled(false);
+    m_pdfDirectoryEdit->setReadOnly(true);
     m_externalDepDirectoryEdit = new QLineEdit();
-    m_externalDepDirectoryEdit->setEnabled(false);
+    m_externalDepDirectoryEdit->setReadOnly(true);
 
     QPushButton *dataDirectoryButton = new QPushButton;
     QPushButton *backupDirectoryButton = new QPushButton;
@@ -813,19 +1112,19 @@ GeneralTab::GeneralTab(QWidget *parent)
 
     dataDirectoryButton->setIcon(icon);
     dataDirectoryButton->setIconSize(size);
-    dataDirectoryButton->setText(tr("Auswahl"));
+//    dataDirectoryButton->setText(tr("Auswahl"));
 
     backupDirectoryButton->setIcon(icon);
     backupDirectoryButton->setIconSize(size);
-    backupDirectoryButton->setText(tr("Auswahl"));
+//    backupDirectoryButton->setText(tr("Auswahl"));
 
     pdfDirectoryButton->setIcon(icon);
     pdfDirectoryButton->setIconSize(size);
-    pdfDirectoryButton->setText(tr("Auswahl"));
+//    pdfDirectoryButton->setText(tr("Auswahl"));
 
     externalDepDirectoryButton->setIcon(icon);
     externalDepDirectoryButton->setIconSize(size);
-    externalDepDirectoryButton->setText(tr("Auswahl"));
+//    externalDepDirectoryButton->setText(tr("Auswahl"));
 
     QTextBrowser *externalDepInfoLabel =  new QTextBrowser();
     externalDepInfoLabel->setAlignment(Qt::AlignTop);
@@ -1585,14 +1884,14 @@ ReceiptTab::ReceiptTab(QStringList availablePrinters, QWidget *parent)
     m_useLogo = new QCheckBox();
     m_useLogoRightCheck = new QCheckBox();
     m_logoEdit = new QLineEdit();
-    m_logoEdit->setEnabled(false);
+    m_logoEdit->setReadOnly(true);
     m_logoButton = new QPushButton;
 
     QIcon icon = QIcon(":src/icons/save.png");
     QSize size = QSize(24,24);
     m_logoButton->setIcon(icon);
     m_logoButton->setIconSize(size);
-    m_logoButton->setText(tr("Auswahl"));
+//    m_logoButton->setText(tr("Auswahl"));
 
     QHBoxLayout *logoLayout = new QHBoxLayout;
     logoLayout->addWidget(m_useLogo);
@@ -1774,14 +2073,14 @@ ReceiptEnhancedTab::ReceiptEnhancedTab(QWidget *parent)
 
     m_useAdvertising = new QCheckBox();
     m_advertisingEdit = new QLineEdit();
-    m_advertisingEdit->setEnabled(false);
+    m_advertisingEdit->setReadOnly(true);
     m_advertisingButton = new QPushButton;
 
     QIcon icon = QIcon(":src/icons/save.png");
     QSize size = QSize(24,24);
     m_advertisingButton->setIcon(icon);
     m_advertisingButton->setIconSize(size);
-    m_advertisingButton->setText(tr("Auswahl"));
+//    m_advertisingButton->setText(tr("Auswahl"));
 
     QHBoxLayout *advertisingLayout = new QHBoxLayout;
     advertisingLayout->addWidget(m_useAdvertising);
@@ -1963,8 +2262,8 @@ SCardReaderTab::SCardReaderTab(QWidget *parent)
     QLabel *infoLabel = new QLabel();
     infoLabel->setWordWrap(true);
 
-    QPushButton *scardTestButton = new QPushButton(tr("Test"));
-    m_scardActivateButton = new QPushButton(tr("DEP-7 Aktivieren"));
+    QrkPushButton *scardTestButton = new QrkPushButton(tr("Test"));
+    m_scardActivateButton = new QrkPushButton(tr("DEP-7 Aktivieren"));
     if (RKSignatureModule::isDEPactive()) {
         m_scardActivateButton->setText(tr("Kasse außer\nBetrieb nehmen"));
         //        m_scardActivateButton->setVisible(false);

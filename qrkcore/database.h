@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ class QRK_EXPORT Database : public QObject
     Database(QObject *parent = 0);
     ~Database();
 
+    static QJsonObject getConnectionDefinition();
     static bool open(bool dbSelect);
     static void reopen();
     static QDateTime getLastJournalEntryDate();
@@ -69,6 +70,7 @@ class QRK_EXPORT Database : public QObject
     static QString getYearCounter();
     static QString getSalesPerPaymentSQLQueryString();
     static void updateProductSold(double, QString);
+    static QStringList getStockInfoList();
     static QStringList getMaximumItemSold();
     static void setCashRegisterInAktive();
     static bool isCashRegisterInAktive();
@@ -76,7 +78,7 @@ class QRK_EXPORT Database : public QObject
     static QString getLastVersionInfo();
     static void cleanup();
     static QString updateGlobals(QString name, QString defaultvalue, QString defaultStrValue);
-    static QSqlDatabase database();
+    static QSqlDatabase database(const QString &connectionname = "CN");
     static bool isAnyValueFunctionAvailable();
     static QString getDatabaseVersion();
 

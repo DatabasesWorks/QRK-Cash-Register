@@ -73,6 +73,8 @@ CREATE TABLE `products` (
     `button`    text DEFAULT '',
     `image`     text DEFAULT '',
     `coupon`	tinyint(1) NOT NULL DEFAULT 0,
+    `stock`	double NOT NULL DEFAULT 0,
+    `minstock`	double NOT NULL DEFAULT 0,
     CONSTRAINT `group` FOREIGN KEY (`group`) REFERENCES `groups` (`id`)
 );
 
@@ -116,7 +118,8 @@ CREATE TABLE `journal` (
     `version`           text NOT NULL,
     `cashregisterid`    text NOT NULL,
     `datetime`          datetime NOT NULL,
-    `text`              text,
+    `data`              text,
+    `checksum`          text,
     `userId`            INTEGER NOT NULL DEFAULT '0'
 );
 

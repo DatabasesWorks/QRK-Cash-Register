@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@ void CsvImportWizardPage2::initializePage()
   connect(m_assignmentModel, &QStandardItemModel::dataChanged, this, &CsvImportWizardPage2::itemChangedSlot);
 
   QList<QString> list;
-  list << "itemnum" << "barcode" << "name" << "net" << "gross" << "tax" << "group" << "color" << "coupon";
+  list << "itemnum" << "barcode" << "name" << "net" << "gross" << "tax" << "group" << "color" << "coupon" << "stock" << "minstock";
   QMap<QString, QVariant>::iterator i;
   for (i = m_loadmap->begin(); i != m_loadmap->end(); ++i) {
       list << i.value().toString();
@@ -196,6 +196,8 @@ void CsvImportWizardPage2::importType(int importType)
       addHeaderId(tr("Steuersatz"), "tax");
       addHeaderId(tr("Farbe"), "color");
       addHeaderId(tr("Extrabon"), "coupon");
+      addHeaderId(tr("Lagerbestand"), "stock");
+      addHeaderId(tr("Mindestbestand"), "minstock");
       break;
   }
 }

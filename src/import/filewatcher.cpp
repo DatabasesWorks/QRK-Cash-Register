@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ void FileWatcher::directoryChanged(const QString &path)
         QStringList list = dir.entryList();
         while(list.size() > 0){
             QString f = list.takeFirst();
-            if (QFileInfo(dir.absoluteFilePath(f)).created() < QDateTime::currentDateTime().addDays(-7)) {
+            if (QFileInfo(dir.absoluteFilePath(f)).lastModified() < QDateTime::currentDateTime().addDays(-7)) {
                 QFile::remove(dir.absoluteFilePath(f));
                 qInfo() << "Function Name: " << Q_FUNC_INFO << " Remove file older than 7 Days FileName: " << f;
             }

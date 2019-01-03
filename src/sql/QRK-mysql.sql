@@ -34,7 +34,8 @@ CREATE TABLE `journal` (
   `version` text NOT NULL,
   `cashregisterid` text NOT NULL,
   `datetime` datetime NOT NULL,
-  `text` text,
+  `data` text,
+  `checksum` text,
   `userId` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -98,6 +99,8 @@ CREATE TABLE `products` (
   `button` varchar(255) DEFAULT '',
   `image` varchar(255) DEFAULT '',
   `coupon` tinyint(1) NOT NULL DEFAULT '0',
+  `stock` double NOT NULL DEFAULT '0',
+  `minstock` double NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `group` (`group`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;

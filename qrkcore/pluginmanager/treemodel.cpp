@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -152,8 +152,8 @@ void TreeModel::setupModelData(const QStringList &lines, TreeItem *parent)
         PluginInterface *plugin = qobject_cast<PluginInterface *>(PluginManager::instance()->getObjectByName(pluginname));
         if (plugin) {
             pluginname = plugin->getPluginName();
-            delete plugin;
-            plugin = 0;
+            // delete plugin;
+            // plugin = 0;
         }
 
         columnStrings << pluginname;

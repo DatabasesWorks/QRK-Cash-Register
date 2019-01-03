@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -275,6 +275,8 @@ double Utils::getYearlyTotal(int year)
     QDateTime from;
     QDateTime to;
 
+    if (year == 0) year = QDate::currentDate().year();
+
     QString fromString = QString("%1-01-01").arg(year);
     QString toString = QString("%1-12-31").arg(year);
 
@@ -312,6 +314,10 @@ QString Utils::wordWrap(QString text, int width, QFont font)
     QFontMetrics fm(font);
     QString result;
     int space = 0;
+
+    if (text.lastIndexOf(' ') < 0) {
+        text.replace('/', " / ");
+    }
 
     for (;;) {
         int i = 0;
@@ -374,7 +380,7 @@ bool Utils::checkTurnOverCounter(QStringList &error)
         if (serial.isEmpty())
             error.append(QObject::tr("Fehlende Seriennummer bei BON %1").arg(receiptNum));
         QString decTOC = sm->decryptTurnoverCounter(con, encTOC, key);
-        for (int y = 5; y < 9; y++) {
+        for (int y = 5; y < 10; y++) {
             QString current = list.at(y);
             counter2 += current.replace(",","").toLongLong();
         }
@@ -513,7 +519,7 @@ void Utils::diskSpace(QString path, qint64 &size, qint64 &bytesAvailable, double
     qDebug() << "Function Name: " << Q_FUNC_INFO << " name:" << storage.name();
     qDebug() << "Function Name: " << Q_FUNC_INFO << " fileSystemType:" << storage.fileSystemType();
 
-    size = storage.bytesTotal() /1024/1025;
+    size = storage.bytesTotal() /1024/1024;
     bytesAvailable = storage.bytesAvailable() /1024/1024;
 
     qint64 usedspace = size - bytesAvailable;

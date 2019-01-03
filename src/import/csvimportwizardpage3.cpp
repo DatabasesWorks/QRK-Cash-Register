@@ -1,7 +1,7 @@
 /*
  * This file is part of QRK - Qt Registrier Kasse
  *
- * Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+ * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -137,6 +137,7 @@ void ImportData::run()
 {
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
+    dbc.transaction();
 
     int count = m_model->rowCount();
     // count = 100; /* for testing */
@@ -151,6 +152,8 @@ void ImportData::run()
         QString name = getItemValue(row, m_map->value(tr("Artikelname")).toInt());
         QString color = getItemValue(row, m_map->value(tr("Farbe")).toInt());
         QString coupon = getItemValue(row, m_map->value(tr("Extrabon")).toInt());
+        double stock = getItemValue(row, m_map->value(tr("Lagerbestand")).toInt(),true).toDouble();
+        double minstock = getItemValue(row, m_map->value(tr("Mindestbestand")).toInt(),true).toDouble();
 
         if (m_ignoreExistingProduct && exists(itemnum, barcode, name)) {
             emit info(tr("%1 ist schon vorhanden. Der Import wurde ignoriert").arg(name));
@@ -163,11 +166,11 @@ void ImportData::run()
             continue;
 
         if (m_updateExistingProduct && id > 0) {
-            ok= query.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, tax=:tax, net=:net, gross=:gross, visible=:visible, color=:color, coupon=:coupon,  `group`=:group WHERE id=:id");
+            ok= query.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, tax=:tax, net=:net, gross=:gross, visible=:visible, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, `group`=:group WHERE id=:id");
             query.bindValue(":id", id);
             emit info(tr("Update %1").arg(name));
         } else {
-            ok= query.prepare("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon) VALUES (:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon)");
+            ok= query.prepare("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock) VALUES (:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock)");
         }
 
         if (!ok) {
@@ -197,6 +200,8 @@ void ImportData::run()
         query.bindValue(":visible", m_visibleProduct);
         query.bindValue(":color", color);
         query.bindValue(":coupon", (coupon.toInt() == 0)? false: true);
+        query.bindValue(":stock", stock);
+        query.bindValue(":minstock", minstock);
 
         QString group = getItemValue(row, m_map->value(tr("Gruppe")).toInt());
         if (group.toInt() > 0) {
@@ -234,6 +239,9 @@ void ImportData::run()
         }
 
         ok = query.exec();
+        if (!dbc.commit())
+            dbc.rollback();
+
         qDebug() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
 
         if (!ok) {

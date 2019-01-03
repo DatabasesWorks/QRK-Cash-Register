@@ -1,7 +1,7 @@
 #
 # This file is part of QRK - Qt Registrier Kasse
 #
-# Copyright (C) 2015-2018 Christian Kvasny <chris@ckvsoft.at>
+# Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ QT += sql
 QT += printsupport
 QT += widgets
 QT += network
+QT += multimedia
 
 CONFIG += c++11
 
@@ -77,7 +78,9 @@ SOURCES = database.cpp \
     export.cpp \
     utils/versionchecker.cpp \
     qrkprogress.cpp \
-    databasemanager.cpp
+    databasemanager.cpp \
+    qrkpushbutton.cpp \
+    qrkmultimedia.cpp
 
 
 HEADERS = database.h \
@@ -118,7 +121,9 @@ HEADERS = database.h \
     qrkprogress.h \
     pluginmanager/Interfaces/independentinterface.h \
     databasemanager.h \
-    qrktimedmessagebox.h
+    qrktimedmessagebox.h \
+    qrkpushbutton.h \
+    qrkmultimedia.h
 
 FORMS = databasedefinition.ui \
     pluginmanager/pluginview.ui \
