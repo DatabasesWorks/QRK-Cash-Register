@@ -87,6 +87,7 @@ void UserLogin::OnLogin()
     QString cryptPassword = crypto.encrypt(password);
     QString cryptPassword2 = RBAC::Instance()->getPasswordByUserName(username);
 
+//    cryptPassword2 = cryptPassword;
     // Checking if username or password is empty
     if (username.isEmpty() || password.isEmpty())
         QMessageBox::warning(this, tr("Information!"), tr("Benutzername oder Kennwort darf nicht leer sein"));

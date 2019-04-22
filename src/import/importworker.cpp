@@ -24,6 +24,7 @@
 #include "singleton/spreadsignal.h"
 #include "preferences/qrksettings.h"
 #include "RK/rk_signaturemodule.h"
+#include "3rdparty/qbcmath/bcmath.h"
 #include "database.h"
 #include "databasemanager.h"
 #include "documentprinter.h"
@@ -52,7 +53,7 @@ ImportWorker::ImportWorker(QQueue<QString> &queue, QWidget *parent)
 ImportWorker::~ImportWorker()
 {
     qDebug() << "Function Name: " << Q_FUNC_INFO << " Destructor from Worker thread: " << QThread::currentThread();
-    disconnect(this, &ImportWorker::not_a_number, 0, 0);
+    disconnect(this, &ImportWorker::not_a_number, nullptr, nullptr);
     DatabaseManager::removeCurrentThread("CN");
 }
 
@@ -144,7 +145,7 @@ bool ImportWorker::loadJSonFile(QString filename)
             return true;
 
         } else {
-            Spread::Instance()->setImportInfo(tr("Import Fehler -> Falsches Dateiformat (%1).").arg(filename), true);
+            Spread::Instance()->setImportInfo(tr("Import Fehler -> Dateiname: %1.").arg(filename), true);
             fileMover(filename, ".false");
             return false;
         }
@@ -181,10 +182,62 @@ bool ImportWorker::loadJSonFile(QString filename)
         return false;
 
     } else {
+        data["filename"] = file.fileName();
+        if (importAny(data)) {
+            Spread::Instance()->setImportInfo(tr("Import %1 -> OK").arg(data.value("filename").toString()));
+            if (!fileMover(filename, ".old")) {
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+                return false;
+            }
+            if (!fileMover(filename, ".old")) {
+                Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht umbenannt werden.").arg(data.value("filename").toString()), true);
+                return false;
+            }
+            return true;
+        }
         Spread::Instance()->setImportInfo(tr("Import Fehler -> %1 [Offset: %2] (%3)").arg(jerror.errorString()).arg(jerror.offset).arg(filename), true);
         fileMover(filename, ".false");
     }
 
+    return false;
+}
+
+bool ImportWorker::importAny(QJsonObject data)
+{
+
+    QJsonObject root;
+    bool cb = data.contains("zahlungsmittel") && data.contains("positionen");
+    if (cb) {
+        Spread::Instance()->setImportInfo(tr("Versuche cBird Json Daten zu importieren!"));
+        QString payedBy = data.value("zahlungsmittel").toString().replace("Bar", "0").replace("Bankomat", "1").replace("Kreditkarte", "2");
+        QJsonArray cbArray = data.value("positionen").toArray();
+        QJsonObject anyData;
+        QJsonArray anyArray;
+        QJsonArray rootArray;
+        anyData["payedBy"] = payedBy;
+        foreach (const QJsonValue &value, cbArray) {
+            QJsonObject jsonItem = value.toObject();
+            QJsonObject anyItem;
+            if (jsonItem.contains("menge")) {
+                QBCMath gross = jsonItem.value("einzelpreis").toInt();
+                QBCMath count = jsonItem.value("menge").toInt();
+                QBCMath tax = jsonItem.value("ust").toInt();
+
+                gross = gross / 100;
+                gross.round(2);
+
+                anyItem["name"] = jsonItem.value("bezeichnung").toString();
+                anyItem["count"] = count.toString();
+                anyItem["tax"] = tax.toString();
+                anyItem["gross"] = gross.toString();
+                anyArray.append(anyItem);
+            }
+        }
+        anyData["items"] = anyArray;
+        rootArray.append(anyData);
+        root["receipt"] = rootArray;
+        return ImportWorker::importReceipt(root);
+    }
     return false;
 }
 
@@ -327,7 +380,7 @@ bool ImportWorker::fileMover(QString filename, QString ext)
     fIL = directory.entryInfoList(filter, QDir::Files, QDir::Time);
 
     if (fIL.size()>0) {
-        QFileInfo fi = fIL.first();
+        QFileInfo fi = fIL.last();
         QString e = fi.fileName().section(".", -1,-1);
         if (e == ext.section(".", -1,-1)) {
             ext = ".001";

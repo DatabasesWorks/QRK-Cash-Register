@@ -187,6 +187,8 @@ int main(int argc, char *argv[])
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     app.setProperty("debugMsg", false);
 
+    QLocale::setDefault(QLocale::German);
+
     QSplashScreen *splash = new QSplashScreen;
     splash->setPixmap(QPixmap(":src/icons/splash.png"));
     splash->setMinimumHeight(228);
@@ -442,6 +444,7 @@ int main(int argc, char *argv[])
 
     UniqueMachineFingerprint fp;
     qInfo() << "Serialnumber: " << fp.getSystemUniqueId();
+    qInfo() << "Validate: " << fp.validate(fp.getSystemUniqueId());
 
     splash->finish(&mainWidget);
 

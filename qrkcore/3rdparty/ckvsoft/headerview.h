@@ -20,39 +20,24 @@
  *
 */
 
-#ifndef IMPORT_H
-#define IMPORT_H
+#ifndef HEADERVIEW_H
+#define HEADERVIEW_H
 
-#include "reports.h"
+#include "globals_ckvsoft.h"
 
-class ImportWorker : public Reports
+#include <QHeaderView>
+#include <QMouseEvent>
+
+class CKVSOFT_EXPORT HeaderView : public QHeaderView
 {
     Q_OBJECT
 
 public:
-    ImportWorker(QQueue<QString> &queue, QWidget *parent = 0);
-    ~ImportWorker();
-
-signals:
-    void finished();
+    HeaderView(QWidget *parent = 0);
+    void mousePressEvent(QMouseEvent *event);
+    void mouseReleaseEvent(QMouseEvent *event);
 
 public slots:
-    void process();
-    void stopProcess();
-    void number_error(QString);
-    void database_error(QString);
-
-private:
-    bool loadJSonFile(QString filename);
-    bool importR2B(QJsonObject data);
-    bool importReceipt(QJsonObject data);
-    bool importAny(QJsonObject data);
-    bool importTagged(QJsonObject data);
-    bool fileMover(QString filename, QString ext);
-
-    QQueue<QString> *m_queue;
-    bool m_isStopped;
-
+    void clickedSection(int s);
 };
-
-#endif // IMPORT_H
+#endif // HEADERVIEW_H

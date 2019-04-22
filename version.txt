@@ -20,6 +20,13 @@
 #
 # -- 21
 
+  VERSION 1.10.3 Build 190422
+  * Kassamodus Spalten in der Kopfzeile können umsortiert werden. (Einstellungen->Kassa konfigurierbar)
+  * Eingabe von Artikelnummern im Kassamodus möglich. (Einstellungen->Kassa konfigurierbar)
+  * FIX Import FileMover
+  * FIX UniqueMachineFingerPrint
+  * FIXes für Ubuntu 19.04
+
   VERSION 1.10.2 Build 181229
   * Splitter Position wurde beim benutzen des Servermodes nicht gespeichert
   * cleanup Datenbank Verbindungen beim beenden.

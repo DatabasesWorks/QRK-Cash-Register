@@ -35,6 +35,7 @@ public:
         SPINBOX,
         COMBO_TAX,
         PRODUCTS,
+        PRODUCTSNUMBER,
         NUMBERFORMAT_DOUBLE,
         NUMBERFORMAT_INT,
         DOUBLE_SPINBOX,

@@ -33,6 +33,7 @@
 #include "qrkprogress.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
 #include "3rdparty/ckvsoft/flowlayout.h"
+#include "3rdparty/ckvsoft/headerview.h"
 #include "barcodefinder.h"
 #include "qrkmultimedia.h"
 #include "ui_qrkregister.h"
@@ -50,6 +51,7 @@
 #include <QTextDocument>
 #include <QDir>
 #include <QtWidgets>
+#include <QMouseEvent>
 #include <QDebug>
 QRKRegister::QRKRegister(QWidget *parent)
     : QWidget(parent), ui(new Ui::QRKRegister), m_currentReceipt(0)
@@ -119,8 +121,16 @@ QRKRegister::QRKRegister(QWidget *parent)
     connect(ui->numPadpushButton, &QPushButton::clicked, this, &QRKRegister::numPadToogle);
     connect(ui->BarcodeFinderPushButton, &QPushButton::clicked, this, &QRKRegister::barcodeFinderButton_clicked);
 
-    ui->orderList->installEventFilter(this);
+    ui->orderList->setHorizontalHeader(new HeaderView(this));
 
+    connect(ui->orderList->horizontalHeader(), &QHeaderView::sectionMoved, this, &QRKRegister::writeHeaderColumnSettings);
+
+    ui->orderList->installEventFilter(this);
+//    ui->orderList->horizontalHeader()->setSectionsClickable(true);
+//    ui->orderList->horizontalHeader()->setSectionsMovable(true);
+//    ui->orderList->horizontalHeader()->installEventFilter(this);
+//    connect(ui->orderList->horizontalHeader(), &QHeaderView::entered, this, SLOT(changeCursor(QModelIndex)));
+    // ui->orderList->horizontalHeader()->viewport()->setCursor(Qt::DragMoveCursor);
     readSettings();
 
 }
@@ -200,6 +210,9 @@ void QRKRegister::init()
     m_decimaldigits = settings.value("decimalDigits", 2).toInt();
     m_receiptPrintDialog = settings.value("useReceiptPrintedDialog", true).toBool();
     m_minstockDialog = settings.value("useMinstockDialog", false).toBool();
+    m_useInputProductNumber = settings.value("useInputProductNumber", false).toBool();
+    m_registerHeaderMoveable = settings.value("saveRegisterHeaderGeo", false).toBool();
+    ui->orderList->horizontalHeader()->setSectionsMovable(m_registerHeaderMoveable);
 
     settings.beginGroup("BarcodeReader");
     m_barcodeReaderPrefix = settings.value("barcodeReaderPrefix", Qt::Key_F11).toInt();
@@ -466,7 +479,7 @@ void QRKRegister::addProductToOrderList(int id)
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
-    query.prepare(QString("SELECT name, tax, gross FROM products WHERE id=%1").arg(id));
+    query.prepare(QString("SELECT name, tax, gross, itemnum FROM products WHERE id=%1").arg(id));
     bool ok = query.exec();
 
     if (!ok) {
@@ -488,7 +501,8 @@ void QRKRegister::addProductToOrderList(int id)
                     count += 1;
                 count.round(m_decimaldigits);
                 m_orderListModel->item(row, REGISTER_COL_COUNT)->setText( count.toString() );
-                QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
+//                QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
+                QModelIndex idx = m_orderListModel->index(row, ui->orderList->horizontalHeader()->logicalIndex(0));
 
                 if (!m_barcodeInputLineEditDefault) {
                     ui->orderList->selectionModel()->setCurrentIndex(idx, QItemSelectionModel::NoUpdate);
@@ -518,12 +532,14 @@ void QRKRegister::addProductToOrderList(int id)
             count = count.toInt();
 
         m_orderListModel->item(rc -1, REGISTER_COL_COUNT)->setText( count.toString() );
+        m_orderListModel->item(rc -1, REGISTER_COL_PRODUCTNUMBER)->setText( query.value("itemnum").toString() );
         m_orderListModel->item(rc -1, REGISTER_COL_PRODUCT)->setText( query.value("name").toString() );
         m_orderListModel->item(rc -1, REGISTER_COL_TAX)->setText( query.value("tax").toString() );
         m_orderListModel->item(rc -1, REGISTER_COL_SINGLE)->setText( query.value("gross").toString() );
 
         if (!m_barcodeInputLineEditDefault) {
-            QModelIndex idx = m_orderListModel->index(rc -1, REGISTER_COL_COUNT);
+//            QModelIndex idx = m_orderListModel->index(rc -1, REGISTER_COL_COUNT);
+            QModelIndex idx = m_orderListModel->index(rc - 1, ui->orderList->horizontalHeader()->logicalIndex(0));
             ui->orderList->selectionModel()->setCurrentIndex(idx, QItemSelectionModel::NoUpdate);
         } else {
             ui->barcodeLineEdit->setFocus();
@@ -645,15 +661,19 @@ void QRKRegister::newOrder()
     else
         ui->orderList->setItemDelegateForColumn(REGISTER_COL_COUNT, new QrkDelegate (QrkDelegate::SPINBOX, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_PRODUCT, new QrkDelegate (QrkDelegate::PRODUCTS, this));
+    ui->orderList->setItemDelegateForColumn(REGISTER_COL_PRODUCTNUMBER, new QrkDelegate (QrkDelegate::PRODUCTSNUMBER, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_TAX, new QrkDelegate (QrkDelegate::COMBO_TAX, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_NET, new QrkDelegate (QrkDelegate::NUMBERFORMAT_DOUBLE, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_SINGLE, new QrkDelegate (QrkDelegate::NUMBERFORMAT_DOUBLE, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_DISCOUNT, new QrkDelegate (QrkDelegate::DISCOUNT, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_TOTAL, new QrkDelegate (QrkDelegate::NUMBERFORMAT_DOUBLE, this));
 
+    readHeaderColumnSettings();
+
     ui->orderList->horizontalHeader()->setSectionResizeMode(REGISTER_COL_PRODUCT, QHeaderView::Stretch);
     ui->orderList->setColumnHidden(REGISTER_COL_NET, !m_useInputNetPrice);
     ui->orderList->setColumnHidden(REGISTER_COL_DISCOUNT, !m_useDiscount);
+    ui->orderList->setColumnHidden(REGISTER_COL_PRODUCTNUMBER, !m_useInputProductNumber);
     ui->orderList->setColumnHidden(REGISTER_COL_SAVE, true); /* TODO: Make usable and add code to Settings */
 
     ui->orderList->setColumnHidden(REGISTER_COL_TAX, m_orderlistTaxColumnHidden);
@@ -774,7 +794,8 @@ void QRKRegister::finishedPlus()
 
     ui->plusButton->setEnabled(true);
 
-    QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
+//    QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
+    QModelIndex idx = m_orderListModel->index(row, ui->orderList->horizontalHeader()->logicalIndex(0));
 
     if (!m_barcodeInputLineEditDefault) {
         ui->orderList->selectionModel()->setCurrentIndex(idx, QItemSelectionModel::NoUpdate);
@@ -857,21 +878,20 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
     {
         int rc = m_orderListModel->rowCount();
 
-        QList<QVariant> list;
-
         for(int row = 0; row < rc; row++) {
             /* TODO: check for Autosave */
             bool checked = m_orderListModel->item(row ,REGISTER_COL_SAVE)->checkState();
             Q_UNUSED(checked);
 
-            list.clear();
-            list << m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString()
-                 << m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_TAX, QModelIndex())).toString()
-                 << m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_NET, QModelIndex())).toString()
-                 << m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_SINGLE, QModelIndex())).toString()
-                 << "1";
+            QJsonObject itemdata;
+            itemdata["productname"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString();
+            itemdata["tax"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_TAX, QModelIndex())).toString();
+            itemdata["net"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_NET, QModelIndex())).toString();
+            itemdata["gross"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_SINGLE, QModelIndex())).toString();
+            itemdata["productnumber"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+            itemdata["visible"] = 1;
 
-            Database::addProduct(list);
+            Database::addProduct(itemdata);
         }
     }
 
@@ -1068,6 +1088,20 @@ void QRKRegister::writeSettings()
     settings.endGroup();
 }
 
+void QRKRegister::writeHeaderColumnSettings(int, int, int)
+{
+    if (!m_registerHeaderMoveable)
+        return;
+
+    QrkSettings settings;
+
+    settings.beginGroup("Register");
+    settings.save2Settings("HorizontalHeaderColumnGeo", ui->orderList->horizontalHeader()->saveGeometry());
+    settings.save2Settings("HorizontalHeaderColumnSta", ui->orderList->horizontalHeader()->saveState());
+
+    settings.endGroup();
+}
+
 void QRKRegister::readSettings()
 {
     QrkSettings settings;
@@ -1077,9 +1111,27 @@ void QRKRegister::readSettings()
     ui->splitter->restoreState(settings.value("splitterState").toByteArray());
     m_orderlistTaxColumnHidden = settings.value("TaxColumnHidden", false).toBool();
     m_orderlistSinglePriceColumnHidden = settings.value("SinglePriceColumnHidden", false).toBool();
+
+    ui->orderList->horizontalHeader()->restoreGeometry(settings.value("HorizontalHeaderColumnGeo").toByteArray());
+    ui->orderList->horizontalHeader()->restoreState(settings.value("HorizontalHeaderColumnSta").toByteArray());
+
     settings.endGroup();
 
     setButtonsHidden();
+}
+
+void QRKRegister::readHeaderColumnSettings()
+{
+    if (!m_registerHeaderMoveable)
+        return;
+
+    QrkSettings settings;
+
+    settings.beginGroup("Register");
+    ui->orderList->horizontalHeader()->restoreGeometry(settings.value("HorizontalHeaderColumnGeo").toByteArray());
+    ui->orderList->horizontalHeader()->restoreState(settings.value("HorizontalHeaderColumnSta").toByteArray());
+
+    settings.endGroup();
 }
 
 void QRKRegister::splitterMoved(int pos, int)

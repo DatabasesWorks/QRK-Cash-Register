@@ -118,6 +118,28 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         connect( editor , &QLineEdit::textChanged, this, &QrkDelegate::commitAndCloseEditor) ;
 
         return editor ;
+    } else if (m_type == PRODUCTSNUMBER) {
+        QLineEdit *editor = new QLineEdit( parent );
+        QSqlDatabase dbc = Database::database();
+        QSqlQuery query(dbc);
+        query.prepare("SELECT itemnum FROM products WHERE visible = 1 AND itemnum IS NOT ''");
+        query.exec();
+
+        QStringList list;
+
+        while(query.next()){
+            QString value = query.value("itemnum").toString();
+            list << value;
+        }
+
+        QCompleter *editorCompleter = new QCompleter( list ) ;
+        editorCompleter->setCaseSensitivity( Qt::CaseInsensitive ) ;
+        editorCompleter->setFilterMode( Qt::MatchContains );
+        editor->setCompleter( editorCompleter );
+
+        connect( editor , &QLineEdit::textChanged, this, &QrkDelegate::commitAndCloseEditor) ;
+
+        return editor ;
     } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
         QLineEdit* editor = new QLineEdit(parent);
 //        QDoubleValidator *doubleVal = new QDoubleValidator(-99999.99, 99999.99, 2);
@@ -190,7 +212,7 @@ void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
             QComboBox *combo= static_cast<QComboBox *>(editor);
             combo->setCurrentIndex(combo->findText(taxTitle));
         }
-    } else if(m_type == PRODUCTS){
+    } else if(m_type == PRODUCTS || m_type == PRODUCTSNUMBER){
         QLineEdit *edit = static_cast<QLineEdit*>( editor ) ;
         edit->setText( index.data(Qt::EditRole).toString());
     } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
@@ -223,7 +245,7 @@ void QrkDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const
             model->setData(index, QVariant::fromValue(combo->currentText().trimmed()));
         }
 
-    } else if (m_type == PRODUCTS) {
+    } else if (m_type == PRODUCTS || m_type == PRODUCTSNUMBER) {
         QLineEdit *edit = static_cast<QLineEdit *>( editor ) ;
         model->setData( index, edit->text() ) ;
 
@@ -274,7 +296,7 @@ void QrkDelegate::commitAndCloseEditor()
     } else if (m_type == DOUBLE_SPINBOX) {
         QDoubleSpinBox *doublespinbox= static_cast<QDoubleSpinBox *>(sender());
         emit commitData(doublespinbox);
-    } else if (m_type == PRODUCTS) {
+    } else if (m_type == PRODUCTS || m_type == PRODUCTSNUMBER) {
         QLineEdit *editor = static_cast<QLineEdit *>(sender());
         emit commitData( editor ) ;
     }

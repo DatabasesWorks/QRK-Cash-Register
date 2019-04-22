@@ -49,13 +49,14 @@ class QRK_EXPORT Database : public QObject
     static bool addCustomerText(int id, QString text);
     static QString getCustomerText(int id);
     static int getProductIdByName(QString name);
+    static int getProductIdByNumber(QString number);
     static int getProductIdByBarcode(QString code);
-    static bool addProduct(const QList<QVariant> &data);
+    static bool addProduct(const QJsonObject &data);
     static bool exists(const QString type, const QString &name);
     static int getPayedBy(int);
     static int getActionTypeByName(const QString &name);
     static QString getActionType(int id);
-    static QString getTaxType(int id);
+    static QString getTaxType(double id);
     static void setStornoId(int, int);
     static int getStorno(int);
     static int getStornoId(int);

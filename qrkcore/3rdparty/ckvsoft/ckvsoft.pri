@@ -38,7 +38,8 @@ HEADERS += $$PWD/ckvtemplate.h \
     $$PWD/rbac/base_login.h \
     $$PWD/rbac/tempuserlogin.h \
     $$PWD/uniquemachinefingerprint.h \
-    $$PWD/numerickeypad.h
+    $$PWD/numerickeypad.h \
+    $$PWD/headerview.h
 
 SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/acl.cpp \
@@ -55,7 +56,8 @@ SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/base_login.cpp \
     $$PWD/rbac/tempuserlogin.cpp \
     $$PWD/uniquemachinefingerprint.cpp \
-    $$PWD/numerickeypad.cpp
+    $$PWD/numerickeypad.cpp \
+    $$PWD/headerview.cpp
 
 FORMS += \
     $$PWD/rbac/base_admin.ui

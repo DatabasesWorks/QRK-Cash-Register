@@ -93,6 +93,7 @@ private:
     QString m_currency;
     QString m_taxlocation;
     QString m_customerText;
+    QString m_manualProductsNumber = "";
 
     QDateTime m_receiptTime;
     bool m_isR2B;

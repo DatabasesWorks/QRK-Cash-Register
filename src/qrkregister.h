@@ -94,6 +94,8 @@ class QRKRegister : public QWidget
     void categoryButton(bool clicked);
     void writeSettings();
     void readSettings();
+    void writeHeaderColumnSettings(int, int, int);
+    void readHeaderColumnSettings();
     void upPushButton(bool clicked);
     void downPushButton(bool clicked);
     void setButtonsHidden();
@@ -113,6 +115,8 @@ class QRKRegister : public QWidget
     bool m_isR2B;
     bool m_receiptPrintDialog;
     bool m_minstockDialog;
+    bool m_useInputProductNumber;
+    bool m_registerHeaderMoveable;
 
     bool m_orderlistTaxColumnHidden = false;
     bool m_orderlistSinglePriceColumnHidden = false;

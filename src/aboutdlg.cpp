@@ -33,6 +33,7 @@ AboutDlg::AboutDlg( QWidget* parent)
   ui->setupUi(this);
   readLicense();
   ui->serialLabel->setText(tr("Seriennummer: %1").arg(getSerialNumber()));
+  ui->versionLabel->setText(tr("Version: %1").arg(qApp->applicationVersion()));
 }
 
 AboutDlg::~AboutDlg()

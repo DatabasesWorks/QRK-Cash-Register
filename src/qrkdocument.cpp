@@ -188,8 +188,9 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
         QSqlDatabase dbc = Database::database();
         int id = ui->documentList->model()->data(m_documentListModel->index(row, REGISTER_COL_COUNT, QModelIndex())).toInt();
 
-        m_documentContentModel->setQuery(QString("SELECT orders.count, products.name, round(orders.net,2), orders.tax, orders.gross, orders.discount * (-1), ROUND((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount),2) AS Price FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=%1").arg(id), dbc);
+        m_documentContentModel->setQuery(QString("SELECT orders.count, products.itemnum, products.name, round(orders.net,2), orders.tax, orders.gross, orders.discount * (-1), ROUND((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount),2) AS Price FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=%1").arg(id), dbc);
         m_documentContentModel->setHeaderData(REGISTER_COL_COUNT, Qt::Horizontal, tr("Anz."));
+        m_documentContentModel->setHeaderData(REGISTER_COL_PRODUCTNUMBER, Qt::Horizontal, tr("Artikelnummer"));
         m_documentContentModel->setHeaderData(REGISTER_COL_PRODUCT, Qt::Horizontal, tr("Artikel"));
         m_documentContentModel->setHeaderData(REGISTER_COL_NET, Qt::Horizontal, tr("E-Netto"));
         m_documentContentModel->setHeaderData(REGISTER_COL_TAX, Qt::Horizontal, tr("MwSt."));

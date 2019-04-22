@@ -227,6 +227,14 @@ void SettingsDialog::accept()
     settings.save2Settings("useMaximumItemSold", m_receiptmain->getMaximumItemSold());
     settings.save2Settings("decimalDigits", m_receiptmain->getDecimalDigits());
     settings.save2Settings("useDecimalQuantity", m_receiptmain->getDecimalQuantity());
+    settings.save2Settings("useInputProductNumber", m_receiptmain->useInputProductNumber());
+    settings.save2Settings("saveRegisterHeaderGeo", m_receiptmain->getRegisterHeaderMovable());
+    if (!m_receiptmain->getRegisterHeaderMovable()) {
+        settings.beginGroup("Register");
+        settings.removeSettings("HorizontalHeaderColumnGeo");
+        settings.removeSettings("HorizontalHeaderColumnSta");
+        settings.endGroup();
+    }
 
     settings.beginGroup("BarcodeReader");
     settings.save2Settings("barcodeReaderPrefix", m_barcode->getBarcodePrefix());
@@ -528,6 +536,8 @@ ReceiptMainTab::ReceiptMainTab(QWidget *parent)
 
     /* virtual numpad*/
     m_useVirtualNumPadCheck = new QCheckBox();
+    m_useInputProductNumberCheck = new QCheckBox();
+    m_registerHeaderMoveableCheck = new QCheckBox();
 
     QGroupBox *registerGroup = new QGroupBox();
     registerGroup->setTitle(tr("Kassa"));
@@ -550,12 +560,17 @@ ReceiptMainTab::ReceiptMainTab(QWidget *parent)
     extraLayout->addWidget( new QLabel(tr("Virtuellen Ziffernblock verwenden:")),3,1,1,1);
     extraLayout->addWidget( m_useVirtualNumPadCheck, 3,2,1,1);
 
-    extraLayout->addWidget( new QLabel(tr("Meistverkauften Artikel als Standard Artikel verwenden:")), 4,1,1,3);
-    extraLayout->addWidget( m_useMaximumItemSoldCheck, 4,4,1,2);
+    extraLayout->addWidget( new QLabel(tr("Artikelnummer Eingabe ermöglichen:")),4,1,1,1);
+    extraLayout->addWidget( m_useInputProductNumberCheck, 4,2,1,1);
+    extraLayout->addWidget( new QLabel(tr("Kopfzeilen verschiebbar:")),4,3,1,1);
+    extraLayout->addWidget( m_registerHeaderMoveableCheck, 4,4,1,1);
 
-    extraLayout->addWidget( new QLabel(tr("Dezimale Eingabe bei Anzahl Artikel:")),5,1,1,2);
-    extraLayout->addWidget( m_useDecimalQuantityCheck, 5,4,1,1);
-    extraLayout->addWidget( m_decimalRoundSpin, 5,3,1,1);
+    extraLayout->addWidget( new QLabel(tr("Meistverkauften Artikel als Standard Artikel verwenden:")), 5,1,1,3);
+    extraLayout->addWidget( m_useMaximumItemSoldCheck, 5,4,1,2);
+
+    extraLayout->addWidget( new QLabel(tr("Dezimale Eingabe bei Anzahl Artikel:")),6,1,1,2);
+    extraLayout->addWidget( m_useDecimalQuantityCheck, 6,4,1,1);
+    extraLayout->addWidget( m_decimalRoundSpin, 6,3,1,1);
 
     extraLayout->setColumnStretch(1,1);
     extraLayout->setColumnStretch(3,1);
@@ -628,6 +643,8 @@ ReceiptMainTab::ReceiptMainTab(QWidget *parent)
     m_useDecimalQuantityCheck->setChecked(settings.value("useDecimalQuantity", false).toBool());
     m_decimalRoundSpin->setValue(settings.value("decimalDigits", 2).toInt());
     m_useVirtualNumPadCheck->setChecked(settings.value("virtualNumPad", false).toBool());
+    m_useInputProductNumberCheck->setChecked(settings.value("useInputProductNumber", false).toBool());
+    m_registerHeaderMoveableCheck->setChecked(settings.value("saveRegisterHeaderGeo", false).toBool());
 
     m_hideCreditcardCheck->setChecked(settings.value("hideCreditcardButton", false).toBool());
     m_hideDebitcardCheck->setChecked(settings.value("hideDebitcardButton", false).toBool());
@@ -710,6 +727,16 @@ bool ReceiptMainTab::hideDebitcardButton()
 bool ReceiptMainTab::useVirtualNumPad()
 {
     return m_useVirtualNumPadCheck->isChecked();
+}
+
+bool ReceiptMainTab::useInputProductNumber()
+{
+    return m_useInputProductNumberCheck->isChecked();
+}
+
+bool ReceiptMainTab::getRegisterHeaderMovable()
+{
+    return m_registerHeaderMoveableCheck->isChecked();
 }
 
 ExtraTab::ExtraTab(QWidget *parent)

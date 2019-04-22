@@ -20,39 +20,31 @@
  *
 */
 
-#ifndef IMPORT_H
-#define IMPORT_H
+#include "headerview.h"
+#include <QDebug>
 
-#include "reports.h"
-
-class ImportWorker : public Reports
+HeaderView::HeaderView(QWidget *parent) : QHeaderView(Qt::Horizontal, parent)
 {
-    Q_OBJECT
+    connect(this, &HeaderView::sectionClicked, this, &HeaderView::clickedSection);
+}
 
-public:
-    ImportWorker(QQueue<QString> &queue, QWidget *parent = 0);
-    ~ImportWorker();
+void HeaderView::mousePressEvent(QMouseEvent *event)
+{
+    if (sectionsMovable()) {
+        setCursor(QCursor(Qt::ClosedHandCursor));
+    }
+    QHeaderView::mousePressEvent(event);
+}
+void HeaderView::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (sectionsMovable()) {
+        setCursor(Qt::ArrowCursor);
+    }
+    QHeaderView::mouseReleaseEvent(event);
+}
 
-signals:
-    void finished();
+void HeaderView::clickedSection(int s)
+{
 
-public slots:
-    void process();
-    void stopProcess();
-    void number_error(QString);
-    void database_error(QString);
-
-private:
-    bool loadJSonFile(QString filename);
-    bool importR2B(QJsonObject data);
-    bool importReceipt(QJsonObject data);
-    bool importAny(QJsonObject data);
-    bool importTagged(QJsonObject data);
-    bool fileMover(QString filename, QString ext);
-
-    QQueue<QString> *m_queue;
-    bool m_isStopped;
-
-};
-
-#endif // IMPORT_H
+    qDebug()  << Q_FUNC_INFO << "Section " << s << " clicked";
+}

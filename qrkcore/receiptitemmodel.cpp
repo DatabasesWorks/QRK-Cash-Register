@@ -349,7 +349,7 @@ QJsonObject ReceiptItemModel::compileData(int id)
 
     QJsonArray Taxes;
     QList<double> keys = taxes.keys();
-    for (double i = 0.0; i < keys.count(); i++)
+    for (int i = 0; i < keys.count(); i++)
     {
         QJsonObject tax;
         tax["t1"] = QString("%1%").arg( keys[i] );
@@ -375,8 +375,9 @@ void ReceiptItemModel::newOrder( bool  addRow )
 
     clear();
 
-    setColumnCount(8);
+    setColumnCount(9);
     setHeaderData(REGISTER_COL_COUNT, Qt::Horizontal, QObject::tr("Anzahl"));
+    setHeaderData(REGISTER_COL_PRODUCTNUMBER, Qt::Horizontal, QObject::tr("Artikelnummer"));
     setHeaderData(REGISTER_COL_PRODUCT, Qt::Horizontal, QObject::tr("Artikel"));
     setHeaderData(REGISTER_COL_NET, Qt::Horizontal, QObject::tr("E-Netto"));
     setHeaderData(REGISTER_COL_TAX, Qt::Horizontal, QObject::tr("MwSt."));
@@ -392,13 +393,16 @@ void ReceiptItemModel::newOrder( bool  addRow )
 void ReceiptItemModel::plus()
 {
     int row = rowCount();
+    m_manualProductsNumber = "";
+
     insertRow(row);
     blockSignals(true);
 
     QString defaultTax = Database::getDefaultTax();
 
-    setColumnCount(8);
+    setColumnCount(9);
     setItem(row, REGISTER_COL_COUNT, new QStandardItem(QString("1")));
+    setItem(row, REGISTER_COL_PRODUCTNUMBER, new QStandardItem(QString("")));
     setItem(row, REGISTER_COL_PRODUCT, new QStandardItem(QString("")));
     setItem(row, REGISTER_COL_TAX, new QStandardItem(defaultTax));
     setItem(row, REGISTER_COL_NET, new QStandardItem(QString("0")));
@@ -449,7 +453,7 @@ bool ReceiptItemModel::createNullReceipt(int type)
         mustSign = true;
         break;
     case CONTROL_RECEIPT:
-        typeText = "Kontroll NULL Beleg";
+        typeText = "Kontroll nullptr Beleg";
         payType = PAYED_BY_CONTROL_RECEIPT;
         break;
     case CONCLUSION_RECEIPT:
@@ -472,15 +476,16 @@ bool ReceiptItemModel::createNullReceipt(int type)
 
     removeColumn(REGISTER_COL_SAVE);
 
-    QList<QVariant> list;
-    list << typeText
-         << "0"
-         << "0.0"
-         << "0.0"
-         << "0"
-         << "1";
+    QJsonObject itemdata;
+    itemdata["productname"] = typeText;
+    itemdata["tax"] = 0.0;
+    itemdata["net"] = 0.0;
+    itemdata["gross"] = 0.0;
+    itemdata["visible"] = 0;
+    itemdata["group"] = 1;
 
-    ret = Database::addProduct(list);
+
+    ret = Database::addProduct(itemdata);
     if (ret) {
         item(rc -1, REGISTER_COL_COUNT)->setText( "1" );
         item(rc -1, REGISTER_COL_PRODUCT)->setText( typeText );
@@ -652,15 +657,15 @@ bool ReceiptItemModel::setR2BServerMode(QJsonObject obj)
 
     m_isR2B = true;
 
-    QList<QVariant> list;
+    QJsonObject itemdata;
+    itemdata["productname"] = data(index(0, REGISTER_COL_PRODUCT, QModelIndex())).toString();
+    itemdata["productnumber"] = data(index(0, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+    itemdata["tax"] = data(index(0, REGISTER_COL_TAX, QModelIndex())).toString();
+    itemdata["net"] = data(index(0, REGISTER_COL_NET, QModelIndex())).toString();
+    itemdata["gross"] = data(index(0, REGISTER_COL_SINGLE, QModelIndex())).toString();
+    itemdata["visible"] = 1;
 
-    list << data(index(0, REGISTER_COL_PRODUCT, QModelIndex())).toString()
-         << data(index(0, REGISTER_COL_TAX, QModelIndex())).toString()
-         << data(index(0, REGISTER_COL_NET, QModelIndex())).toString()
-         << data(index(0, REGISTER_COL_SINGLE, QModelIndex())).toString()
-         << "1";
-
-    bool ret = Database::addProduct(list);
+    bool ret = Database::addProduct(itemdata);
 
     return ret;
 }
@@ -677,8 +682,6 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         ok = jsonItem.contains("count") && jsonItem.contains("name") && jsonItem.contains("gross") && jsonItem.contains("tax");
         if(!ok)
             continue;
-
-        QList<QVariant> list;
 
         QString gross = Utils::normalizeNumber(jsonItem.value("gross").toString());
         QString net = Utils::normalizeNumber(jsonItem.value("net").toString());
@@ -697,13 +700,15 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         if (!Utils::isNumber(count)) { emit not_a_number("count"); return false; }
         if (!Utils::isNumber(discount)) { emit not_a_number("discount"); return false; }
 
-        list << jsonItem.value("name").toString()
-             << tax
-             << net
-             << gross
-             << "1";
+        QJsonObject itemdata;
+        itemdata["productname"] = jsonItem.value("name").toString();
+        itemdata["tax"] = tax;
+        itemdata["net"] = net;
+        itemdata["gross"] = gross;
+        itemdata["visible"] = 1;
 
-        ret = Database::addProduct(list);
+
+        ret = Database::addProduct(itemdata);
 
         if (ret) {
 
@@ -755,23 +760,53 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     if (col == REGISTER_COL_PRODUCT) {
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare(QString("SELECT gross, tax FROM products WHERE name=:name"));
+        query.prepare(QString("SELECT itemnum, gross, tax FROM products WHERE name=:name"));
         query.bindValue(":name", s);
         query.exec();
+
+        if (m_manualProductsNumber.isEmpty()) {
+            m_manualProductsNumber = data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+            qDebug() << "Function Name: " << Q_FUNC_INFO << " manual: " << m_manualProductsNumber;
+        }
+
         if (query.next()) {
-            item(row, REGISTER_COL_TAX)->setText(query.value(1).toString());
-            item(row, REGISTER_COL_SINGLE)->setText(query.value(0).toString());
+            qDebug() << "Function Name: " << Q_FUNC_INFO << " ItemNum: " << query.value("itemnum").toString();
+            blockSignals(true);
+            item(row, REGISTER_COL_PRODUCTNUMBER)->setText(query.value("itemnum").toString());
+            blockSignals(false);
+            item(row, REGISTER_COL_TAX)->setText(query.value("tax").toString());
+            item(row, REGISTER_COL_SINGLE)->setText(query.value("gross").toString());
         } else {
+            qDebug() << "Function Name: " << Q_FUNC_INFO << " productNumber: " << data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+            item(row, REGISTER_COL_PRODUCTNUMBER)->setText(m_manualProductsNumber);
+            m_manualProductsNumber = "";
             item(row, REGISTER_COL_SINGLE)->setText("0");
         }
 
         emit setButtonGroupEnabled(! s.isEmpty());
     }
+    else if (col == REGISTER_COL_PRODUCTNUMBER && !s.isEmpty()) {
+        QSqlDatabase dbc = Database::database();
+        QSqlQuery query(dbc);
+        query.prepare(QString("SELECT name, gross, tax FROM products WHERE itemnum=:itemnum"));
+        query.bindValue(":itemnum", s);
+        query.exec();
+        if (query.next()) {
+            blockSignals(true);
+            item(row, REGISTER_COL_PRODUCT)->setText(query.value("name").toString());
+            blockSignals(false);
+            item(row, REGISTER_COL_TAX)->setText(query.value("tax").toString());
+            item(row, REGISTER_COL_SINGLE)->setText(query.value("gross").toString());
+        } else {
+            item(row, REGISTER_COL_PRODUCT)->setText("");
+            item(row, REGISTER_COL_SINGLE)->setText("0");
+        }
+    }
 
     switch( col )
     {
     case REGISTER_COL_COUNT:
-        if (s.toDouble() == 0) {
+        if (s.toDouble() == 0.0) {
             sum = 0;
         } else {
             sum =  s.toDouble() * d2;

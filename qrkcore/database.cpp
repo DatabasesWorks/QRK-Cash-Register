@@ -256,7 +256,7 @@ QString Database::getTaxLocation()
         }
     }
 
-    return Database::updateGlobals("taxlocation", NULL, "AT");
+    return Database::updateGlobals("taxlocation", nullptr, "AT");
 }
 
 //--------------------------------------------------------------------------------
@@ -279,7 +279,7 @@ QString Database::getDefaultTax()
         }
     }
 
-    return Database::updateGlobals("defaulttax", NULL, "20");
+    return Database::updateGlobals("defaulttax", nullptr, "20");
 }
 
 //--------------------------------------------------------------------------------
@@ -310,7 +310,7 @@ QString Database::getCurrency()
         if (query.next()) {
             globalStringValues.insert("currency", query.value(0).toString());
         } else {
-            return Database::updateGlobals("currency", NULL, query.value(0).toString());
+            return Database::updateGlobals("currency", nullptr, query.value(0).toString());
         }
     }
 
@@ -445,6 +445,28 @@ int Database::getProductIdByName(QString name)
     return -1;
 }
 
+int Database::getProductIdByNumber(QString number)
+{
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery query(dbc);
+    QString q = QString("SELECT id FROM products WHERE itemnum=:number");
+    bool ok = query.prepare(q);
+
+    query.bindValue(":name", number);
+
+    if (!ok) {
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << getLastExecutedQuery(query);
+    }
+
+    if (query.exec()) {
+        if (query.next())
+            return query.value("id").toInt();
+    }
+
+    return -1;
+}
+
 int Database::getProductIdByBarcode(QString code)
 {
     if (code.isEmpty())
@@ -471,18 +493,22 @@ int Database::getProductIdByBarcode(QString code)
     return -1;
 }
 
-bool Database::addProduct(const QList<QVariant> &data)
+bool Database::addProduct(const QJsonObject &data)
 {
-    bool productExists = Database::exists("products", data.at(0).toString());
+    bool productExists = Database::exists("products", data["productname"].toString());
 
-    int visible = data.at(4).toInt();
+    int visible = data["visible"].toInt();
     int group = 2;
+    QString itemNum = "";
 
-    if (data.length() == 6)
-        group = data.at(5).toInt();
-    if (data.at(0).toString().startsWith("Zahlungsbeleg für Rechnung") | data.at(0).toString().startsWith("Startbeleg")) {
+    if (!data["productnumber"].toString().isNull())
+        itemNum = data["productnumber"].toString();
+
+    if (!data["group"].toString().isNull())
+        group = data["group"].toInt();
+    if (data["productname"].toString().startsWith("Zahlungsbeleg für Rechnung") | data["productname"].toString().startsWith("Startbeleg")) {
         if (productExists) {
-            if (data.at(0).toString().startsWith("Startbeleg")) {
+            if (data["productname"].toString().startsWith("Startbeleg")) {
                 qWarning() << "Function Name: " << Q_FUNC_INFO << "Ein Startbeleg ist schon vorhanden.";
                 return true;
             }
@@ -500,13 +526,14 @@ bool Database::addProduct(const QList<QVariant> &data)
 
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
-    QString q = QString("INSERT INTO products (name, itemnum, barcode, tax, net, gross, visible, `group`) VALUES (:name, '', '', :tax, :net, :gross, :visible, :group)");
+    QString q = QString("INSERT INTO products (name, itemnum, barcode, tax, net, gross, visible, `group`) VALUES (:name, :itemnum, '', :tax, :net, :gross, :visible, :group)");
     bool ok = query.prepare(q);
 
-    query.bindValue(":name", data.at(0).toString());
-    query.bindValue(":tax", data.at(1).toDouble());
-    query.bindValue(":net", data.at(2).toDouble());
-    query.bindValue(":gross", data.at(3).toDouble());
+    query.bindValue(":name", data["productname"].toString());
+    query.bindValue(":itemnum", itemNum);
+    query.bindValue(":tax", data["tax"].toDouble());
+    query.bindValue(":net", data["net"].toDouble());
+    query.bindValue(":gross", data["gross"].toDouble());
     query.bindValue(":visible", visible);
     query.bindValue(":group", group);
 
@@ -875,10 +902,10 @@ bool Database::open(bool dbSelect)
         query.exec(QString("INSERT INTO globals (name, value) VALUES('schemaVersion', %1)")
                    .arg(CURRENT_SCHEMA_VERSION));
 
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5652586fa564a071eb231541abf64dc1f5aa4c8845119ddc2734e836dfa394426d02609a90ad99d5ec1212988424e16c9f47f679b48253b55b0af91d0ee22dacc9f947201288d48b7f14a6fe1c895e1b4cf','DBD7ACB39B653D948DEDD342B912D66F14482DBB')"));
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5652782f7d13ee7f6bd1725691470a0ced96ea4ef910accfa7f416797b7a73c17f239a1abe7f52887d582a719a320d480b76e90b95edfe7eda059aca296e2916d6fa0cfee77d4db0dd01a25d3720f89f633e314241be48b6078a3dc4a13fb11cea51a9c582dff0b7dae944945f9d84eb72a','08EF99A8218FA5130A2B0C58F27D897195162744')"));
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5656545e1d75d25e2b35c2b958d9c37bc733b080292d1738c51366c0cc0e5317acdae667e3e1a166ba75be259466db75a5546ab362107a37cb7a3bd2eaf5785c3d7baa9d5aa723cb1b8333a66af9e59dfced2cbc6f233614ac425b77794d0541ab86019388693a8d32064cfadddaff462412bfd20a876c8bbf503bf224561fe52b2551258978ed8bd0d33382a5d3c5b9768f2828b512d3264dd6b8c1314b0a15856b3ae5f8ebe5830fdd5e2629c18fc2b3e8511eaa6aaf59fc359a531fb6e5f8658','5C29C8A36F5B46F46CE78FB4502F4DC8DFDCEBA6')"));
-        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5656545e1d75d25e2b35c2b958d9c37bc73a79a1c487e6ea70eb7e63c6e708d983879852e1a8d9ea66167824c5312f1d12ca86ae59bd4498a5f6b4cecfd27e28218','6B4D651268E7436F43E668590BFC5D6C86F1AEE7')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5652586fa564a071eb231541abf64dc1f5aa4c8845119ddc2734e836dfa394426d02609a90ad99d5ec1212988424e16c9f47f679b48253b55b0af91d0ee22dacc9f947201288d48b7f14a6fe1c895e1b4cf','DBD7ACB39B653D948DEDD342B912D66F14482DBB')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5652782f7d13ee7f6bd1725691470a0ced96ea4ef910accfa7f416797b7a73c17f239a1abe7f52887d582a719a320d480b76e90b95edfe7eda059aca296e2916d6fa0cfee77d4db0dd01a25d3720f89f633e314241be48b6078a3dc4a13fb11cea51a9c582dff0b7dae944945f9d84eb72a','08EF99A8218FA5130A2B0C58F27D897195162744')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5656545e1d75d25e2b35c2b958d9c37bc733b080292d1738c51366c0cc0e5317acdae667e3e1a166ba75be259466db75a5546ab362107a37cb7a3bd2eaf5785c3d7baa9d5aa723cb1b8333a66af9e59dfced2cbc6f233614ac425b77794d0541ab86019388693a8d32064cfadddaff462412bfd20a876c8bbf503bf224561fe52b2551258978ed8bd0d33382a5d3c5b9768f2828b512d3264dd6b8c1314b0a15856b3ae5f8ebe5830fdd5e2629c18fc2b3e8511eaa6aaf59fc359a531fb6e5f8658','5C29C8A36F5B46F46CE78FB4502F4DC8DFDCEBA6')"));
+        query.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,data,checksum) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, '9f11c3693ee2f40c9c10d741bc13f5656545e1d75d25e2b35c2b958d9c37bc73a79a1c487e6ea70eb7e63c6e708d983879852e1a8d9ea66167824c5312f1d12ca86ae59bd4498a5f6b4cecfd27e28218','6B4D651268E7436F43E668590BFC5D6C86F1AEE7')"));
     } else { // db already exists; check if we need to run an update
         int schemaVersion = 1;
         query.exec("SELECT value FROM globals WHERE name='schemaVersion'");
@@ -1022,7 +1049,7 @@ QString Database::getActionType(int id)
 
 //--------------------------------------------------------------------------------
 
-QString Database::getTaxType(int id)
+QString Database::getTaxType(double id)
 {
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
@@ -1243,16 +1270,16 @@ void Database::resetAllData()
         q.exec();
     }
 
-    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tKonfigurationsänderung\tBeschreibung\tErstellungsdatum')"));
-    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tProduktposition\tBeschreibung\tMenge\tEinzelpreis\tGesamtpreis\tUSt. Satz\tErstellungsdatum')"));
-    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tBeleg\tBelegtyp\tBemerkung\tNachbonierung\tBelegnummer\tDatum\tUmsatz Normal\tUmsatz Ermaessigt1\tUmsatz Ermaessigt2\tUmsatz Null\tUmsatz Besonders\tJahresumsatz bisher\tErstellungsdatum')"));
-    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (NULL,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tBeleg-Textposition\tText\tErstellungsdatum')"));
+    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tKonfigurationsänderung\tBeschreibung\tErstellungsdatum')"));
+    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tProduktposition\tBeschreibung\tMenge\tEinzelpreis\tGesamtpreis\tUSt. Satz\tErstellungsdatum')"));
+    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tBeleg\tBelegtyp\tBemerkung\tNachbonierung\tBelegnummer\tDatum\tUmsatz Normal\tUmsatz Ermaessigt1\tUmsatz Ermaessigt2\tUmsatz Null\tUmsatz Besonders\tJahresumsatz bisher\tErstellungsdatum')"));
+    q.exec(QString("INSERT INTO `journal`(id,version,cashregisterid,datetime,text) VALUES (nullptr,'0.15.1222',0,CURRENT_TIMESTAMP, 'Id\tProgrammversion\tKassen-Id\tBeleg-Textposition\tText\tErstellungsdatum')"));
 }
 
 void Database::cleanup()
 {
-    Database::updateGlobals("defaulttax", NULL, "20");
-    Database::updateGlobals("CASHREGISTER INAKTIV", "0", NULL);
+    Database::updateGlobals("defaulttax", nullptr, "20");
+    Database::updateGlobals("CASHREGISTER INAKTIV", "0", nullptr);
 }
 
 QString Database::updateGlobals(QString name, QString defaultvalue, QString defaultStrValue)
@@ -1270,8 +1297,8 @@ QString Database::updateGlobals(QString name, QString defaultvalue, QString defa
     query.bindValue(":name", name);
     query.exec();
     if (query.next()) {
-        defaultvalue = query.value("value").toString().isNull() ? NULL : query.value("value").toString();
-        defaultStrValue = query.value("strValue").toString().isNull() ? NULL : query.value("strValue").toString();
+        defaultvalue = query.value("value").toString().isNull() ? nullptr : query.value("value").toString();
+        defaultStrValue = query.value("strValue").toString().isNull() ? nullptr : query.value("strValue").toString();
         insertnew = false;
         if (!defaultStrValue.isEmpty())
             globalStringValues.insert(name, defaultStrValue);

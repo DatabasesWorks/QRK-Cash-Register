@@ -382,6 +382,8 @@ bool Utils::checkTurnOverCounter(QStringList &error)
         QString decTOC = sm->decryptTurnoverCounter(con, encTOC, key);
         for (int y = 5; y < 10; y++) {
             QString current = list.at(y);
+            if (current.isEmpty())
+                error.append(QObject::tr("Fehlender Parameter im DEP bei BON %1, Parameter #%2").arg(receiptNum).arg(y));
             counter2 += current.replace(",","").toLongLong();
         }
         counter += counter2;

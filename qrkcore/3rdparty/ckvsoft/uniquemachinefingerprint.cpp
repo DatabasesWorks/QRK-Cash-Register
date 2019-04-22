@@ -1,5 +1,5 @@
 /*
- * This file is part of ckvsoft
+ * This file is part of QRK - Qt Registrier Kasse
  *
  * Copyright (C) 2015-2019 Christian Kvasny <chris@ckvsoft.at>
  *
@@ -18,14 +18,7 @@
  *
  * Button Design, and Idea for the Layout are lean out from LillePOS, Copyright 2010, Martin Koller, kollix@aon.at
  *
- * ckvtemplate use part of code from NLTemplate (c) 2013 tom@catnapgames.com
- * wich is MIT Licensed https://github.com/catnapgames/NLTemplate
- * and some code from Arithmetic Expression Example
- * Solution: Kristijan Burnik, Udruga informatičara Božo Težak
- *             GMail: kristijanburnik
- *
- * both are modified for QT5 use by chris@ckvsoft.at
- */
+*/
 
 #include "uniquemachinefingerprint.h"
 #include <QHostInfo>
@@ -112,7 +105,7 @@ quint16 UniqueMachineFingerprint::getVolumeHash()
     DWORD serialNum = 0;
 
     // Determine if this volume uses an NTFS file system.
-    GetVolumeInformation( (LPCWSTR) "c:\\", NULL, 0, &serialNum, NULL, NULL, NULL, 0 );
+    GetVolumeInformation( (LPCWSTR) "c:\\", nullptr, 0, &serialNum, nullptr, nullptr, nullptr, 0 );
     quint16 hash = (quint16)(( serialNum + ( serialNum >> 16 )) & 0xFFFF );
 
     return hash;
@@ -189,7 +182,7 @@ void UniqueMachineFingerprint::getMacHash( quint16& mac1, quint16& mac2 )
     // get MAC address
     bool foundMac1 = false;
     struct ifreq* ifr;
-    for ( ifr = conf.ifc_req; (qint8*)ifr < (qint8*)conf.ifc_req + conf.ifc_len; ifr++ ) {
+    for ( ifr = conf.ifc_req; reinterpret_cast<qint8*>(ifr) < reinterpret_cast<qint8*>(conf.ifc_req) + conf.ifc_len; ifr++ ) {
         if ( ifr->ifr_addr.sa_data == (ifr+1)->ifr_addr.sa_data )
             continue;  // duplicate, skip it
 
@@ -198,9 +191,9 @@ void UniqueMachineFingerprint::getMacHash( quint16& mac1, quint16& mac2 )
         if ( ioctl( sock, SIOCGIFHWADDR, ifr ) == 0 ) {
             if ( !foundMac1 ) {
                 foundMac1 = true;
-                mac1 = hashMacAddress( (quint8*)&(ifr->ifr_addr.sa_data));
+                mac1 = hashMacAddress( reinterpret_cast<quint8*>(&(ifr->ifr_addr.sa_data)));
             } else {
-                mac2 = hashMacAddress( (quint8*)&(ifr->ifr_addr.sa_data));
+                mac2 = hashMacAddress( reinterpret_cast<quint8*>(&(ifr->ifr_addr.sa_data)));
                 break;
             }
         }
@@ -226,7 +219,14 @@ quint16 UniqueMachineFingerprint::getVolumeHash()
     // Lets hash the system name instead.
     return getSystemSerialNumberHash();
 #else // !__APPLE__
-    quint8* sysname = (quint8*)getVolumeSerial().data();
+
+    union charunion {
+       quint8* chr;
+       const QChar* cchr;
+    } chrptrs;
+
+    chrptrs.cchr = getVolumeSerial().data(); // const char *
+    quint8* sysname = chrptrs.chr;
 
     quint16 hash = 0;
 
@@ -300,7 +300,7 @@ quint16 UniqueMachineFingerprint::getCpuHash()
 
 int eq(const char *const a, const char *const b)
 {
-    if (a == NULL || b == NULL)
+    if (a == nullptr || b == nullptr)
         return 0;
     else
         return !strcmp(a, b);
@@ -335,7 +335,7 @@ const QString UniqueMachineFingerprint::getVolumeSerial()
         if (eq("disk", udev_device_get_devtype(dev))) {
             if (root.contains(udev_device_get_devnode(dev)))
                 serial = udev_device_get_property_value(dev, "ID_SERIAL");
-            udev_device_unref(dev);
+//            udev_device_unref(dev);
         }
         udev_device_unref(dev);
     }
@@ -359,16 +359,21 @@ const QString UniqueMachineFingerprint::getMachineName()
         sha1 = QCryptographicHash::hash(nodename.toUtf8(), QCryptographicHash::Sha1).toHex();
     }
 
+
     quint32 hash = 0;
-    QChar character;
+    union charunion {
+       char chr;
+       uchar uchr;
+    } chrptrs;
+
     for (int i = 0; i < sha1.size(); i++) {
-        character = sha1.at(i);
-        hash = (31 * hash) + (character.toLatin1());
+        chrptrs.chr = sha1.at(i).toLatin1();
+        hash = (31 * hash) + (chrptrs.uchr);
     }
     return QString::number(hash, 16);
 }
 
-quint16 mask[5] = { 0x4e25, 0xf4a1, 0x5437, 0xab41, 0x0000 };
+static quint16 mask[5] = { 0x4e25, 0xf4a1, 0x5437, 0xab41, 0x0000 };
 
 void UniqueMachineFingerprint::smear( quint16* id )
 {
@@ -444,7 +449,7 @@ bool UniqueMachineFingerprint::validate( QString testIdString )
     for ( quint32 i = 0; i < 5; i++ ) {
         QString testNum = testStringList.takeFirst();
         if ( testNum.isEmpty() ) return false;
-        testId[i] = (quint16)(testNum.toLong(NULL, 16 ));
+        testId[i] = testNum.toUShort(nullptr, 16 );
     }
     unsmear( testId );
 

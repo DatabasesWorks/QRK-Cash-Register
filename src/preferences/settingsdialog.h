@@ -79,6 +79,8 @@ public:
     bool hideCreditcardButton();
     QString getDefaultTax();
     bool useVirtualNumPad();
+    bool useInputProductNumber();
+    bool getRegisterHeaderMovable();
 
 signals:
     void maximumSoldItemChanged(bool enabled);
@@ -92,6 +94,8 @@ private:
     QCheckBox *m_hideDebitcardCheck;
     QCheckBox *m_hideCreditcardCheck;
     QCheckBox *m_useVirtualNumPadCheck;
+    QCheckBox *m_useInputProductNumberCheck;
+    QCheckBox *m_registerHeaderMoveableCheck;
 
     QComboBox *m_defaultTaxComboBox;
 
