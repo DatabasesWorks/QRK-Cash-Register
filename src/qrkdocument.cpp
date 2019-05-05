@@ -164,14 +164,16 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
     ui->invoiceCompanyPrintcopyButton->setEnabled(type < PAYED_BY_REPORT_EOD);
 
     if (type == PAYED_BY_REPORT_EOD || type == PAYED_BY_REPORT_EOM) { /* actionType Tagesbeleg*/
-        ui->customerTextLabel->setHidden(true);
+        // ui->customerTextLabel->setHidden(true);
         ui->documentContent->setHidden(true);
         ui->textBrowser->setHidden(false);
         ui->printcopyButton->setEnabled(true);
         ui->textBrowser->setHtml(Reports::getReport(receiptNum));
+        ui->documentLabel->setText(tr("Beleg Nr: %1\t%2\t%3 %4").arg(receiptNum).arg(payedByText).arg(QLocale().toString(price, 'f', 2)).arg(Database::getCurrency()));
+        ui->customerTextLabel->setText(tr("-"));
 
     } else {
-        ui->customerTextLabel->setHidden(false);
+        // ui->customerTextLabel->setHidden(false);
         ui->documentContent->setHidden(false);
         ui->textBrowser->setHidden(true);
         ui->printcopyButton->setEnabled(true);
@@ -182,7 +184,7 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
         else if (Database::getStorno(receiptNum) == 2)
             stornoText = tr("(Storno Beleg für Beleg Nr: %1)").arg(Database::getStornoId(receiptNum));
 
-        ui->documentLabel->setText(tr("Beleg Nr: %1\t%2\t%3\t\t%4").arg(receiptNum).arg(payedByText).arg(QString::number(price, 'f', 2)).arg(stornoText));
+        ui->documentLabel->setText(tr("Beleg Nr: %1\t%2\t%3 %4\t\t%5").arg(receiptNum).arg(payedByText).arg(QLocale().toString(price, 'f', 2)).arg(Database::getCurrency()).arg(stornoText));
         ui->customerTextLabel->setText(tr("Kunden Zusatztext: ") + Database::getCustomerText(receiptNum));
 
         QSqlDatabase dbc = Database::database();
@@ -297,6 +299,14 @@ void QRKDocument::onPrintcopyButton_clicked(bool isInvoiceCompany)
         QString DocumentTitle = QString("BELEG_%1_%2").arg(id).arg(payedByText);
         QTextDocument doc;
         doc.setHtml(Reports::getReport(id));
+
+        QTextCursor cursor(&doc);
+        cursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
+        bool isDamaged;
+        QImage img = Utils::getQRCode(id, isDamaged).toImage();
+        cursor.insertImage(img);
+        if (isDamaged)
+            cursor.insertHtml("</br><small>Sicherheitseinrichtung ausgefallen</small>");
 
         DocumentPrinter p;
         p.printDocument(&doc, DocumentTitle);

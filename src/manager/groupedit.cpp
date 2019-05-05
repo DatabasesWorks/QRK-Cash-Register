@@ -22,6 +22,7 @@
 
 #include "groupedit.h"
 #include "database.h"
+#include "utils/utils.h"
 #include <ui_groupedit.h>
 
 #include <QSqlQuery>
@@ -43,9 +44,12 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
 
   foreach (const QString &colorName, colorNames) {
       const QColor color(colorName);
+      QString fg = Utils::color_best_contrast(color.name());
+      const QColor fg_color(fg);
       ui->colorComboBox->addItem(colorName, color);
       const QModelIndex idx = ui->colorComboBox->model()->index(index++, 0);
       ui->colorComboBox->model()->setData(idx, color, Qt::BackgroundColorRole);
+      ui->colorComboBox->model()->setData(idx, fg_color, Qt::ForegroundRole);
   }
 
   if ( m_id != -1 )
@@ -70,14 +74,18 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
 
     ui->colorComboBox->setCurrentIndex(i);
     QPalette palette(ui->colorComboBox->palette());
-    QColor color(query.value(2).toString());
-    palette.setColor(QPalette::Active,QPalette::Button, color);
-    palette.setColor(QPalette::Highlight, color);
-//    palette.setColor(QPalette::ButtonText, Qt::white);
-    ui->colorComboBox->setPalette(palette);
+    QString colorValue = query.value(2).toString();
+    if (!colorValue.isEmpty()) {
+        QColor color(query.value(2).toString());
+        palette.setColor(QPalette::Active,QPalette::Button, color);
+        palette.setColor(QPalette::Highlight, color);
+        //    palette.setColor(QPalette::ButtonText, Qt::white);
+        ui->colorComboBox->setPalette(palette);
+    }
 
   }
 
+  connect (ui->colorComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &GroupEdit::colorComboChanged);
   connect (ui->okButton, &QPushButton::clicked, this, &GroupEdit::accept);
   connect (ui->cancelButton, &QPushButton::clicked, this, &GroupEdit::reject);
 
@@ -86,6 +94,17 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
 GroupEdit::~GroupEdit()
 {
     delete ui;
+}
+
+void GroupEdit::colorComboChanged(int idx)
+{
+
+    QString colorValue = ui->colorComboBox->itemData(idx, Qt::BackgroundColorRole).toString(); // ->itemText(idx); //   ->model()->index(ui->colorComboBox->currentIndex(), 0).data(Qt::BackgroundColorRole).toString();
+    QPalette palette(ui->colorComboBox->palette());
+    QColor color(colorValue);
+    palette.setColor(QPalette::Active,QPalette::Button, color);
+    palette.setColor(QPalette::Highlight, color);
+    ui->colorComboBox->setPalette(palette);
 }
 
 //--------------------------------------------------------------------------------

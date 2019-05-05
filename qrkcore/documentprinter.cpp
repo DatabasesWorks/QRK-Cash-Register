@@ -458,7 +458,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     Template.set("UHRZEIT", QTime::currentTime().toString());
     Template.set("BONNUMMER", QString::number(data.value("receiptNum").toInt()));
     Template.set("VERSION", data.value("version").toString());
-    QString sum = QString::number(data.value("sum").toDouble(), 'f', 2);
+    QString sum = QLocale().toString(data.value("sum").toDouble(), 'f', 2);
 
     if (data.value("isTestPrint").toBool()) {
         sum = "0,0";
@@ -757,12 +757,12 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         QBCMath singleprice = order.value("singleprice").toDouble();
         singleprice.round(2);
 
-        QString grossText = QString("%1").arg(gross.toString().replace(".",","));
+        QString grossText = gross.toLocale();
         QString singleGrossText;
         if (discount > 0)
-            singleGrossText = QString("%1 x %2 Rabatt:\u00A0-%3%").arg(count.toString()).arg(singleprice.toString().replace(".",",")).arg(discount.toString());
+            singleGrossText = QString("%1 x %2 Rabatt:\u00A0-%3%").arg(count.toLocale()).arg(singleprice.toLocale()).arg(discount.toLocale());
         else
-            singleGrossText = QString("%1 x %2").arg(count.toString().replace(".",",")).arg(singleprice.toString().replace(".",","));
+            singleGrossText = QString("%1 x %2").arg(count.toLocale()).arg(singleprice.toLocale());
 
         if (data.value("isTestPrint").toBool()) {
             count = 0.0;
@@ -785,9 +785,9 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         QRect usedRect;
         QString countString;
         if (m_useDecimalQuantity)
-            countString = count.toString().replace(".", ",");
+            countString = count.toLocale();
         else
-            countString = QString::number(count.toInt()).replace(".", ",");
+            countString = QLocale().toString(count.toInt());
 
         painter.drawText(X_COUNT, y, WIDTH - X_COUNT, fontMetr.height(), Qt::AlignLeft, countString);
         painter.drawText(X_NAME,  y, WIDTH,  productHeight, Qt::AlignLeft, product, &usedRect);
@@ -824,7 +824,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     Spread::Instance()->setProgressBarValue(((float)(progress += 10) / (float)oc) * 100);
 
     int ySave = y; // save y when QR-Code was printing left
-    QString sumText = tr("Gesamt: %1").arg(sum).replace(".",",");
+    QString sumText = tr("Gesamt: %1").arg(sum);
     painter.save();
     painter.setFont(boldFont);
 
@@ -850,7 +850,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
             painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight,
                              tr("MwSt %1: %2")
                              .arg(taxValue)
-                             .arg(taxSum.toString()));
+                             .arg(taxSum.toLocale()));
 
             y += m_feedTax + fontMetr.height();
         }

@@ -51,8 +51,12 @@ class QRK_EXPORT Database : public QObject
     static int getProductIdByName(QString name);
     static int getProductIdByNumber(QString number);
     static int getProductIdByBarcode(QString code);
+    static QString getProductNameById(int id);
+
     static bool addProduct(const QJsonObject &data);
+    static QJsonObject getProductByName(QString name, int visible = 1);
     static bool exists(const QString type, const QString &name);
+    static bool exists(const QString type, const int &id, const QString fieldname = "id");
     static int getPayedBy(int);
     static int getActionTypeByName(const QString &name);
     static QString getActionType(int id);
@@ -71,6 +75,12 @@ class QRK_EXPORT Database : public QObject
     static QString getYearCounter();
     static QString getSalesPerPaymentSQLQueryString();
     static void updateProductSold(double, QString);
+    static void updateProductPrice(double, QString);
+    static bool moveProductsToDefaultGroup(int oldgroupid);
+    static void insertProductItemnumToExistingProduct(QString itemnum, QString product);
+    static QString getNextProductNumber();
+
+
     static QStringList getStockInfoList();
     static QStringList getMaximumItemSold();
     static void setCashRegisterInAktive();
@@ -82,6 +92,7 @@ class QRK_EXPORT Database : public QObject
     static QSqlDatabase database(const QString &connectionname = "CN");
     static bool isAnyValueFunctionAvailable();
     static QString getDatabaseVersion();
+    static QStringList getDatabaseTableHeaderNames(QString tablename);
 
   private:
     static QString getDatabaseType();

@@ -76,6 +76,8 @@ class QRKHome : public QWidget
     void yearPushButton_clicked(bool);
 
   private:
+    void serverCriticalMessageBox(QString title, QString message);
+
     Ui::QRKHome *ui;
     QFrame *m_menu;
     QFrame *m_manager;

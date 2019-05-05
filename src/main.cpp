@@ -187,7 +187,10 @@ int main(int argc, char *argv[])
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     app.setProperty("debugMsg", false);
 
-    QLocale::setDefault(QLocale::German);
+    //QString x = QLocale::system();
+    QLocale l(QLocale().system().language());
+    QLocale::setDefault(l);
+
 
     QSplashScreen *splash = new QSplashScreen;
     splash->setPixmap(QPixmap(":src/icons/splash.png"));

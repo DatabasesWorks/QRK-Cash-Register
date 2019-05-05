@@ -127,6 +127,7 @@ void FileWatcher::start()
 
     connect(thread, &QThread::started, m_worker, &ImportWorker::process);
     connect(this, &FileWatcher::stopWorker, m_worker, &ImportWorker::stopProcess, Qt::DirectConnection);
+    connect(m_worker, &ImportWorker::apport, this, &FileWatcher::apport, Qt::DirectConnection);
     connect(m_worker, &ImportWorker::finished, this, &FileWatcher::finished);
     connect(m_worker, &ImportWorker::finished, thread, &QThread::quit);
     connect(m_worker, &ImportWorker::finished, m_worker, &ImportWorker::deleteLater);

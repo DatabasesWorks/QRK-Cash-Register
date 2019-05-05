@@ -26,6 +26,7 @@
 #include <QSqlDatabase>
 #include <QMutexLocker>
 #include <QThread>
+#include <QSqlQuery>
 #include <QSqlError>
 #include <QJsonObject>
 #include <QDebug>
@@ -40,6 +41,7 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
 
     if (!thread->objectName().isEmpty()) {
         QString objectname = QString::number((long long)QThread::currentThread(), 16);
+
         // if we have a connection for this thread, return it
         QMap<QString, QMap<QString, QSqlDatabase> >::Iterator it_thread = s_instances.find(objectname);
         if (it_thread != s_instances.end()) {
@@ -47,8 +49,9 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
             if (it_conn != it_thread.value().end()) {
                 QSqlDatabase connection = it_conn.value();
                 qDebug() << "Function Name: " << Q_FUNC_INFO << " found SQL connection instances Thread: " << thread << " Name: " << connectionName;
-                if (connection.isValid())
+                if (connection.isValid()) {
                     return it_conn.value();
+                }
             }
         }
     }
@@ -86,6 +89,8 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
 
     qDebug() << "Function Name: " << Q_FUNC_INFO << " new SQL connection instances Thread: " << thread->currentThread() << " Name: " << connectionName;
 
+    enableForeignKey(connection);
+
     s_instances[objectname][connectionName] = connection;
     qDebug() << "Function Name: " << Q_FUNC_INFO << " connection instances used: " << s_instances.size();
 
@@ -100,15 +105,28 @@ void DatabaseManager::clear()
 void DatabaseManager::removeCurrentThread(QString connectionName)
 {
     QString objectname = QString::number((long long)QThread::currentThread(), 16);
+    QString cn = Database::database().connectionName();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " cn: " << cn << " on: " << objectname;
+
     if (s_instances.contains(objectname)) {
         QMap<QString, QSqlDatabase> map = s_instances.value(objectname);
         QSqlDatabase connection = map.value(connectionName);
         connection.close();
         if (!connection.isOpen()) {
             s_instances.remove(objectname);
+
             qDebug() << "Function Name: " << Q_FUNC_INFO << " remove connection instance: " << objectname;
         }
     }
 
     qDebug() << "Function Name: " << Q_FUNC_INFO << " connection instances used: " << s_instances.size();
+}
+
+void DatabaseManager::enableForeignKey(QSqlDatabase dbc)
+{
+    if (dbc.driverName() == "QSQLITE") {
+        QSqlQuery query(dbc);
+        // enforce foreign key constraint
+        query.exec("PRAGMA foreign_keys = 1;");
+    }
 }

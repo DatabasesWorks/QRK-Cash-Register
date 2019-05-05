@@ -453,7 +453,7 @@ bool ReceiptItemModel::createNullReceipt(int type)
         mustSign = true;
         break;
     case CONTROL_RECEIPT:
-        typeText = "Kontroll nullptr Beleg";
+        typeText = "Kontroll NULL Beleg";
         payType = PAYED_BY_CONTROL_RECEIPT;
         break;
     case CONCLUSION_RECEIPT:
@@ -477,7 +477,7 @@ bool ReceiptItemModel::createNullReceipt(int type)
     removeColumn(REGISTER_COL_SAVE);
 
     QJsonObject itemdata;
-    itemdata["productname"] = typeText;
+    itemdata["name"] = typeText;
     itemdata["tax"] = 0.0;
     itemdata["net"] = 0.0;
     itemdata["gross"] = 0.0;
@@ -658,11 +658,11 @@ bool ReceiptItemModel::setR2BServerMode(QJsonObject obj)
     m_isR2B = true;
 
     QJsonObject itemdata;
-    itemdata["productname"] = data(index(0, REGISTER_COL_PRODUCT, QModelIndex())).toString();
-    itemdata["productnumber"] = data(index(0, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
-    itemdata["tax"] = data(index(0, REGISTER_COL_TAX, QModelIndex())).toString();
-    itemdata["net"] = data(index(0, REGISTER_COL_NET, QModelIndex())).toString();
-    itemdata["gross"] = data(index(0, REGISTER_COL_SINGLE, QModelIndex())).toString();
+    itemdata["name"] = data(index(0, REGISTER_COL_PRODUCT, QModelIndex())).toString();
+    itemdata["itemnum"] = data(index(0, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+    itemdata["tax"] = data(index(0, REGISTER_COL_TAX, QModelIndex())).toDouble();
+    itemdata["net"] = data(index(0, REGISTER_COL_NET, QModelIndex())).toDouble();
+    itemdata["gross"] = data(index(0, REGISTER_COL_SINGLE, QModelIndex())).toDouble();
     itemdata["visible"] = 1;
 
     bool ret = Database::addProduct(itemdata);
@@ -701,10 +701,10 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         if (!Utils::isNumber(discount)) { emit not_a_number("discount"); return false; }
 
         QJsonObject itemdata;
-        itemdata["productname"] = jsonItem.value("name").toString();
-        itemdata["tax"] = tax;
-        itemdata["net"] = net;
-        itemdata["gross"] = gross;
+        itemdata["name"] = jsonItem.value("name").toString();
+        itemdata["tax"] = tax.toDouble();
+        itemdata["net"] = net.toDouble();
+        itemdata["gross"] = gross.toDouble();
         itemdata["visible"] = 1;
 
 
@@ -737,6 +737,36 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
     return ret;
 }
 
+int ReceiptItemModel::getFreeProductNumber(int number, int currentRow)
+{
+
+    QString itemData = data(index(currentRow, REGISTER_COL_PRODUCT, QModelIndex())).toString();
+    int row_count = rowCount();
+    for (int row = 0; row < row_count; row++)
+    {
+        if (row == currentRow)
+            continue;
+        if (number == data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toInt()) {
+            if (data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString() != itemData) {
+                number = getFreeProductNumber(number+1, row);
+            }
+        } else {
+            if (data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString() == itemData) {
+                qDebug() << "Function Name: " << Q_FUNC_INFO << " Data: " << m_manualProductsNumber;
+                blockSignals(true);
+                item(currentRow, REGISTER_COL_PRODUCTNUMBER)->setText(data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString());
+                item(currentRow, REGISTER_COL_PRODUCT)->setText(data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString());
+                blockSignals(false);
+                item(currentRow, REGISTER_COL_TAX)->setText(data(index(row, REGISTER_COL_TAX, QModelIndex())).toString());
+                item(currentRow, REGISTER_COL_SINGLE)->setText(data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toString());
+                qDebug() << "Function Name: " << Q_FUNC_INFO << " Data Single: " << data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toString();
+                return data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toInt();
+            }
+        }
+    }
+    return number;
+}
+
 void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&)
 {
 
@@ -765,11 +795,14 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         query.exec();
 
         if (m_manualProductsNumber.isEmpty()) {
-            m_manualProductsNumber = data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+//            m_manualProductsNumber = data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+            m_manualProductsNumber = Database::getNextProductNumber();
             qDebug() << "Function Name: " << Q_FUNC_INFO << " manual: " << m_manualProductsNumber;
         }
 
-        if (query.next()) {
+        m_changeProduct = true;
+
+        if (!m_changeProductNumber && query.next()) {
             qDebug() << "Function Name: " << Q_FUNC_INFO << " ItemNum: " << query.value("itemnum").toString();
             blockSignals(true);
             item(row, REGISTER_COL_PRODUCTNUMBER)->setText(query.value("itemnum").toString());
@@ -778,29 +811,40 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
             item(row, REGISTER_COL_SINGLE)->setText(query.value("gross").toString());
         } else {
             qDebug() << "Function Name: " << Q_FUNC_INFO << " productNumber: " << data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
-            item(row, REGISTER_COL_PRODUCTNUMBER)->setText(m_manualProductsNumber);
-            m_manualProductsNumber = "";
+            qDebug() << "Function Name: " << Q_FUNC_INFO << " manualProductNumber: " << m_manualProductsNumber;
             item(row, REGISTER_COL_SINGLE)->setText("0");
+            if (!m_manualProductsNumber.isEmpty() && !Database::exists("products", m_manualProductsNumber.toInt(), "itemnum")) m_manualProductsNumber = QString::number(getFreeProductNumber(m_manualProductsNumber.toInt(), row));
+            if (!m_manualProductsNumber.isEmpty() && Database::exists("products", m_manualProductsNumber.toInt(), "itemnum")) m_manualProductsNumber = Database::getNextProductNumber();
+            blockSignals(true);
+            item(row, REGISTER_COL_PRODUCTNUMBER)->setText(m_manualProductsNumber);
+            item(row, REGISTER_COL_TAX)->setText(Database::getDefaultTax());
+            blockSignals(false);
         }
-
+        m_changeProduct = false;
         emit setButtonGroupEnabled(! s.isEmpty());
     }
-    else if (col == REGISTER_COL_PRODUCTNUMBER && !s.isEmpty()) {
+    else if (col == REGISTER_COL_PRODUCTNUMBER && !s.isEmpty() ) {
+        m_changeProductNumber = true;
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
         query.prepare(QString("SELECT name, gross, tax FROM products WHERE itemnum=:itemnum"));
         query.bindValue(":itemnum", s);
         query.exec();
-        if (query.next()) {
+        if (!m_changeProduct && query.next()) {
             blockSignals(true);
             item(row, REGISTER_COL_PRODUCT)->setText(query.value("name").toString());
             blockSignals(false);
             item(row, REGISTER_COL_TAX)->setText(query.value("tax").toString());
             item(row, REGISTER_COL_SINGLE)->setText(query.value("gross").toString());
         } else {
+            m_manualProductsNumber = s;
             item(row, REGISTER_COL_PRODUCT)->setText("");
             item(row, REGISTER_COL_SINGLE)->setText("0");
         }
+        m_changeProductNumber = false;
+    }
+    else if (col == REGISTER_COL_PRODUCTNUMBER && s.isEmpty() ) {
+        m_manualProductsNumber = s;
     }
 
     switch( col )
@@ -857,6 +901,8 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         sum.round(2);
         item(row, REGISTER_COL_TOTAL)->setText( sum.toString() );
         blockSignals(false);
+        if (!m_changeProduct && !m_changeProductNumber)
+            emit singlePriceChanged(data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString(), s, data(index(row, REGISTER_COL_TAX, QModelIndex())).toString());
         break ;
     case REGISTER_COL_DISCOUNT:
         blockSignals(true);

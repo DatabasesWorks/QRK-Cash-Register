@@ -23,6 +23,8 @@
 #ifndef CSVIMPORTWIZARDPAGE3_H
 #define CSVIMPORTWIZARDPAGE3_H
 
+#include "database.h"
+
 #include <QWizardPage>
 #include <QMap>
 #include <QStandardItemModel>
@@ -41,8 +43,12 @@ class CsvImportWizardPage3 : public QWizardPage
     bool isComplete() const;
     void setModel(QStandardItemModel *model);
     void setMap(QMap<QString, QVariant> *m);
+    void setMap(QMap<QString, QJsonObject> *m);
 
-  private slots:
+signals:
+    void removePage(int id);
+
+private slots:
     void importFinished();
     void save(bool);
     void info(QString info);
@@ -52,6 +58,7 @@ class CsvImportWizardPage3 : public QWizardPage
     void initializePage();
     QStandardItemModel *m_model;
     QMap<QString, QVariant> *m_map;
+    QMap<QString, QJsonObject> *m_errormap;
     bool m_autoGroup;
     bool m_guessGroup;
     bool m_ignoreExistingProduct;
@@ -60,6 +67,8 @@ class CsvImportWizardPage3 : public QWizardPage
     bool m_finished;
     bool m_visibleGroup;
     bool m_visibleProduct;
+    bool m_autoitemnum;
+    int  m_autominitemnum;
 
 };
 
@@ -68,7 +77,7 @@ class ImportData : public QObject
     Q_OBJECT
 
   public:
-    ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, bool ignoreExistingProduct = false, bool guessGroup = false, bool autogroup = false,  bool visibleGroup = false, bool visibleProduct = false, bool updateExistingProduct = false);
+    ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, QMap<QString, QJsonObject> *errormap, bool ignoreExistingProduct = false, bool guessGroup = false, bool autogroup = false,  bool visibleGroup = false, bool visibleProduct = false, bool updateExistingProduct = false, bool autoitemnum = true, int autominitemnum = Database::getNextProductNumber().toInt());
     ~ImportData();
 
     void run();
@@ -80,7 +89,7 @@ class ImportData : public QObject
 
   private:
     QString getItemValue(int roe, int col, bool replace = false);
-    int exists(QString itemnum, QString barcode, QString name);
+    int exists(QString itemnum, QString barcode, QString name, int &type);
     QString getGuessGroup(QString name);
     int createGroup(QString name);
     QString getGroupById(int id);
@@ -88,13 +97,15 @@ class ImportData : public QObject
 
     QStandardItemModel *m_model;
     QMap<QString, QVariant> *m_map;
-
+    QMap<QString, QJsonObject> *m_errormap;
     bool m_ignoreExistingProduct;
     bool m_updateExistingProduct;
     bool m_guessGroup;
     bool m_autoGroup;
     bool m_visibleGroup;
     bool m_visibleProduct;
+    bool m_autoitemnum;
+    int m_autominitemnum;
     double m_defaulttax;
 
 };

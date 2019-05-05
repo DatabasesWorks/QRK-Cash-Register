@@ -35,6 +35,7 @@ public:
 
 signals:
     void finished();
+    void apport(bool);
 
 public slots:
     void process();

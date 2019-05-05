@@ -45,6 +45,7 @@ class ComboBoxDelegate : public QItemDelegate
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex & index) const;
 
   private:
+    void commitAndCloseEditor();
     QList<QString> m_list;
 
 };

@@ -41,6 +41,7 @@ public:
 signals:
     void stopWorker();
     void workerStopped();
+    void apport(bool);
 
 public slots:
     void directoryChanged(const QString& str);

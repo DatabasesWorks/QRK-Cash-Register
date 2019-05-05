@@ -28,9 +28,11 @@
 
 #include <QSqlRelationalTableModel>
 #include <QSqlRelation>
+#include <QSqlQuery>
 #include <QSortFilterProxyModel>
 #include <QMessageBox>
 #include <QHeaderView>
+#include <QSqlRelationalDelegate>
 
 //--------------------------------------------------------------------------------
 
@@ -49,11 +51,11 @@ ProductsWidget::ProductsWidget(QWidget *parent)
   m_model = new QSqlRelationalTableModel(this, dbc);
   m_model->setTable("products");
   m_model->setRelation(m_model->fieldIndex("group"), QSqlRelation("groups", "id", "name"));
-  // model->setFilter("\"group\" > 1");
+
   m_model->setFilter("`group` > 1");
 
   m_model->setEditStrategy(QSqlTableModel::OnFieldChange);
-//  model->setEditStrategy(QSqlTableModel::OnRowChange);
+//  m_model->setEditStrategy(QSqlTableModel::OnRowChange);
   m_model->select();
   m_model->fetchMore();  // else the list is not filled with all possible rows
 
@@ -72,6 +74,8 @@ ProductsWidget::ProductsWidget(QWidget *parent)
   m_proxyModel->setFilterKeyColumn(m_model->fieldIndex("name"));
 
   ui->tableView->setModel(m_proxyModel);
+//  ui->tableView->setItemDelegate(new QSqlRelationalDelegate(ui->tableView));
+
   ui->tableView->setSortingEnabled(true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("id"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("barcode"), true);
@@ -145,11 +149,14 @@ void ProductsWidget::minusSlot()
   if(msgBox.exec() == QMessageBox::No)
       return;
 
-  m_model->removeRow(row);
+  // m_model->removeRow(row);
+  /* Workaround, removeRow always delete the product
+   * QT5 5.12
+  */
+  //  int id = m_model->data(m_model->index(row, 0)).toInt();
 
-  /* Workaround, removeRow always return false*/
-  if ( m_model->data(m_model->index(row, 0)).toInt() != 0)
-  {
+  if (!m_model->removeRow(row) /* Database::exists("orders", id, "product")*/) {
+
       QMessageBox msgBox;
       msgBox.setIcon(QMessageBox::Information);
       msgBox.setWindowTitle(tr("Löschen nicht möglich"));
@@ -157,8 +164,18 @@ void ProductsWidget::minusSlot()
       msgBox.setStandardButtons(QMessageBox::Yes);
       msgBox.setButtonText(QMessageBox::Yes, tr("Ok"));
       msgBox.exec();
+      return;
   }
 
+/*
+  QSqlDatabase dbc = Database::database();
+  QSqlQuery query(dbc);
+
+  query.prepare("DELETE FROM products WHERE id=:id");
+  query.bindValue(":id", id);
+
+  query.exec();
+*/
   m_model->select();
   m_model->fetchMore();  // else the list is not filled with all possible rows
 

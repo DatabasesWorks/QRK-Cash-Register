@@ -63,6 +63,7 @@ private:
     QrkPushButton *m_buttonDiscount = 0;
     QLineEdit *m_lineEdit;
     QString m_text;
+    int m_digits = 2;
 };
 
 #endif // NUMERICKEYPAD_H

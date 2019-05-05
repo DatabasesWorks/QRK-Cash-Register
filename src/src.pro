@@ -85,7 +85,10 @@ SOURCES += main.cpp \
     preferences/textedit.cpp \
     horizontalscrollarea.cpp \
     barcodefinder.cpp \
-    export/exportproducts.cpp
+    export/exportproducts.cpp \
+    export/checkablelist/checkablelistdialog.cpp \
+    export/checkablelist/checkablelistmodel.cpp \
+    import/csvimportwizardpage4.cpp
 
 HEADERS  += \
     qsortfiltersqlquerymodel.h \
@@ -120,7 +123,10 @@ HEADERS  += \
     preferences/textedit.h \
     horizontalscrollarea.h \
     barcodefinder.h \
-    export/exportproducts.h
+    export/exportproducts.h \
+    export/checkablelist/checkablelistdialog.h \
+    export/checkablelist/checkablelistmodel.h \
+    import/csvimportwizardpage4.h
 
 FORMS += \
     ui/qrk.ui \
@@ -141,7 +147,8 @@ FORMS += \
     export/exportdialog.ui \
     ui/foninfo.ui \
     ui/salesinfo.ui \
-    ui/barcodefinder.ui
+    ui/barcodefinder.ui \
+    import/csvimportwizardpage4.ui
 
 RESOURCES += \
     ../qrk.qrc

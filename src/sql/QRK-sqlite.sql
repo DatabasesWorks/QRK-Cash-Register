@@ -81,13 +81,13 @@ CREATE TABLE `products` (
 CREATE TABLE `orders` (
     `id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     `receiptId`	INTEGER NOT NULL,
-    `product`	INTEGER NOT NULL,
+    `product` INTEGER NOT NULL,
     `count`	double NOT NULL DEFAULT '1',
     `discount`	double NOT NULL DEFAULT '0',
     `net`	double NOT NULL,
     `gross`	double NOT NULL,
     `tax`	double NOT NULL DEFAULT '0.0',
-    FOREIGN KEY(`product`) REFERENCES products ( id )
+    CONSTRAINT `product` FOREIGN KEY(`product`) REFERENCES `products` ( `id` )
 );
 
 CREATE INDEX `orders_receiptId_index` ON `orders` (`receiptId`);

@@ -39,6 +39,7 @@
 #include <QPixmap>
 #include <QtMath>
 #include <QStorageInfo>
+#include <QCollator>
 #include <QDebug>
 
 Utils::Utils()
@@ -525,7 +526,7 @@ void Utils::diskSpace(QString path, qint64 &size, qint64 &bytesAvailable, double
     bytesAvailable = storage.bytesAvailable() /1024/1024;
 
     qint64 usedspace = size - bytesAvailable;
-    percent = ((double) usedspace / (double) size);
+    percent = (double(usedspace) / double(size));
     if (percent < 0) percent = 0;
     if (percent > 0.9) percent = 0.9;
 
@@ -540,6 +541,11 @@ bool Utils::isNumber(QVariant number)
 
 bool Utils::compareNames(const QString& s1,const QString& s2)
 {
+    QCollator collator;
+    collator.setNumericMode(true);
+
+    return collator.compare(s1, s2) < 0;
+
     {
         // ignore common prefix..
         int i = 0;
@@ -615,5 +621,16 @@ QString Utils::getTaxString(QBCMath tax, bool zero)
     if (zero && taxPercent == "0") taxPercent = "00";
 
     return taxPercent;
+
+}
+
+int Utils::getDigitsFromString(QString string)
+{
+    QString digits = "";
+    for (int i = 0; i < string.size(); i++) {
+        if (string[i].isDigit())
+            digits.append(string[i]);
+    }
+    return digits.toInt();
 
 }

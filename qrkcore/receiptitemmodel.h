@@ -78,6 +78,7 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     void finishedItemChanged();
     void finishedPlus();
     void not_a_number(QString);
+    void singlePriceChanged(QString product, QString singleprice, QString tax);
 
 private slots:
     void itemChangedSlot(const QModelIndex&, const QModelIndex&);
@@ -86,6 +87,7 @@ private:
     void setTotallyUp(bool totallyup);
     bool doEndOfDay(QDate date);
     void initPlugins();
+    int getFreeProductNumber(int number, int currentRow);
 
     WsdlInterface *wsdlInterface = 0;
 
@@ -99,6 +101,8 @@ private:
     bool m_isR2B;
     bool m_isReport;
     bool m_totallyup;
+    bool m_changeProduct = false;
+    bool m_changeProductNumber = false;
 
     int m_currentReceipt;
 };

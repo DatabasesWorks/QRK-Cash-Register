@@ -20,32 +20,48 @@
  *
 */
 
-#ifndef _GroupEdit_H_
-#define _GroupEdit_H_
+#ifndef CSVIMPORTWIZARDPAGE4_H
+#define CSVIMPORTWIZARDPAGE4_H
 
-#include <QDialog>
-#include <QSqlQueryModel>
+#include <QWizardPage>
+#include <QMap>
+#include <QStandardItemModel>
 
 namespace Ui {
-  class GroupEdit;
+  class CsvImportWizardPage4;
 }
 
-class GroupEdit : public QDialog
+class CsvImportWizardPage4 : public QWizardPage
 {
-  Q_OBJECT
+    Q_OBJECT
 
   public:
-    GroupEdit(QWidget *parent, int id = -1);  // -1 ... neu
-    ~GroupEdit();
+    explicit CsvImportWizardPage4(QWidget *parent = 0);
+    ~CsvImportWizardPage4();
+    bool isComplete() const;
+    void setMap(QMap<QString, QJsonObject> *m);
 
-  public slots:
-    virtual void accept();
-    void colorComboChanged(int idx);
+  private slots:
+    void importFinished();
+    void cancelButton(bool);
+    void newButton(bool);
+    void changeButton(bool);
+    void info(QString info);
 
   private:
-    Ui::GroupEdit *ui;
-    int m_id;
-    QSqlQueryModel *m_categoriesModel;
+    Ui::CsvImportWizardPage4 *ui;
+    void initializePage();
+    void setWidgetData();
+
+    QMap<QString, QJsonObject> *m_errormap;
+    bool m_autoGroup;
+    bool m_guessGroup;
+    bool m_ignoreExistingProduct;
+    bool m_updateExistingProduct;
+    QString m_importType;
+    bool m_visibleGroup;
+    bool m_visibleProduct;
+
 };
 
-#endif
+#endif // CSVIMPORTWIZARDPAGE4_H

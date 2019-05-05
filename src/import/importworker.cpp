@@ -28,6 +28,7 @@
 #include "database.h"
 #include "databasemanager.h"
 #include "documentprinter.h"
+#include "utils/utils.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -379,19 +380,47 @@ bool ImportWorker::fileMover(QString filename, QString ext)
     QFileInfoList fIL;
     fIL = directory.entryInfoList(filter, QDir::Files, QDir::Time);
 
-    if (fIL.size()>0) {
-        QFileInfo fi = fIL.last();
-        QString e = fi.fileName().section(".", -1,-1);
+    QStringList entryList = directory.entryList(filter);
+
+    std::sort(
+        entryList.begin(),
+        entryList.end(), Utils::compareNames);
+
+    if (entryList.size()>0) {
+        QString last = entryList.last();
+        QString e = last.section(".", -1,-1);
         if (e == ext.section(".", -1,-1)) {
             ext = ".001";
         } else {
-            int i = e.toInt() +1;
-            ext = "." + QString("%1").arg(i, e.size(), 'g', -1, '0');;
+            uint i = e.toUInt() +1;
+            if (i+1 == 0) {
+                QString info = tr("ACHTUNG -> Maximaler Datenzähler erreicht, Dateiendung: %1").arg(i);
+                Spread::Instance()->setImportInfo(info, true);
+            }
+
+            if (e.size() > 4)
+                ext = "." + QString::number(i);
+            else
+                ext = "." + QString("%1").arg(i, e.size(), 'g', -1, '0');
+
+            if (i > 99) {
+                Spread::Instance()->setImportInfo(tr("INFO: Dateiname nicht unterstützt. Nähere Infos: https://www.ckvsoft.at"), true);
+                Spread::Instance()->setImportInfo(tr("INFO: Verwenden Sie fortlaufende Nummern in Ihren Dateinamen. (zB. BON001.json, BON002.json ... BON010.json)"), true);
+                qInfo() << "Function Name: " << Q_FUNC_INFO << "unsupported Filename: " << originalfilename << " backupname: " << filename << ext;
+            }
         }
+
         QFile f(originalfilename);
-        return f.rename(filename + ext);
+        bool success = f.rename(filename + ext);
+        if (!success) emit apport(false);
+
+        return success;
     }
+
     QFile f(originalfilename);
 
-    return f.rename(filename);
+    bool success = f.rename(filename);
+    if (!success) emit apport(false);
+
+    return success;
 }

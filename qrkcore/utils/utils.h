@@ -58,6 +58,7 @@ class QRK_EXPORT Utils
     static bool isNumber(QVariant number);
     static bool compareNames(const QString& s1,const QString& s2);
     static QString getTaxString(QBCMath tax, bool zero = false);
+    static int getDigitsFromString(QString string);
 
 };
 

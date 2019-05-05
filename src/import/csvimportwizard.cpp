@@ -24,6 +24,7 @@
 #include "csvimportwizardpage1.h"
 #include "csvimportwizardpage2.h"
 #include "csvimportwizardpage3.h"
+#include "csvimportwizardpage4.h"
 
 CsvImportWizard::CsvImportWizard(QWidget *parent) :
     QWizard(parent)
@@ -32,10 +33,12 @@ CsvImportWizard::CsvImportWizard(QWidget *parent) :
     m_model = new QStandardItemModel();
     m_assignmentModel = new QStandardItemModel();
     m_map = new QMap<QString, QVariant>;
+    m_errormap = new QMap<QString, QJsonObject>;
 
     m_pageImport = new CsvImportWizardPage1(this);
     m_pageAssign = new CsvImportWizardPage2(this);
     m_pageSave = new CsvImportWizardPage3(this);
+    m_pageSaveAgain = new CsvImportWizardPage4(this);
 
     m_pageImport->setModel(m_model);
     m_pageAssign->setModel(m_model);
@@ -43,9 +46,13 @@ CsvImportWizard::CsvImportWizard(QWidget *parent) :
     m_pageAssign->setAssignmentModel(m_assignmentModel);
     m_pageSave->setModel(m_model);
     m_pageSave->setMap(m_map);
+    m_pageSave->setMap(m_errormap);
+    m_pageSaveAgain->setMap(m_errormap);
 
     addPage(m_pageImport);
     addPage(m_pageAssign);
     addPage(m_pageSave);
+    addPage(m_pageSaveAgain);
 
+    connect(m_pageSave, &CsvImportWizardPage3::removePage, this, &CsvImportWizard::removePage);
 }

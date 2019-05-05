@@ -68,6 +68,6 @@ erledigt    Fußzeile                                (VERSION 0.16.0104)
 erledigt    Stammdaten Eingabe                      (VERSION 0.16.0104)
 erledigt    Fußtext auf Kassebon                    (VERSION 0.16.0104)
 erledigt    Bon zu beleg 2-zeilig Drucken           (VERSION 0.15.1231)
+erledigt    Grössere Buttons für Touch (bitte nur wahlweise wegen kleinem Bildschirm) (VERSION 1.10)
 
 verworfen (kein bedarf)      Mehrzeilige Produktzeile bei der Eingabe
-verworfen (kein bedarf)      Grössere Buttons für Touch (bitte nur wahlweise wegen kleinem Bildschirm)

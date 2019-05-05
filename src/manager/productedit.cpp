@@ -57,13 +57,34 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
         ui->colorComboBox->model()->setData(idx, fg_color, Qt::ForegroundRole);
     }
 
+    QrkSettings settings;
+    int decimals = settings.value("decimalDigits", 2).toInt();
+    bool useDecimals = settings.value("useDecimalQuantity", false).toBool();
+
     QDoubleValidator *doubleVal = new QDoubleValidator(0.0, 9999999.99, 2, this);
     doubleVal->setNotation(QDoubleValidator::StandardNotation);
 
+    /* FIXME: QIntValitator to not restrict dots|commas (QLocale dependent)
+     * QIntValidator *intVal = new QIntValidator(-9999999, 9999999, this);
+     */
+
+    QRegExp rx("-?\\d{1,6}");
+    QValidator *intVal = new QRegExpValidator(rx, this);
+
+    QRegExp rx16("\\d{1,16}");
+    ui->itemNum->setValidator(new QRegExpValidator(rx16, this));
+    ui->barcode->setValidator(new QRegExpValidator(rx16, this));
+
     ui->net->setValidator(doubleVal);
     ui->gross->setValidator(doubleVal);
-    ui->stockLineEdit->setValidator(doubleVal);
-    ui->minstockLineEdit->setValidator(doubleVal);
+    if (useDecimals) {
+        ui->stockLineEdit->setValidator(doubleVal);
+        ui->minstockLineEdit->setValidator(doubleVal);
+    } else {
+        decimals = 0;
+        ui->stockLineEdit->setValidator(intVal);
+        ui->minstockLineEdit->setValidator(intVal);
+    }
 
     QSqlDatabase dbc = Database::database();
 
@@ -79,11 +100,7 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     ui->taxComboBox->setModelColumn(1);  // show tax
     ui->taxComboBox->setCurrentIndex(0);
 
-    QrkSettings settings;
-    int decimals = settings.value("decimalDigits", 2).toInt();
-
-    if ( m_id != -1 )
-    {
+    if ( m_id != -1 ) {
         QSqlQuery query(QString("SELECT `name`, `group`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon`, `stock`, `minstock` FROM products WHERE id=%1").arg(id), dbc);
         query.next();
 
@@ -91,13 +108,18 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
         ui->name->setReadOnly(true);
         ui->name->setToolTip(tr("Bestehende Artikelnamen dürfen nicht umbenannt werden. Versuchen Sie diesen Artikel zu löschen und legen danach einen neuen Artikel an."));
         ui->visibleCheckBox->setChecked(query.value("visible").toBool());
-        ui->net->setText(QBCMath::bcround(query.value("net").toString(),2));
-        ui->gross->setText(QBCMath::bcround(query.value("gross").toString(),2));
+        ui->net->setText(QBCMath::bcroundL(query.value("net").toString(),2));
+        ui->gross->setText(QBCMath::bcroundL(query.value("gross").toString(),2));
         ui->itemNum->setText(query.value("itemnum").toString());
         ui->barcode->setText(query.value("barcode").toString());
         ui->collectionReceiptCheckBox->setChecked(query.value("coupon").toBool());
-        ui->stockLineEdit->setText(QBCMath::bcround(query.value("stock").toString(),decimals));
-        ui->minstockLineEdit->setText(QBCMath::bcround(query.value("minstock").toString(),decimals));
+        if (decimals == 0) {
+            ui->stockLineEdit->setText(query.value("stock").toString());
+            ui->minstockLineEdit->setText(query.value("minstock").toString());
+        } else {
+            ui->stockLineEdit->setText(QBCMath::bcroundL(query.value("stock").toString(),decimals));
+            ui->minstockLineEdit->setText(QBCMath::bcroundL(query.value("minstock").toString(),decimals));
+        }
 
         int i;
         for (i = 0; i < m_groupsModel->rowCount(); i++)
@@ -122,20 +144,26 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
             i = 0;
 
         QString colorValue = query.value("color").toString().trimmed();
-        QPalette palette(ui->colorComboBox->palette());
-        QColor color(colorValue);
-        palette.setColor(QPalette::Active,QPalette::Button, color);
-        palette.setColor(QPalette::Highlight, color);
-        ui->colorComboBox->setPalette(palette);
+        if (!colorValue.isEmpty()) {
+            QPalette palette(ui->colorComboBox->palette());
+            QColor color(colorValue);
+            palette.setColor(QPalette::Active,QPalette::Button, color);
+            palette.setColor(QPalette::Highlight, color);
+            ui->colorComboBox->setPalette(palette);
+        }
         ui->colorComboBox->setCurrentIndex(i);
 
+    } else {
+        ui->itemNum->setText(Database::getNextProductNumber());
     }
+
     connect (ui->taxComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ProductEdit::taxComboChanged);
     connect (ui->net, &QLineEdit::editingFinished, this, &ProductEdit::netChanged);
     connect (ui->gross, &QLineEdit::editingFinished, this, &ProductEdit::grossChanged);
     connect (ui->colorComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ProductEdit::colorComboChanged);
     connect (ui->okButton, &QPushButton::clicked, this, &ProductEdit::accept);
     connect (ui->cancelButton, &QPushButton::clicked, this, &ProductEdit::reject);
+    connect (ui->itemNum, &QLineEdit::editingFinished, this, &ProductEdit::itemnumChanged);
 
     settings.beginGroup("BarcodeReader");
     m_barcodeReaderPrefix = settings.value("barcodeReaderPrefix", Qt::Key_F11).toInt();
@@ -198,7 +226,7 @@ void ProductEdit::taxComboChanged(int)
     QBCMath net(ui->net->text().replace(",",".").toDouble());
     QBCMath gross(net * (1.0 + tax.toDouble() / 100.0));
 
-    ui->gross->setText(QBCMath::bcround(gross.toString(), 2));
+    ui->gross->setText(QBCMath::bcroundL(gross.toString(), 2));
 }
 
 void ProductEdit::netChanged()
@@ -207,7 +235,7 @@ void ProductEdit::netChanged()
     QBCMath net(ui->net->text().replace(",",".").toDouble());
     QBCMath gross(net * (1.0 + tax.toDouble() / 100.0));
 
-    ui->gross->setText(QBCMath::bcround(gross.toString(), 2));
+    ui->gross->setText(QBCMath::bcroundL(gross.toString(), 2));
 }
 
 void ProductEdit::grossChanged()
@@ -216,11 +244,25 @@ void ProductEdit::grossChanged()
     QBCMath gross(ui->gross->text().replace(",",".").toDouble());
     QBCMath net(gross / (1.0 + tax.toDouble() / 100.0));
 
-    ui->net->setText(QBCMath::bcround(net.toString(), 2));
+    ui->net->setText(QBCMath::bcroundL(net.toString(), 2));
+}
+
+void ProductEdit::itemnumChanged()
+{
+    if (ui->itemNum->text().isEmpty()) {
+        ui->itemNum->setText(Database::getNextProductNumber());
+        return;
+    }
+
+    if (Database::exists("products", ui->itemNum->text().toInt(), "itemnum"))
+        ui->itemNum->setText(Database::getNextProductNumber());
 }
 
 void ProductEdit::accept()
 {
+
+    if (ui->name->text().isEmpty())
+        return;
 
     int id = Database::getProductIdByName(ui->name->text());
     if (m_id != id) {
@@ -245,31 +287,34 @@ void ProductEdit::accept()
 
     QString color = ui->colorComboBox->model()->index(ui->colorComboBox->currentIndex(), 0).data(Qt::BackgroundColorRole).toString();
 
-    double tax = m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toDouble();
-    double net = ui->gross->text().replace(",",".").toDouble() / (1.0 + tax / 100.0);
+    double tax = QLocale().toDouble(m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toString());
+    double net = QLocale().toDouble(ui->gross->text()) / (1.0 + tax / 100.0);
     bool collectionReceipt = ui->collectionReceiptCheckBox->isChecked();
 
     if ( m_id == -1 )  // new entry
     {
         query.prepare(QString("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock)"));
+        if (ui->itemNum->text().isEmpty())
+            ui->itemNum->setText(Database::getNextProductNumber());
     } else {
         query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, `group`=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock WHERE id=:id"));
         query.bindValue(":id", m_id);
     }
 
     QString itemNum = ui->itemNum->text();
+    if (itemNum.isEmpty()) itemNum = Database::getNextProductNumber();
     query.bindValue(":name", ui->name->text());
     query.bindValue(":itemnum", itemNum);
     query.bindValue(":barcode", ui->barcode->text());
     query.bindValue(":group", m_groupsModel->data(m_groupsModel->index(ui->groupComboBox->currentIndex(), 0)).toInt());
     query.bindValue(":visible", ui->visibleCheckBox->isChecked());
     query.bindValue(":net", net);
-    query.bindValue(":gross", ui->gross->text().replace(",",".").toDouble());
+    query.bindValue(":gross", QLocale().toDouble(ui->gross->text()));
     query.bindValue(":tax", tax);
     query.bindValue(":color", color);
     query.bindValue(":coupon", collectionReceipt);
-    query.bindValue(":stock", ui->stockLineEdit->text().replace(",","."));
-    query.bindValue(":minstock", ui->minstockLineEdit->text().replace(",","."));
+    query.bindValue(":stock", QLocale().toDouble(ui->stockLineEdit->text()));
+    query.bindValue(":minstock", QLocale().toDouble(ui->minstockLineEdit->text()));
 
     bool ok = query.exec();
     if (!ok) {

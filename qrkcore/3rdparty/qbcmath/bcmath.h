@@ -147,6 +147,11 @@ public:
         return value;
     }
 
+    QString toLocale() {
+        int scale = getDecPart().length();
+        return QLocale().toString(value.toDouble(), 'f', scale);
+    }
+
     void round(int scale) {
         if(scale>=1) {
             value = QBCMath::bcround(value, scale);
@@ -201,6 +206,8 @@ public:
     static QString bcmul (const QString &lhs, const QString &rhs, int scale = INT_MIN);
 
     static QString bcround (const QString &lhs, int scale = INT_MIN);
+
+    static QString bcroundL(QString lhs, int scale = INT_MIN);
 
     static int bccomp (const QString &lhs, const QString &rhs, int scale = INT_MIN);
 

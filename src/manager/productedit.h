@@ -45,6 +45,7 @@ class ProductEdit : public QDialog
     void netChanged();
     void grossChanged();
     void colorComboChanged(int);
+    void itemnumChanged();
     virtual void accept();
 
   protected:

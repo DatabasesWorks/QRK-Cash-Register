@@ -141,10 +141,13 @@ class ExtraTab : public Widget
 public:
     explicit ExtraTab(QWidget *parent = 0);
     bool getGivenDialog();
+    bool getPriceChangedDialog();
     bool getStockDialog();
     bool getSalesWidget();
     bool getReceiptPrintedDialog();
     bool getProductGroup();
+    bool getGroupSeparator();
+    int getFirstProductnumber();
     bool isFontsGroup();
     QString getSystemFont();
     QString getPrinterFont();
@@ -161,13 +164,18 @@ private slots:
     void printerTestButton_clicked(bool);
     void receiptPrinterTestButton_clicked(bool);
     void fontsGroup_toggled(bool toggled);
+    void groupSeparatorChanged(bool checked);
 
 private:
     QCheckBox *m_useProductGroupCheck;
+    QCheckBox *m_usePriceChangedCheck;
     QCheckBox *m_useGivenDialogCheck;
     QCheckBox *m_salesWidgetCheck;
     QCheckBox *m_useReceiptPrintedDialogCheck;
     QCheckBox *m_useStockDialogCheck;
+    QCheckBox *m_groupSeparatorCheck;
+
+    QSpinBox *m_firstProductnumber;
 
     QGroupBox *m_fontsGroup;
 
@@ -182,6 +190,7 @@ private:
     QLabel *m_systemFontStretchLabel;
     QLabel *m_printerFontStretchLabel;
     QLabel *m_receiptPrinterFontStretchLabel;
+    QLabel *m_groupSeparatorLabel;
 
     QFont m_systemFont;
     QFont m_printerFont;

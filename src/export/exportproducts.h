@@ -38,7 +38,8 @@ public:
     void Export();
 
 private:
-    bool productsExport(QString outputFilename);
+    bool productsExport(QString outputFilename, QStringList requiredList);
+    int m_decimals = 0;
 
 };
 

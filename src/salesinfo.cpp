@@ -40,7 +40,6 @@ SalesInfo::SalesInfo(QString from, QString to, QWidget *parent) :
 {
     ui->setupUi(this);
 
-
     ui->label->setText(tr("Umsätze %1 bis %2").arg(from).arg(to));
 
     loadData(from, to);
@@ -104,7 +103,8 @@ void SalesInfo::loadData(QString from, QString to)
             QString kk = k.toString();
             QStandardItem *item2 = new QStandardItem(kk);
             table_model->setItem(row, 1, item2);
-            QString vv = QBCMath::bcround(v.toString(), 2); //.replace(".",",");
+            v.round(2);
+            QString vv = v.toLocale(); //.replace(".",",");
             QStandardItem *item3 = new QStandardItem(vv);
             table_model->setItem(row, 2, item3);
             row++;

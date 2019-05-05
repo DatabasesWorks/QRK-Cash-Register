@@ -812,3 +812,18 @@ QString QBCMath::bcround (const QString &lhs, int scale) {
 
     return bc_round ((char*)result.toUtf8().data(), lint+1, ldot+1, lfrac+1, lscale, scale, lsign, 1, 1);
 }
+
+QString QBCMath::bcroundL(QString lhs, int scale)
+{
+
+    if (scale == INT_MIN) {
+        scale = bc_scale;
+    }
+
+    if (scale < 0) {
+        qWarning() << "Wrong parameter scale = "<<scale<<" in function bccomp";
+        scale = 0;
+    }
+
+    return QLocale().toString(bcround(lhs, scale).toDouble(), 'f', scale);
+}

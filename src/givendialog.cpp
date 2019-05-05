@@ -30,12 +30,19 @@ GivenDialog::GivenDialog(double &sum, QWidget *parent) :
     QDialog(parent), ui(new Ui::GivenDialog)
 {
     ui->setupUi(this);
-    ui->lcdNumber->setDigitCount(10);
+    ui->lcdNumber->setText(QLocale().toString(0.0,'f',2) + " " + Database::getCurrency());
+
     QDoubleValidator *doubleVal = new QDoubleValidator(0.0, 9999999.99, 2, this);
     doubleVal->setNotation(QDoubleValidator::StandardNotation);
     ui->givenEdit->setValidator(doubleVal);
     m_sum = sum;
-    ui->toPayLabel->setText(tr("Zu bezahlen: %1 %2").arg(QString::number(sum,'f',2)).arg(Database::getCurrency()));
+    ui->toPayLabel->setText(tr("Zu bezahlen: %1 %2").arg(QLocale().toString(sum,'f',2)).arg(Database::getCurrency()));
+
+    QPalette palette = ui->lcdNumber->palette();
+
+    palette.setColor(ui->lcdNumber->backgroundRole(), Qt::darkGreen);
+    palette.setColor(ui->lcdNumber->foregroundRole(), Qt::darkGreen);
+    ui->lcdNumber->setPalette(palette);
 
     connect (ui->givenEdit, &QLineEdit::textChanged, this, &GivenDialog::textChanged);
     connect (ui->pushButton, &QPushButton::clicked, this, &GivenDialog::accept);
@@ -57,9 +64,18 @@ void GivenDialog::accept()
 void GivenDialog::textChanged(QString given)
 {
 
-    given.replace(",",".");
-    double retourMoney = given.toDouble() - m_sum;
+    double retourMoney = QLocale().toDouble(given) - m_sum;
+    QPalette palette = ui->lcdNumber->palette();
 
-    ui->lcdNumber->display(QString::number(retourMoney,'f',2));
+    if (retourMoney >= 0.0) {
+        palette.setColor(ui->lcdNumber->backgroundRole(), Qt::darkGreen);
+        palette.setColor(ui->lcdNumber->foregroundRole(), Qt::darkGreen);
+    } else {
+        palette.setColor(ui->lcdNumber->backgroundRole(), Qt::red);
+        palette.setColor(ui->lcdNumber->foregroundRole(), Qt::red);
+    }
+    ui->lcdNumber->setPalette(palette);
+//    ui->lcdNumber->display(QString::number(retourMoney,'f',2));
+    ui->lcdNumber->setText(QLocale().toString(retourMoney,'f',2) + " " + Database::getCurrency());
 
 }

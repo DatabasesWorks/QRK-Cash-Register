@@ -51,6 +51,7 @@ class QRKRegister : public QWidget
 
   public slots:
     void safetyDevice(bool active);
+    void singlePriceChanged(QString product, QString singleprice, QString tax);
 
   private slots:
     void barcodeChangedSlot();
@@ -111,6 +112,7 @@ class QRKRegister : public QWidget
     bool m_useDiscount;
     bool m_useMaximumItemSold;
     bool m_useDecimalQuantity;
+    bool m_usePriceChangedDialog;
     bool m_useGivenDialog;
     bool m_isR2B;
     bool m_receiptPrintDialog;

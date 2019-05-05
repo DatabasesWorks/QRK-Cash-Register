@@ -30,6 +30,7 @@
 #include <QSqlError>
 #include <QThread>
 #include <QDateTime>
+#include <QJsonObject>
 #include <QDebug>
 
 CsvImportWizardPage3::CsvImportWizardPage3(QWidget *parent) :
@@ -64,6 +65,9 @@ void CsvImportWizardPage3::initializePage()
     m_visibleGroup = field("visiblegroup").toBool();
     m_visibleProduct = field("visibleproduct").toBool();
 
+    m_autoitemnum = field("autoitemnum").toBool();
+    m_autominitemnum = field("autominitemnum").toInt();
+
 }
 
 void CsvImportWizardPage3::setModel(QStandardItemModel *model)
@@ -77,10 +81,22 @@ void CsvImportWizardPage3::setMap(QMap<QString, QVariant> *map)
     m_map =  map;
 }
 
+void CsvImportWizardPage3::setMap(QMap<QString, QJsonObject> *map)
+{
+    m_errormap =  map;
+}
+
 void CsvImportWizardPage3::importFinished()
 {
     m_finished = true;
     ui->startImportButton->setEnabled(false);
+
+    if (m_errormap->isEmpty()) {
+        emit setFinalPage(true);
+        int id = nextId();
+        if (id != -1)
+            emit removePage(id);
+    }
 
     emit completeChanged();
     emit info(tr("Der Datenimport wurde abgeschlossen."));
@@ -98,9 +114,9 @@ void CsvImportWizardPage3::save(bool)
     emit info(tr("Backup der Daten wurde gestartet."));
     Backup::create();
     emit info(tr("Backup der Daten fertig."));
-    emit completeChanged();
+//    emit completeChanged();
     emit info(tr("Der DatenImport wurde gestarted."));
-    ImportData *import = new ImportData(m_model, m_map, m_ignoreExistingProduct, m_guessGroup, m_autoGroup, m_visibleGroup, m_visibleProduct, m_updateExistingProduct);
+    ImportData *import = new ImportData(m_model, m_map, m_errormap, m_ignoreExistingProduct, m_guessGroup, m_autoGroup, m_visibleGroup, m_visibleProduct, m_updateExistingProduct, m_autoitemnum, m_autominitemnum);
     QThread *thread = new QThread;
     import->moveToThread(thread);
 
@@ -117,16 +133,20 @@ void CsvImportWizardPage3::save(bool)
 
 //---- ImportData ------------------------------------------------------------------------------------------------------
 
-ImportData::ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, bool ignoreExistingProduct, bool guessGroup, bool autoGroup,  bool visibleGroup, bool visibleProduct, bool updateExistingProduct)
+ImportData::ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, QMap<QString, QJsonObject> *errormap, bool ignoreExistingProduct, bool guessGroup, bool autoGroup,  bool visibleGroup, bool visibleProduct, bool updateExistingProduct, bool autoitemnum, int autominitemnum)
 {
     m_model = model;
     m_map = map;
+    m_errormap = errormap;
     m_autoGroup = autoGroup;
     m_guessGroup = guessGroup;
     m_ignoreExistingProduct = ignoreExistingProduct;
     m_updateExistingProduct = updateExistingProduct;
     m_visibleGroup = visibleGroup;
     m_visibleProduct = visibleProduct;
+    m_autoitemnum = autoitemnum;
+    m_autominitemnum = autominitemnum;
+
 }
 
 ImportData::~ImportData()
@@ -154,28 +174,13 @@ void ImportData::run()
         QString coupon = getItemValue(row, m_map->value(tr("Extrabon")).toInt());
         double stock = getItemValue(row, m_map->value(tr("Lagerbestand")).toInt(),true).toDouble();
         double minstock = getItemValue(row, m_map->value(tr("Mindestbestand")).toInt(),true).toDouble();
+        double sold = getItemValue(row, m_map->value(tr("Verkauft")).toInt(),true).toDouble();
+        QString visible = getItemValue(row, m_map->value(tr("Sichtbar")).toInt());
 
-        if (m_ignoreExistingProduct && exists(itemnum, barcode, name)) {
+        int type = 0;
+        if (m_ignoreExistingProduct && exists(itemnum, barcode, name, type)) {
             emit info(tr("%1 ist schon vorhanden. Der Import wurde ignoriert").arg(name));
             continue;
-        }
-
-        bool ok = false;
-        int id = exists(itemnum, barcode, name);
-        if (id == 0)
-            continue;
-
-        if (m_updateExistingProduct && id > 0) {
-            ok= query.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, tax=:tax, net=:net, gross=:gross, visible=:visible, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, `group`=:group WHERE id=:id");
-            query.bindValue(":id", id);
-            emit info(tr("Update %1").arg(name));
-        } else {
-            ok= query.prepare("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock) VALUES (:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock)");
-        }
-
-        if (!ok) {
-            qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-            qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
         }
 
         double net = getItemValue(row, m_map->value(tr("Netto Preis")).toInt(),true).toDouble();
@@ -186,18 +191,74 @@ void ImportData::run()
         else
             tax = getItemValue(row, m_map->value(tr("Steuersatz")).toInt(),true).toDouble();
 
-
         if (tax < 1) tax = tax * 100.0;
         if (gross < net) gross = net * (1.0 + tax / 100.0);
         if (gross != 0.00 && net == 0.00) net = gross / (1.0 + tax / 100.0);
 
+        bool ok = false;
+        int errortype = 0;
+        int id = exists(itemnum, barcode, name, errortype);
+        if (id == 0) {
+            QJsonObject j;
+            j["itemnum"] = itemnum;
+            j["barcode"] = barcode;
+            j["name"] = name;
+            j["color"] = color;
+            j["coupon"] = coupon;
+            j["stock"] = stock;
+            j["minstock"] = minstock;
+            j["net"] = net;
+            j["gross"] = gross;
+            j["tax"] = tax;
+            int existId;
+            if (errortype == 1) {
+                existId = Database::getProductIdByNumber(itemnum);
+                m_errormap->insert(QString("itemnum, %1").arg(existId), j);
+            } else if (errortype == 2){
+                existId = Database::getProductIdByBarcode(barcode);
+                m_errormap->insert(QString("barcode, %1").arg(existId), j);
+            }
+
+            continue;
+        }
+
+        int realVisible = m_visibleProduct;
+        bool doUpdate = false;
+        if (m_updateExistingProduct && id > 0) {
+            if (visible.isEmpty()) {
+                doUpdate = true;
+                ok= query.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, sold=:sold, tax=:tax, net=:net, gross=:gross, visible=visible, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, `group`=:group WHERE id=:id");
+            } else {
+                doUpdate = true;
+                ok= query.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, sold=:sold, tax=:tax, net=:net, gross=:gross, visible=:visible, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, `group`=:group WHERE id=:id");
+                realVisible = visible.toInt();
+            }
+            query.bindValue(":id", id);
+            emit info(tr("Update %1").arg(name));
+        } else {
+            ok= query.prepare("INSERT INTO products (name, `group`, itemnum, barcode, sold, visible, net, gross, tax, color, coupon, stock, minstock) VALUES (:name, :group, :itemnum, :barcode, :sold, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock)");
+            realVisible = m_visibleProduct;
+        }
+
+        if (!ok) {
+            qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
+            qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
+        }
+
+        if (doUpdate && itemnum.isEmpty()) itemnum = Database::getProductByName(name)["itemnum"].toString();
+        if (m_autoitemnum && itemnum.isEmpty()) {
+            int i = Database::getNextProductNumber().toInt();
+            itemnum = QString::number((m_autominitemnum < i)?i:m_autominitemnum);
+        }
+
         query.bindValue(":itemnum", itemnum);
         query.bindValue(":barcode", barcode);
         query.bindValue(":name", name);
+        query.bindValue(":sold", sold);
         query.bindValue(":net", net);
         query.bindValue(":gross", gross);
         query.bindValue(":tax", tax);
-        query.bindValue(":visible", m_visibleProduct);
+        query.bindValue(":visible", realVisible);
         query.bindValue(":color", color);
         query.bindValue(":coupon", (coupon.toInt() == 0)? false: true);
         query.bindValue(":stock", stock);
@@ -310,7 +371,11 @@ int ImportData::getGroupByName(QString name)
 
 QString ImportData::getGuessGroup(QString name)
 {
-    QString group = name.split(" ").at(0);
+    QStringList splitedNames = name.split(" ");
+    QString group = splitedNames.at(0);
+    if (group.endsWith('.') && splitedNames.size() > 1)
+        group.append(" " + splitedNames.at(1));
+
     return group;
 }
 
@@ -349,7 +414,7 @@ int ImportData::createGroup(QString name)
 
 }
 
-int ImportData::exists(QString itemnum, QString barcode, QString name)
+int ImportData::exists(QString itemnum, QString barcode, QString name, int &type)
 {
 
     if (name.isEmpty())
@@ -370,7 +435,8 @@ int ImportData::exists(QString itemnum, QString barcode, QString name)
         query.exec();
         if (query.next()) {
             if (query.value(1).toString() != name) {
-                emit info(tr("Artiklenummer %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(itemnum).arg(name).arg(query.value(1).toString()));
+                emit info(tr("Artikelnummer %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(itemnum).arg(name).arg(query.value(1).toString()));
+                type = 1;
                 return 0;
             }
             return query.value(0).toInt();
@@ -390,6 +456,7 @@ int ImportData::exists(QString itemnum, QString barcode, QString name)
         if (query.next()) {
             if (query.value(1).toString() != name) {
                 emit info(tr("Barcode %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(barcode).arg(name).arg(query.value(1).toString()));
+                type = 2;
                 return 0;
             }
 

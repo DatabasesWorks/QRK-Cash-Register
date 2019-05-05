@@ -29,6 +29,7 @@
 class CsvImportWizardPage1;
 class CsvImportWizardPage2;
 class CsvImportWizardPage3;
+class CsvImportWizardPage4;
 
 class CsvImportWizard : public QWizard
 {
@@ -41,10 +42,12 @@ class CsvImportWizard : public QWizard
     CsvImportWizardPage1 *m_pageImport;
     CsvImportWizardPage2 *m_pageAssign;
     CsvImportWizardPage3 *m_pageSave;
+    CsvImportWizardPage4 *m_pageSaveAgain;
 
     QStandardItemModel *m_model;
     QStandardItemModel *m_assignmentModel;
     QMap<QString, QVariant> *m_map;
+    QMap<QString, QJsonObject> *m_errormap;
 
 };
 

@@ -23,6 +23,7 @@
 #include "csvimportwizardpage2.h"
 #include "comboboxdelegate.h"
 #include "preferences/qrksettings.h"
+#include "database.h"
 #include "ui_csvimportwizardpage2.h"
 
 #include <QStandardItemModel>
@@ -39,6 +40,8 @@ CsvImportWizardPage2::CsvImportWizardPage2(QWidget *parent) :
   registerField("importtype", ui->importTypeComboBox);
   registerField("visiblegroup", ui->visibleGroupCheckBox);
   registerField("visibleproduct", ui->visibleProductCheckBox);
+  registerField("autoitemnum", ui->autoItemnumCheckBox);
+  registerField("autominitemnum", ui->autoitemnumSpinBox);
 
   m_loadmap = new QMap<QString, QVariant>;
 
@@ -63,7 +66,32 @@ void CsvImportWizardPage2::loadSettings()
     ui->importTypeComboBox->setCurrentIndex(settings.value("importtype", ui->importTypeComboBox->currentIndex()).toInt());
     ui->visibleGroupCheckBox->setChecked( settings.value("visiblegroup", ui->visibleGroupCheckBox->isChecked()).toBool());
     ui->visibleProductCheckBox->setChecked( settings.value("visibleproduct", ui->visibleProductCheckBox->isChecked()).toBool());
+    ui->autoItemnumCheckBox->setChecked( settings.value("autoitemnum", ui->autoItemnumCheckBox->isChecked()).toBool());
+    ui->autoitemnumSpinBox->setValue(settings.value("autominitemnum", Database::getNextProductNumber().toInt()).toInt());
+    ui->autoitemnumSpinBox->setMinimum(Database::getNextProductNumber().toInt());
+    ui->autoitemnumSpinBox->setMaximum(INT_MAX);
+
     settings.endGroup();
+}
+
+int CsvImportWizardPage2::findMaxValueInColumn(int col)
+{
+    int maximum = 0;
+
+    if (col > m_model->columnCount())
+        return maximum;
+
+    for (int i = 0; i < m_model->rowCount() ; i++) {
+        // check if any element is greater
+        // than the maximum element
+        // of the column and replace it
+        QModelIndex index = m_model->index(i,col,QModelIndex());
+        QString value = m_model->data(index).toString();
+
+        if (value.toInt() > maximum)
+            maximum = value.toInt();
+    }
+    return maximum +1;
 }
 
 void CsvImportWizardPage2::saveSettings() const
@@ -80,7 +108,8 @@ void CsvImportWizardPage2::saveSettings() const
     settings.save2Settings("updateexisting", ui->updateExistingProductCheckBox->isChecked(), false);
     settings.save2Settings("importtype", ui->importTypeComboBox->currentIndex(), false);
     settings.save2Settings("visiblegroup", ui->visibleGroupCheckBox->isChecked(), false);
-    settings.save2Settings("visibleproduct", ui->visibleProductCheckBox->isChecked(), false);
+    settings.save2Settings("autoitemnum", ui->updateExistingProductCheckBox->isChecked(), false);
+    settings.save2Settings("autominitemnum", ui->autoitemnumSpinBox->value(), Database::getNextProductNumber().toInt());
     settings.endGroup();
 }
 
@@ -115,7 +144,7 @@ void CsvImportWizardPage2::initializePage()
   connect(m_assignmentModel, &QStandardItemModel::dataChanged, this, &CsvImportWizardPage2::itemChangedSlot);
 
   QList<QString> list;
-  list << "itemnum" << "barcode" << "name" << "net" << "gross" << "tax" << "group" << "color" << "coupon" << "stock" << "minstock";
+  list << "itemnum" << "barcode" << "name" << "sold" << "net" << "gross" << "tax" << "group" << "color" << "coupon" << "visible" << "stock" << "minstock";
   QMap<QString, QVariant>::iterator i;
   for (i = m_loadmap->begin(); i != m_loadmap->end(); ++i) {
       list << i.value().toString();
@@ -168,9 +197,14 @@ void CsvImportWizardPage2::updateAssignmentTable()
     if (i.key() == tr("Artikelname"))
       item->setForeground(QColor::fromRgb(255,0,0));
     item->setText(i.key());
+
     m_assignmentModel->setItem(j, 0, item);
     QString text =  m_headerList.at(i.value().toInt());
-    m_assignmentModel->setItem(j, 1, new QStandardItem(text));
+    QStandardItem *it = m_assignmentModel->item(j, 1);
+    if (it)
+        it->setText(text);
+    else
+        m_assignmentModel->setItem(j, 1, new QStandardItem(text));
     QModelIndex index = m_assignmentModel->index(j,1,QModelIndex());
     ui->assignmentView->openPersistentEditor(index);
     j++;
@@ -190,12 +224,14 @@ void CsvImportWizardPage2::importType(int importType)
       addHeaderId(tr("Artikelnummer"), "itemnum");
       addHeaderId(tr("Barcode"), "barcode");
       addHeaderId(tr("Artikelname"), "name");
+      addHeaderId(tr("Verkauft"), "sold");
       addHeaderId(tr("Netto Preis"), "net");
       addHeaderId(tr("Brutto Preis"), "gross");
       addHeaderId(tr("Gruppe"), "group");
       addHeaderId(tr("Steuersatz"), "tax");
       addHeaderId(tr("Farbe"), "color");
       addHeaderId(tr("Extrabon"), "coupon");
+      addHeaderId(tr("Sichtbar"), "visible");
       addHeaderId(tr("Lagerbestand"), "stock");
       addHeaderId(tr("Mindestbestand"), "minstock");
       break;
@@ -231,6 +267,12 @@ void CsvImportWizardPage2::itemChangedSlot( const QModelIndex& i, const QModelIn
 
     int value = 0;
     value = m_headerList.indexOf(s);
+    if (value > 0 && s2 == tr("Artikelnummer")) {
+        int max = findMaxValueInColumn(value - 1);
+        int nextItemnum = Database::getNextProductNumber().toInt();
+        ui->autoitemnumSpinBox->setValue((max > nextItemnum)?max:nextItemnum);
+        ui->autoitemnumSpinBox->setMinimum((max > nextItemnum)?max:nextItemnum);
+    }
     if (m_map->contains(s2)) {
       m_map->insert(s2, value);
       m_loadmap->insert(s2, s);

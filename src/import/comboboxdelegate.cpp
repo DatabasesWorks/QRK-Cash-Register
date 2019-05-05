@@ -30,7 +30,6 @@ ComboBoxDelegate::ComboBoxDelegate(QList<QString> l, QObject *parent)
 {
 }
 
-
 QWidget *ComboBoxDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &/* option */, const QModelIndex &/* index */) const
 {
     QComboBox* editor = new QComboBox(parent);
@@ -38,6 +37,9 @@ QWidget *ComboBoxDelegate::createEditor(QWidget *parent, const QStyleOptionViewI
     {
         editor->addItem(m_list.at(i));
     }
+
+    connect( editor , static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ComboBoxDelegate::commitAndCloseEditor) ;
+
     return editor;
 }
 
@@ -69,4 +71,11 @@ void ComboBoxDelegate::paint(QPainter *painter, const QStyleOptionViewItem & opt
     myOption.text = value;
     QItemDelegate::paint(painter, myOption, index);
     return;
+}
+
+void ComboBoxDelegate::commitAndCloseEditor()
+{
+    QComboBox *combo= static_cast<QComboBox *>(sender());
+    emit commitData(combo);
+    emit closeEditor(combo);
 }

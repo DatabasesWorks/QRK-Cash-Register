@@ -504,7 +504,7 @@ bool Reports::createEOD(int id, QDate date)
     QString line = QString("Tagesbeleg\tTagesbeleg\t\t%1\t%2\t0,0\t0,0\t0,0\t0,0\t0,0\t%3")
             .arg(id)
             .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
-            .arg(Utils::getYearlyTotal(date.year()));
+            .arg(QLocale().toString(Utils::getYearlyTotal(date.year()),'f', 2));
 
     bool ret = insert(eod, id, to);
 
@@ -551,7 +551,7 @@ bool Reports::createEOM(int id, QDate date)
     QString line = QString("Monatsbeleg\tMonatsbeleg\t\t%1\t%2\t0,0\t0,0\t0,0\t0,0\t0,0\t%3")
             .arg(id)
             .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
-            .arg(Utils::getYearlyTotal( date.year() ));
+            .arg(QLocale().toString(Utils::getYearlyTotal(date.year()), 'f', 2));
 
     bool ret = insert(eod, id, to);
 
@@ -712,7 +712,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     sumProducts.round(2);
 
     QStringList stat;
-    stat.append(QString("Anzahl verkaufter Artikel oder Leistungen: %1").arg(sumProducts.toString().replace(".",",")));
+    stat.append(QString("Anzahl verkaufter Artikel oder Leistungen: %1").arg(sumProducts.toLocale()));
 
     /* Anzahl Zahlungen */
     query.prepare("SELECT count(id) as count_id FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy <= 2 AND storno < 2");
@@ -792,13 +792,15 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
         for (j = tax.begin(); j != tax.end(); ++j) {
             QBCMath k(j.key());
             QBCMath v(j.value());
+            v.round(2);
             stat.append(QString("%1%: %2")
-                         .arg(Utils::getTaxString(QBCMath::bcround(k.toString(), 2)).replace(".",","))
-                         .arg(QBCMath::bcround(v.toString(), 2).replace(".",",")));
+                         .arg(Utils::getTaxString(k))
+                         .arg(v.toLocale()));
             total += v.toString();
         }
+        total.round(2);
         stat.append("-");
-        stat.append(QString("Summe %1: %2").arg(key, QBCMath::bcround(total.toString(), 2).replace('.', ',')));
+        stat.append(QString("Summe %1: %2").arg(key, total.toLocale()));
         stat.append("-");
     }
 
@@ -838,9 +840,11 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     for (j = map.begin(); j != map.end(); ++j) {
         QBCMath k(j.key());
         QBCMath v(j.value());
+        k.round(2);
+        v.round(2);
         stat.append(QString("%1%: %2")
-                    .arg(Utils::getTaxString(QBCMath::bcround(k.toString(),2)).replace(".",","))
-                    .arg(QBCMath::bcround(v.toString(),2).replace(".",",")));
+                    .arg(Utils::getTaxString(k))
+                    .arg(v.toLocale()));
     }
     stat.append("-");
 
@@ -858,7 +862,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 
     QBCMath gross(query.value("total").toDouble());
     gross.round(2);
-    QString sales = gross.toString().replace(".",",");
+    QString sales = gross.toLocale();
 
     if (type == "Jahresumsatz") {
         m_yearsales = sales;
@@ -920,16 +924,16 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 
             stat.append(QString("%1: %2")
                         .arg(query.value("name").toString())
-                        .arg(total.toString().replace(".",",")));
+                        .arg(total.toLocale()));
 
             stat.append(tr("davon MwSt. %1%: %2")
                         .arg(Utils::getTaxString(tax).replace(".",","))
-                        .arg(totalTax.toString().replace(".",",")));
+                        .arg(totalTax.toLocale()));
 
         }
         total_productgroup.round(2);
         stat.append("-");
-        stat.append(tr("Warengruppe Summe: %2").arg(total_productgroup.toString().replace(".",",")));
+        stat.append(tr("Warengruppe Summe: %2").arg(total_productgroup.toLocale()));
         stat.append("=");
 
     } else {
@@ -948,13 +952,14 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
             qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
         }
 
-        stat.append(tr("Verkaufte Artikel oder Leistungen (Gruppiert) Gesamt %1").arg(sumProducts.toString().replace(".",",")));
+        stat.append(tr("Verkaufte Artikel oder Leistungen (Gruppiert) Gesamt %1").arg(sumProducts.toLocale()));
         while (query.next())
         {
             QString name;
             if (query.value("discount").toDouble() != 0.0) {
                 QBCMath discount(query.value("discount").toDouble());
-                name = QString("%1 (Rabatt -%2%)").arg(query.value("name").toString()).arg(QBCMath::bcround(discount.toString(), 2).replace(".",","));
+                discount.round(2);
+                name = QString("%1 (Rabatt -%2%)").arg(query.value("name").toString()).arg(discount.toLocale());
             } else {
                 name = query.value("name").toString();
             }
@@ -969,10 +974,10 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
             count.round(settings.value("decimalDigits", 2).toInt());
 
             stat.append(QString("%1: %2: %3: %4: %5%")
-                        .arg(count.toString().replace(".",","))
+                        .arg(count.toLocale())
                         .arg(name)
-                        .arg(gross.toString().replace(".",","))
-                        .arg(total.toString().replace(".",","))
+                        .arg(gross.toLocale())
+                        .arg(total.toLocale())
                         .arg(Utils::getTaxString(tax).replace(".",",")));
         }
     }

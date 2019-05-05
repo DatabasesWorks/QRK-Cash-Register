@@ -138,6 +138,10 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         editor->setCompleter( editorCompleter );
 
         connect( editor , &QLineEdit::textChanged, this, &QrkDelegate::commitAndCloseEditor) ;
+//        QRegExp rx("[1-9]\\d{1,16}"); // without leading 0
+        QRegExp rx("\\d{0,16}");
+        QValidator *intVal = new QRegExpValidator(rx);
+        editor->setValidator(intVal);
 
         return editor ;
     } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
@@ -162,10 +166,10 @@ QString QrkDelegate::displayText(const QVariant &value, const QLocale &locale) c
         int x = QString::number(value.toDouble()).length() - QString::number(value.toDouble()).indexOf(".");
         QString formattedNum;
         if (x > 3 && QString::number(value.toDouble()).indexOf(".") > 0) {
-            formattedNum = QString("%1").arg(locale.toString(value.toDouble(), 'f', 3));
+            formattedNum = QString("%1").arg(QLocale().toString(value.toDouble(), 'f', 3));
             formattedNum = QString("%1.. %2").arg(formattedNum.left(formattedNum.length() - 1)).arg(m_shortcurrency);
         } else {
-            formattedNum = QString("%1 %2").arg(locale.toString(value.toDouble(), 'f', 2)).arg(m_shortcurrency);
+            formattedNum = QString("%1 %2").arg(QLocale().toString(value.toDouble(), 'f', 2)).arg(m_shortcurrency);
         }
         return formattedNum;
     } else if (m_type == DISCOUNT) {
@@ -174,17 +178,30 @@ QString QrkDelegate::displayText(const QVariant &value, const QLocale &locale) c
         if (val > 0)
             val *= -1;
 
-        formattedNum = QString("%1 %").arg(locale.toString(val, 'f', 2));
+        formattedNum = QString("%1 %").arg(QLocale().toString(val, 'f', 2));
         return formattedNum;
 
     } else if (m_type == COMBO_TAX) {
         QString formattedNum;
         if (m_taxlocation == "CH")
-            formattedNum = QString("%1 %").arg(locale.toString(value.toDouble()));
+            formattedNum = QString("%1 %").arg(QLocale().toString(value.toDouble()));
         else
-            formattedNum = QString("%1 %").arg(locale.toString(value.toDouble(), 'f', 0));
+            formattedNum = QString("%1 %").arg(QLocale().toString(value.toDouble(), 'f', 0));
 
         return formattedNum;
+    } else if (m_type == SPINBOX) {
+        QString formattedNum;
+        formattedNum = QLocale().toString(value.toDouble(), 'f', 0);
+
+        return formattedNum;
+    } else if (m_type == DOUBLE_SPINBOX) {
+        QrkSettings settings;
+        int digits = settings.value("decimalDigits", 2).toInt();
+        QString formattedNum;
+        formattedNum = QLocale().toString(value.toDouble(), 'f', digits);
+
+        return formattedNum;
+
     }
 
     return QStyledItemDelegate::displayText(value, locale);

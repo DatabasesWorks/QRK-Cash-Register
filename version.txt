@@ -20,6 +20,18 @@
 #
 # -- 21
 
+  VERSION 1.10.4 Build 190505
+  + Dialog bei Preisänderung. Es wird gefragt ob man den neuen Preis für diesen Artikel dauerhaft speichern möchte. (Einstellungen->Extra->Dialoge)
+  + CSV Export erweitert, ermöglicht die Auswahl der Spalten die exportiert werden.
+  * FIX CSV Import
+  * FIX Löschen der Standardgruppe war möglich
+  * FIX Es konnte ein Artikel ohne namen angelegt werden
+  * FIX QRCode wurde nicht auf Tages/Monatsabschluss gedruckt
+  * FIX Import Fehlerausgabe für nicht Unterstützte Dateinamen
+  * FIX Servermode wird bei Fehler beendet
+  * FIX Export als CSV (länderspezifischer export)
+  * FIX Länderspezifische Einstellung werden aus OS übernommen (Nur Sprache)
+
   VERSION 1.10.3 Build 190422
   * Kassamodus Spalten in der Kopfzeile können umsortiert werden. (Einstellungen->Kassa konfigurierbar)
   * Eingabe von Artikelnummern im Kassamodus möglich. (Einstellungen->Kassa konfigurierbar)

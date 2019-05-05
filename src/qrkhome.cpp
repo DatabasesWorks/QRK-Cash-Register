@@ -43,7 +43,7 @@
 #include <QDebug>
 
 QRKHome::QRKHome(bool servermode, QWidget *parent)
-    : QWidget(parent),ui(new Ui::QRKHome), m_menu(0)
+    : QWidget(parent),ui(new Ui::QRKHome), m_menu(nullptr)
 {
     connect(Spread::Instance(), &SpreadSignal::updateSafetyDevice, this, &QRKHome::safetyDevice);
     connect(RBAC::Instance(), static_cast<void(Acl::*)()>(&Acl::userChanged), this, &QRKHome::init);
@@ -144,7 +144,8 @@ QRKHome::QRKHome(bool servermode, QWidget *parent)
     setMinimumHeight(400);
 
     m_fw = new FileWatcher;
-    QObject::connect(&m_watcher, &QFileSystemWatcher::directoryChanged, m_fw, &FileWatcher::directoryChanged);
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, m_fw, &FileWatcher::directoryChanged);
+    connect(m_fw, &FileWatcher::apport, this, &QRKHome::serverModeCheckBox_clicked);
 
     ui->serverModeCheckBox->setChecked(servermode);
 
@@ -210,17 +211,7 @@ void QRKHome::safetyDevice(bool active)
             importInfo(tr("Signaturerstellungseinrichtung ausgefallen!"), true);
             if (isServerMode()) {
                 serverModeCheckBox_clicked(false);
-                QrkSettings settings;
-                if (settings.value("serverCriticalMessageBox", true).toBool()) {
-                    QMessageBox messageBox(QMessageBox::Critical,
-                                           QObject::tr("Signaturerstellungseinrichtung"),
-                                           QObject::tr("ACHTUNG! Signaturerstellungseinrichtung ausgefallen!\nKontaktieren Sie Ihren Administrator wenn dieses Problem weiterhin auftritt."),
-                                           QMessageBox::Yes,
-                                           0);
-                    messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Weiter"));
-                    messageBox.setWindowFlags(messageBox.windowFlags() | Qt::WindowStaysOnTopHint);
-                    messageBox.exec();
-                }
+                serverCriticalMessageBox(QObject::tr("Signaturerstellungseinrichtung"), QObject::tr("ACHTUNG! Signaturerstellungseinrichtung ausgefallen!\nKontaktieren Sie Ihren Administrator wenn dieses Problem weiterhin auftritt."));
             }
         } else {
             ui->signatureDamagedLabel->setVisible(false);
@@ -402,7 +393,7 @@ void QRKHome::menuSlot()
 void QRKHome::settingsSlot()
 {
     if(!RBAC::Instance()->hasPermission("settings_access")) {
-        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("settings_access"))));
+        QMessageBox::warning(nullptr, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("settings_access"))));
         return;
     }
 
@@ -419,7 +410,7 @@ void QRKHome::settingsSlot()
 void QRKHome::taskSlot()
 {
     if(!RBAC::Instance()->hasPermission("tasks_access", true)) {
-        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("task_access"))));
+        QMessageBox::warning(nullptr, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("task_access"))));
         return;
     }
 
@@ -505,8 +496,14 @@ void QRKHome::importInfo(QString str, bool isError)
     ui->importWidget->addItem(QDateTime::currentDateTime().toString() + ": " + str);
     if (isError) {
         int count = ui->importWidget->count();
-        ui->importWidget->item(count -1)->setTextColor(Qt::red);
-        qWarning() << "Function Name: " << Q_FUNC_INFO << str;
+        if (str.startsWith(tr("INFO"))) {
+            ui->importWidget->item(count -1)->setTextColor(Qt::darkYellow);
+            qWarning() << "Function Name: " << Q_FUNC_INFO << str;
+        } else {
+            ui->importWidget->item(count -1)->setTextColor(Qt::red);
+            qWarning() << "Function Name: " << Q_FUNC_INFO << str;
+            serverCriticalMessageBox(QObject::tr("Import"), str);
+        }
     } else {
         int count = ui->importWidget->count();
         ui->importWidget->item(count -1)->setTextColor(Qt::darkGreen);
@@ -521,4 +518,20 @@ void QRKHome::importInfo(QString str, bool isError)
     ui->lcdNumberMonth->display(Database::getMonthCounter());
     ui->lcdNumberYear->display(Database::getYearCounter());
 
+}
+
+void QRKHome::serverCriticalMessageBox(QString title, QString message)
+{
+    QrkSettings settings;
+    if (settings.value("serverCriticalMessageBox", true).toBool()) {
+        serverModeCheckBox_clicked(false);
+        QMessageBox messageBox(QMessageBox::Critical,
+                               title,
+                               message,
+                               QMessageBox::Yes,
+                               nullptr);
+        messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Weiter"));
+        messageBox.setWindowFlags(messageBox.windowFlags() | Qt::WindowStaysOnTopHint);
+        messageBox.exec();
+    }
 }

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>387</width>
-    <height>300</height>
+    <width>461</width>
+    <height>312</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,6 +18,11 @@
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
       <widget class="QLabel" name="toPayLabel">
+       <property name="font">
+        <font>
+         <pointsize>15</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Zu bezahlen: </string>
        </property>
@@ -38,6 +43,11 @@
      </item>
      <item>
       <widget class="QLabel" name="label_2">
+       <property name="font">
+        <font>
+         <pointsize>15</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Gegeben</string>
        </property>
@@ -68,18 +78,43 @@
      </item>
      <item>
       <widget class="QLabel" name="label">
+       <property name="font">
+        <font>
+         <pointsize>15</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Returgeld</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QLCDNumber" name="lcdNumber">
+      <widget class="QLabel" name="lcdNumber">
        <property name="minimumSize">
         <size>
          <width>0</width>
          <height>60</height>
         </size>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>38</pointsize>
+        </font>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Raised</enum>
+       </property>
+       <property name="text">
+        <string>0,00</string>
+       </property>
+       <property name="scaledContents">
+        <bool>false</bool>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
      </item>

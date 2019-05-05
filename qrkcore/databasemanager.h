@@ -42,6 +42,7 @@ class QRK_EXPORT DatabaseManager
     private:
         static QMutex s_databaseMutex;
         static QMap<QString, QMap<QString, QSqlDatabase>> s_instances;
+        static void enableForeignKey(QSqlDatabase dbc);
 
 };
 

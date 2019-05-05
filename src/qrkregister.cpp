@@ -104,6 +104,7 @@ QRKRegister::QRKRegister(QWidget *parent)
     connect(m_orderListModel, &ReceiptItemModel::setButtonGroupEnabled, this, &QRKRegister::setButtonGroupEnabled);
     connect(m_orderListModel, &ReceiptItemModel::finishedItemChanged, this, &QRKRegister::finishedItemChanged);
     connect(m_orderListModel, &ReceiptItemModel::finishedPlus, this, &QRKRegister::finishedPlus);
+    connect(m_orderListModel, &ReceiptItemModel::singlePriceChanged, this, &QRKRegister::singlePriceChanged, Qt::DirectConnection);
 
     ui->scrollAreaProducts->setHidden(true);
     ui->splitter->setCollapsible(0, false);
@@ -206,6 +207,7 @@ void QRKRegister::init()
     m_useInputNetPrice = settings.value("useInputNetPrice", false).toBool();
     m_useMaximumItemSold = settings.value("useMaximumItemSold", false).toBool();
     m_useDecimalQuantity = settings.value("useDecimalQuantity", false).toBool();
+    m_usePriceChangedDialog = settings.value("usePriceChangedDialog", true).toBool();
     m_useGivenDialog = settings.value("useGivenDialog", false).toBool();
     m_decimaldigits = settings.value("decimalDigits", 2).toInt();
     m_receiptPrintDialog = settings.value("useReceiptPrintedDialog", true).toBool();
@@ -428,7 +430,7 @@ void QRKRegister::quickProductButtons(int id)
         QString pbText = Utils::wordWrap(query.value("name").toString(), pb->width() - 8, pb->font());
         pbText = QString("%1\n %2 %3")
                 .arg(pbText)
-                .arg(QString::number( query.value("gross").toDouble(),'f',2))
+                .arg(QLocale().toString(query.value("gross").toDouble(),'f',2))
                 .arg(Database::getShortCurrency());
 
         pb->setText(pbText);
@@ -495,8 +497,8 @@ void QRKRegister::addProductToOrderList(int id)
             foreach( QStandardItem *item, list ) {
                 int row = item->row();
                 QBCMath count(m_orderListModel->item(row, REGISTER_COL_COUNT)->text().toDouble());
-                if (ui->numPadLabel->text().toDouble() > 0.00)
-                    count += ui->numPadLabel->text().toDouble();
+                if (QLocale().toDouble(ui->numPadLabel->text()) > 0.00)
+                    count += QLocale().toDouble(ui->numPadLabel->text());
                 else
                     count += 1;
                 count.round(m_decimaldigits);
@@ -523,8 +525,8 @@ void QRKRegister::addProductToOrderList(int id)
         }
 
         QBCMath count(1.00);
-        if (ui->numPadLabel->text().toDouble() > 0.00)
-            count = ui->numPadLabel->text().toDouble();
+        if (QLocale().toDouble(ui->numPadLabel->text()) > 0.00)
+            count = QLocale().toDouble(ui->numPadLabel->text());
 
         if (m_useDecimalQuantity)
             count.round(m_decimaldigits);
@@ -574,7 +576,7 @@ void QRKRegister::updateOrderSum()
     if (rows > 0)
         setButtonGroupEnabled(enabled);
 
-    ui->sumLabel->setText(tr("%1 %2").arg(QString::number(sum, 'f', 2)).arg(Database::getCurrency()));
+    ui->sumLabel->setText(tr("%1 %2").arg(QLocale().toString(sum, 'f', 2)).arg(Database::getCurrency()));
 
 }
 
@@ -646,10 +648,9 @@ void QRKRegister::newOrder()
                                           .arg(bonNr)
                                           .arg(date)
                                           .arg(taxName)
-                                          .arg(QString::number(gross, 'f', 2)).arg(Database::getCurrency()));
+                                          .arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()));
         }
     }
-
 
     ui->orderList->setAutoScroll(true);
     ui->orderList->setWordWrap(true);
@@ -865,7 +866,7 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
     }
 
     if (m_useGivenDialog && payedBy == PAYED_BY_CASH) {
-        double sum = ui->sumLabel->text().replace(Database::getCurrency() ,"").toDouble();
+        double sum = QLocale().toDouble(ui->sumLabel->text().replace(Database::getCurrency() ,""));
         GivenDialog given(sum, this);
         if (given.exec() == 0) {
             qApp->processEvents();
@@ -884,11 +885,11 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
             Q_UNUSED(checked);
 
             QJsonObject itemdata;
-            itemdata["productname"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString();
-            itemdata["tax"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_TAX, QModelIndex())).toString();
-            itemdata["net"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_NET, QModelIndex())).toString();
-            itemdata["gross"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_SINGLE, QModelIndex())).toString();
-            itemdata["productnumber"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+            itemdata["name"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString();
+            itemdata["tax"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
+            itemdata["net"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_NET, QModelIndex())).toDouble();
+            itemdata["gross"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_SINGLE, QModelIndex())).toDouble();
+            itemdata["itemnum"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
             itemdata["visible"] = 1;
 
             Database::addProduct(itemdata);
@@ -1184,4 +1185,49 @@ void QRKRegister::downPushButton(bool clicked)
         ui->scrollAreaProducts->verticalScrollBar()->setValue(value + pagestep);
     else
         ui->scrollArea->verticalScrollBar()->setValue(value + pagestep);
+}
+
+void QRKRegister::singlePriceChanged(QString product, QString singleprice, QString tax)
+{
+    if (!m_usePriceChangedDialog)
+        return;
+
+    if (!Database::exists("products", product))
+            return;
+
+    QJsonObject data = Database::getProductByName(product);
+    if (data.isEmpty())
+        return;
+
+
+    QBCMath oldTax = data["tax"].toDouble();
+    oldTax.round(2);
+    QBCMath newTax(tax);
+    newTax.round(2);
+    if (newTax.toString().compare(oldTax.toString()) != 0)
+        return;
+
+    QBCMath oldGross = data["gross"].toDouble();
+    oldGross.round(2);
+    QBCMath newGross(singleprice);
+    newGross.round(2);
+
+    int diff = newGross.toString().compare(oldGross.toString());
+    if ( diff != 0) {
+        QrkTimedMessageBox messageBox(10,
+                                      QMessageBox::Information,
+                                      tr("Preisänderung"),
+                                      tr("Soll der neue Preis ( %1 %2.- ) für den Artikel \"%3\" dauerhaft gespeichert werden?").arg(Database::getShortCurrency()).arg(newGross.toLocale()).arg(product),
+                                      QMessageBox::Yes | QMessageBox::Default
+                                      );
+
+        messageBox.addButton(QMessageBox::No);
+        messageBox.setDefaultButton(QMessageBox::No);
+        messageBox.setButtonText(QMessageBox::Yes, tr("Ja"));
+        messageBox.setButtonText(QMessageBox::No, tr("Nein"));
+
+        if(messageBox.exec() == QMessageBox::Yes){
+            Database::updateProductPrice(newGross.toDouble(), product);
+        }
+    }
 }

@@ -23,10 +23,12 @@
 #include "qrkpushbutton.h"
 #include "numerickeypad.h"
 #include "preferences/qrksettings.h"
+#include "3rdparty/qbcmath/bcmath.h"
 
 #include <QGridLayout>
 #include <QLineEdit>
 #include <QApplication>
+#include <QDoubleValidator>
 #include <QDesktopWidget>
 
 NumericKeypad::NumericKeypad( bool full, QWidget *parent )
@@ -40,6 +42,10 @@ NumericKeypad::NumericKeypad( bool full, QWidget *parent )
 
     m_lineEdit = new QLineEdit();
     m_lineEdit->setAlignment( Qt::AlignRight );
+
+    m_digits = settings.value("decimalDigits", 2).toInt();
+    if (!settings.value("useDecimalQuantity", false).toBool())
+        m_digits = 0;
 
     QSize buttonSize = settings.value("numpadButtonSize", QSize(30,30)).toSize();
     if ( QApplication::desktop()->height() < 768 ) {
@@ -99,7 +105,7 @@ NumericKeypad::NumericKeypad( bool full, QWidget *parent )
     buttonZero->setStyleSheet(style);
     buttonZero->setFixedSize(buttonSize);
 
-    QrkPushButton *buttonDot = new QrkPushButton( "." );
+    QrkPushButton *buttonDot = new QrkPushButton( QLocale().decimalPoint() );
     buttonDot->setStyleSheet(style);
     buttonDot->setFixedSize(buttonSize);
 
@@ -166,7 +172,7 @@ NumericKeypad::NumericKeypad( bool full, QWidget *parent )
 
     connect(buttonPlusMinus, &QPushButton::clicked, this, [this](){ buttonClicked("-"); });
     connect(buttonZero, &QPushButton::clicked, this, [this](){ buttonClicked("0"); });
-    connect(buttonDot, &QPushButton::clicked, this, [this](){ buttonClicked("."); });
+    connect(buttonDot, &QPushButton::clicked, this, [this](){ buttonClicked(QLocale().decimalPoint()); });
     connect(buttonClear, &QPushButton::clicked, m_lineEdit, &QLineEdit::clear);
     connect( m_lineEdit, &QLineEdit::textChanged, this, &NumericKeypad::setText);
 
@@ -185,9 +191,9 @@ void NumericKeypad::discountButtonSetEnabled(bool enabled)
 
 void NumericKeypad::buttonClicked( const QString &newText )
 {
-    if (newText == "." && m_text.indexOf('.') > 0)
+    if (newText == QLocale().decimalPoint() && m_text.indexOf(QLocale().decimalPoint()) > 0)
         return;
-    else if (newText == "." && m_text.isEmpty()) {
+    else if (newText == QLocale().decimalPoint() && m_text.isEmpty()) {
         setText( "0" + newText);
         return;
     }
@@ -237,7 +243,16 @@ void NumericKeypad::setCount(bool)
 {
     if (m_lineEdit->text().isEmpty())
         return;
-    emit valueButtonPressed( m_lineEdit->text(), REGISTER_COL_COUNT );
+
+    QBCMath text(QLocale().toDouble(m_lineEdit->text()));
+
+    if (m_digits == 0) {
+        emit valueButtonPressed( QString::number(text.toInt()), REGISTER_COL_COUNT );
+    } else {
+        text.round(m_digits);
+        emit valueButtonPressed( text.toString(), REGISTER_COL_COUNT );
+    }
+
     m_lineEdit->setText("");
 }
 
@@ -245,7 +260,11 @@ void NumericKeypad::setDiscount(bool)
 {
     if (m_lineEdit->text().isEmpty())
         return;
-    emit valueButtonPressed( m_lineEdit->text(), REGISTER_COL_DISCOUNT );
+
+    QBCMath text(QLocale().toDouble(m_lineEdit->text()));
+    text.round(2);
+
+    emit valueButtonPressed( text.toString(), REGISTER_COL_DISCOUNT );
     m_lineEdit->setText("");
 }
 
@@ -253,7 +272,11 @@ void NumericKeypad::setSinglePrice(bool)
 {
     if (m_lineEdit->text().isEmpty())
         return;
-    emit valueButtonPressed( m_lineEdit->text(), REGISTER_COL_SINGLE );
+
+    QBCMath text(QLocale().toDouble(m_lineEdit->text()));
+    text.round(2);
+
+    emit valueButtonPressed( text.toString(), REGISTER_COL_SINGLE );
     m_lineEdit->setText("");
 }
 
@@ -261,6 +284,10 @@ void NumericKeypad::setPrice(bool)
 {
     if (m_lineEdit->text().isEmpty())
         return;
-    emit valueButtonPressed( m_lineEdit->text(), REGISTER_COL_TOTAL );
+
+    QBCMath text(QLocale().toDouble(m_lineEdit->text()));
+    text.round(2);
+
+    emit valueButtonPressed( text.toString(), REGISTER_COL_TOTAL );
     m_lineEdit->setText("");
 }

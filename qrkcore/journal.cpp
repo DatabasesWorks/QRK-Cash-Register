@@ -70,13 +70,13 @@ void Journal::journalInsertReceipt(QJsonObject &data)
         itemNum = QString("%1 ").arg(itemNum);
 
     if (o["discount"].toDouble() != 0.0)
-        var.append(QString("%1%2 Rabatt: -%3%\t").arg(itemNum).arg(o["product"].toString()).arg(QString::number(o["discount"].toDouble(),'f', 2)).replace(".",","));
+        var.append(QString("%1%2 Rabatt: -%3%\t").arg(itemNum).arg(o["product"].toString()).arg(QLocale().toString(o["discount"].toDouble(),'f', 2)));
     else
         var.append(QString("%1 %2\t").arg(itemNum).arg(o["product"].toString()));
-    var.append(QString("%1\t").arg(QString::number(o["count"].toDouble(),'f', digits)).replace(".",","));
-    var.append(QString("%1\t").arg(QString::number(o["singleprice"].toDouble(),'f', 2)).replace(".",","));
-    var.append(QString("%1\t").arg(QString::number(o["gross"].toDouble() - (o["gross"].toDouble() / 100) * o["discount"].toDouble(),'f', 2)).replace(".",","));
-    var.append(QString("%1\t").arg(o["tax"].toDouble()).replace(".",","));
+    var.append(QString("%1\t").arg(QLocale().toString(o["count"].toDouble(),'f', digits)));
+    var.append(QString("%1\t").arg(QLocale().toString(o["singleprice"].toDouble(),'f', 2)));
+    var.append(QString("%1\t").arg(QLocale().toString(o["gross"].toDouble() - (o["gross"].toDouble() / 100) * o["discount"].toDouble(),'f', 2)));
+    var.append(QString("%1\t").arg(QLocale().toString(o["tax"].toDouble())));
     var.append(QString("%1").arg(data.value("receiptTime").toString()));
 
     SecureByteArray sa = var.toUtf8();
@@ -114,12 +114,12 @@ void Journal::journalInsertReceipt(QJsonObject &data)
   var.append(QString("%1\t").arg(data.value("totallyup").toString()));
   var.append(QString("%1\t").arg(data.value("receiptNum").toInt()));
   var.append(QString("%1\t").arg(data.value("receiptTime").toString()));
-  var.append(QString("%1\t").arg(QString::number(data.value("Satz-Normal").toDouble(),'f',2)).replace(".",","));
-  var.append(QString("%1\t").arg(QString::number(data.value("Satz-Ermaessigt-1").toDouble(),'f',2)).replace(".",","));
-  var.append(QString("%1\t").arg(QString::number(data.value("Satz-Ermaessigt-2").toDouble(),'f',2)).replace(".",","));
-  var.append(QString("%1\t").arg(QString::number(data.value("Satz-Null").toDouble(),'f',2)).replace(".",","));
-  var.append(QString("%1\t").arg(QString::number(data.value("Satz-Besonders").toDouble(),'f',2)).replace(".",","));
-  var.append(QString("%1\t").arg(QString::number(data.value("sumYear").toDouble(),'f',2)).replace(".",","));
+  var.append(QString("%1\t").arg(QLocale().toString(data.value("Satz-Normal").toDouble(),'f',2)));
+  var.append(QString("%1\t").arg(QLocale().toString(data.value("Satz-Ermaessigt-1").toDouble(),'f',2)));
+  var.append(QString("%1\t").arg(QLocale().toString(data.value("Satz-Ermaessigt-2").toDouble(),'f',2)));
+  var.append(QString("%1\t").arg(QLocale().toString(data.value("Satz-Null").toDouble(),'f',2)));
+  var.append(QString("%1\t").arg(QLocale().toString(data.value("Satz-Besonders").toDouble(),'f',2)));
+  var.append(QString("%1\t").arg(QLocale().toString(data.value("sumYear").toDouble(),'f',2)));
   var.append(QString("%1").arg(data.value("receiptTime").toString()));
 
   SecureByteArray sa = var.toUtf8();

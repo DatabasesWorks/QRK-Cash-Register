@@ -253,10 +253,13 @@ void SettingsDialog::accept()
     settings.save2Settings("numpadButtonSize", m_receiptmain->getNumpadButtonSize());
 
     settings.save2Settings("useGivenDialog", m_extra->getGivenDialog());
+    settings.save2Settings("usePriceChangedDialog", m_extra->getPriceChangedDialog());
     settings.save2Settings("showSalesWidget", m_extra->getSalesWidget());
     settings.save2Settings("useReceiptPrintedDialog", m_extra->getReceiptPrintedDialog());
     settings.save2Settings("report_by_productgroup", m_extra->getProductGroup());
     settings.save2Settings("useMinstockDialog", m_extra->getStockDialog());
+    settings.save2Settings("numericGroupSeparator", m_extra->getGroupSeparator());
+    settings.save2Settings("firstProductnumber", m_extra->getFirstProductnumber());
 
     settings.save2Settings("reportPrinterPDF", m_printer->getReportPrinterPDF());
     settings.save2Settings("reportPrinter", m_printer->getReportPrinter());
@@ -746,10 +749,19 @@ ExtraTab::ExtraTab(QWidget *parent)
 
     m_useProductGroupCheck = new QCheckBox;
 
+    m_usePriceChangedCheck = new QCheckBox;
+
     m_useGivenDialogCheck = new QCheckBox;
 
     m_salesWidgetCheck = new QCheckBox;
 
+    m_groupSeparatorCheck = new QCheckBox;
+    m_groupSeparatorLabel = new QLabel;
+    m_groupSeparatorLabel->setText(QLocale().toString(123456789.12, 'f', 2));
+
+    m_firstProductnumber = new QSpinBox;
+    m_firstProductnumber->setMinimum(Database::getNextProductNumber().toInt());
+    m_firstProductnumber->setMaximum(INT_MAX);
 
     m_useReceiptPrintedDialogCheck = new QCheckBox;
     m_useReceiptPrintedDialogCheck->setEnabled(settings.value("useReceiptPrintedDialog", true).toBool());
@@ -782,6 +794,7 @@ ExtraTab::ExtraTab(QWidget *parent)
     dialogGroup->setTitle(tr("Dialoge"));
     QFormLayout *dialogLayout = new QFormLayout;
     dialogLayout->setAlignment(Qt::AlignLeft);
+    dialogLayout->addRow(tr("Artikelpreis wurde geändert:"), m_usePriceChangedCheck);
     dialogLayout->addRow(tr("Betrag gegeben:"),m_useGivenDialogCheck);
     dialogLayout->addRow(tr("Beleg wurde gedruckt:"), m_useReceiptPrintedDialogCheck);
     dialogLayout->addRow(tr("Mindestbestand wurde erreicht:"), m_useStockDialogCheck);
@@ -807,6 +820,25 @@ ExtraTab::ExtraTab(QWidget *parent)
     productLayout->addRow(tr("Warengruppen verwenden:"),m_useProductGroupCheck);
 
     productGroup->setLayout(productLayout);
+
+    QGroupBox *numericGroup = new QGroupBox();
+    numericGroup->setTitle(tr("Diverses"));
+    QGridLayout *numericLayout = new QGridLayout;
+    numericLayout->setAlignment(Qt::AlignLeft);
+    numericLayout->setColumnStretch(1,1);
+    numericLayout->setColumnStretch(2,1);
+    numericLayout->addWidget(new QLabel(tr("Zahlen mit Tausenderpunkt darstellen:")),1,1,1,1);
+    numericLayout->addWidget(m_groupSeparatorCheck,1,2,1,1);
+    numericLayout->addWidget(new QLabel(tr("Beispiel")),1,3,1,1);
+    numericLayout->addWidget(m_groupSeparatorLabel,1,4,1,1);
+    numericLayout->addWidget(new QLabel(tr("Artikelnummern starten ab:")),2,1,1,1);
+    numericLayout->addWidget(m_firstProductnumber,2,2,1,1);
+    numericLayout->addWidget(new QLabel(tr("Kleinstmögliche #:")),2,3,1,1);
+    numericLayout->addWidget(new QLabel(Database::getNextProductNumber()),2,4,1,1);
+
+    connect(m_groupSeparatorCheck, &QCheckBox::clicked, this, &ExtraTab::groupSeparatorChanged);
+
+    numericGroup->setLayout(numericLayout);
 
     m_fontsGroup = new QGroupBox();
     m_fontsGroup->setCheckable(true);
@@ -875,14 +907,18 @@ ExtraTab::ExtraTab(QWidget *parent)
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addLayout(groupLayout);
     mainLayout->addWidget(productGroup);
+    mainLayout->addWidget(numericGroup);
     mainLayout->addWidget(m_fontsGroup);
 
     mainLayout->addStretch(1);
     setLayout(mainLayout);
 
     m_useProductGroupCheck->setChecked(settings.value("report_by_productgroup", false).toBool());
+    m_usePriceChangedCheck->setChecked(settings.value("usePriceChangedDialog", true).toBool());
     m_useGivenDialogCheck->setChecked(settings.value("useGivenDialog", false).toBool());
     m_salesWidgetCheck->setChecked(settings.value("showSalesWidget", true).toBool());
+    m_groupSeparatorCheck->setChecked(settings.value("numericGroupSeparator", true).toBool());
+    m_firstProductnumber->setValue(settings.value("firstProductnumber", Database::getNextProductNumber().toInt()).toInt());
 
     m_useReceiptPrintedDialogCheck->setDisabled(settings.value("useMaximumItemSold", false).toBool());
     if (m_useReceiptPrintedDialogCheck->isEnabled())
@@ -902,6 +938,28 @@ ExtraTab::ExtraTab(QWidget *parent)
     if (!RBAC::Instance()->hasPermission("settings_edit_extra"))
         disableWidgets();
 
+}
+
+int ExtraTab::getFirstProductnumber()
+{
+    return m_firstProductnumber->value();
+}
+
+void ExtraTab::groupSeparatorChanged(bool checked)
+{
+    if (checked) {
+        QLocale l(QLocale().system().language());
+        QLocale::setDefault(l);
+    } else {
+        QLocale l(QLocale().system().language(), QLocale().system().country());
+        QLocale::setDefault(l);
+    }
+    m_groupSeparatorLabel->setText(QLocale().toString(123456789.12, 'f', 2));
+}
+
+bool ExtraTab::getGroupSeparator()
+{
+    return m_groupSeparatorCheck->isChecked();
 }
 
 bool ExtraTab::getProductGroup()
@@ -1005,6 +1063,11 @@ void ExtraTab::receiptPrinterFontButton_clicked(bool)
         m_receiptPrinterFontSizeLabel->setText(QString::number(m_receiptPrinterFont.pointSize()));
         m_receiptPrinterFontStretchLabel->setText(QString::number(m_receiptPrinterFont.stretch()));
     }
+}
+
+bool ExtraTab::getPriceChangedDialog()
+{
+    return m_usePriceChangedCheck->isChecked();
 }
 
 bool ExtraTab::getGivenDialog()

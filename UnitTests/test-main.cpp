@@ -64,14 +64,6 @@ class QRK : public QObject
             QVERIFY(decode == teststr);
         }
 
-        void decode_AES256Key(void)
-        {
-            const SecureByteArray ba("cmXWiKzUqJ8/bq0OWOTKkV6i0G0AIyz24pZElTQD0hc=");
-            SecureByteArray::fromBase64(ba);
-            qDebug() << "ba hex: " << SecureByteArray::fromBase64(ba).toHex();
-            QVERIFY("7265d688acd4a89f3f6ead0e58e4ca915ea2d06d00232cf6e29644213403d217" == SecureByteArray::fromBase64(ba).toHex());
-        }
-
         void encrypt_decrypt_TurnoverCounter(void)
         {
             const SecureByteArray masterPassword = QString("7h15p455w0rd15m0r37h4n53cr37").toUtf8();
