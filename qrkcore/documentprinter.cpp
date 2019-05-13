@@ -159,17 +159,59 @@ void DocumentPrinter::printDocument(QTextDocument *document, QString title)
     }
 
     if (settings.value("paperFormat").toString() == "POS") {
-        int height = document->size().height();
-        int paperHeight = settings.value("paperHeight", 297).toInt();
-        if (height > paperHeight)
-            printer.setPaperSize(QSizeF(settings.value("paperWidth", 80).toInt(),
-                                        height), QPrinter::Millimeter);
+        printer.setFullPage(true);
 
-        QSizeF size(printer.width(),height);
+//        int height = document->size().height();
+        int paperHeight = settings.value("paperHeight", 297).toInt();
+        int paperWidth = settings.value("paperWidth", 80).toInt();
+
+        printer.setPaperSize(QSizeF(paperWidth, paperHeight), QPrinter::Millimeter);
+
+        printer.setFullPage(false);
+
+//        if (height > paperHeight)
+//            printer.setPaperSize(QSizeF(paperHeight,
+//                                        height), QPrinter::Millimeter);
+
+        QSizeF size(paperWidth, paperHeight);
         document->setPageSize(size);
+//        QPainter painter(&printer);
+//        document->documentLayout()->setPaintDevice(painter.device());
+//        document->drawContents(&painter);
+
+        const QRect pageRect = QRect(0,0,printer.width(), printer.height() ); // printer.pageRect();
+
+        // Give the document the correct left-to-right width for word wrapping etc
+        document->setPageSize(pageRect.size());
+
+        // The total extent of the content (there are no page margin in this)
+        QRect contentRect = QRect(QPoint(0, 0), document->size().toSize());
+
+        // This is the part of the content we will drop on a page.  It's a sliding window on the content.
+        QRect currentRect(0, 0, pageRect.width(), pageRect.height());
+
         QPainter painter(&printer);
+        QFont font(m_receiptPrinterFont);
+        font.setPointSize(8);
+
+        document->setDefaultFont(font);
         document->documentLayout()->setPaintDevice(painter.device());
-        document->drawContents(&painter);
+
+        while (currentRect.intersects(contentRect)) {
+                painter.save();
+                painter.translate(0, -currentRect.y());
+                document->drawContents(&painter, currentRect);  // draws part of the document
+                painter.restore();
+
+                // Translate the current rectangle to the area to be printed for the next page
+                currentRect.translate(0, currentRect.height());
+
+                //Inserting a new page if there is still area left to be printed
+                if (currentRect.intersects(contentRect))
+                    printer.newPage();
+        }
+        painter.end();
+
     } else {
         document->print(&printer);
     }
@@ -832,6 +874,19 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     painter.restore();
 
     y += 5 + boldMetr.height();
+
+    if (!data.value("given").isUndefined()) {
+        QBCMath given(data.value("given").toDouble());
+        given.round(2);
+        QBCMath retourMoney(given - QLocale().toDouble(sum));
+        retourMoney.round(2);
+        QString givenText = tr("Gegeben: %1").arg(given.toLocale());
+        QString retourMoneyText = tr("Rückgeld: %1").arg(retourMoney.toLocale());
+        painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, givenText);
+        y += m_feedTax + fontMetr.height();
+        painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, retourMoneyText);
+        y += m_feedTax + fontMetr.height();
+    }
 
     QJsonArray Taxes = data["Taxes"].toArray();
     foreach (const QJsonValue & item, Taxes)

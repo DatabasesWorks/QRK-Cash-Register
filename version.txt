@@ -20,6 +20,16 @@
 #
 # -- 21
 
+  VERSION 1.10.5 Build 190510
+  + Gegeben und Rückgeld steht bei aktivierten Gegeben-Dialog auch am BON
+  + JSON Import wurde erweitert. Optionalen Schlüssel "given" (zB. "given": "123.45")
+  * Import Servermodus, leere Dateien oder Dateien mit Müll die keine JSON Dateien sind werden jetzt ignoriert.
+    Es wird eine Informations-Meldung ausgegeben. Die Meldung zählt nicht mehr als Fehler der den Servermode beendet.
+  * Die Tastaturtasten + und - wurden im Kassenmodus reaktiviert
+  * FIX Epson BON-Drucker. Wenn ein Monatsabschluß länger als 3000mm war wurde er bei 297mm (A4) abgeschnitten.
+        Der Epsontreiber stellt die Druckereinstellungen auf Standard A4 wenn die maximale länge überschritten wird.
+  * FIX von FIX QR-Code bei Tages/Monatsabschluß
+
   VERSION 1.10.4 Build 190505
   + Dialog bei Preisänderung. Es wird gefragt ob man den neuen Preis für diesen Artikel dauerhaft speichern möchte. (Einstellungen->Extra->Dialoge)
   + CSV Export erweitert, ermöglicht die Auswahl der Spalten die exportiert werden.

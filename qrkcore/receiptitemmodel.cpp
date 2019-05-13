@@ -163,6 +163,9 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
         data["isR2B"] = m_isR2B;
     }
 
+    if (payedBy == PAYED_BY_CASH && m_given > 0.0)
+        data["given"] = m_given;
+
     if (RKSignatureModule::isDEPactive()) {
         Utils utils;
         QString signature = utils.getSignature(data);
@@ -655,6 +658,9 @@ bool ReceiptItemModel::setR2BServerMode(QJsonObject obj)
     if (!obj.value("customerText").toString().isEmpty())
         ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
+    if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
+        ReceiptItemModel::setGiven(obj.value("given").toString().toDouble());
+
     m_isR2B = true;
 
     QJsonObject itemdata;
@@ -707,7 +713,6 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         itemdata["gross"] = gross.toDouble();
         itemdata["visible"] = 1;
 
-
         ret = Database::addProduct(itemdata);
 
         if (ret) {
@@ -733,6 +738,9 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
     QString customerText = obj.value("customerText").toString();
     if (! customerText.isEmpty())
         ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
+
+    if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
+        ReceiptItemModel::setGiven(obj.value("given").toString().toDouble());
 
     return ret;
 }
@@ -981,4 +989,9 @@ void ReceiptItemModel::initPlugins()
 
     if (!wsdlInterface)
         qDebug() << "Function Name: " << Q_FUNC_INFO << " WSDL: not available";
+}
+
+void ReceiptItemModel::setGiven(double given)
+{
+    m_given = given;
 }

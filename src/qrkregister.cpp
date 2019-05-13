@@ -88,8 +88,13 @@ QRKRegister::QRKRegister(QWidget *parent)
     QShortcut *plusButtonShortcut = new QShortcut(QKeySequence("Insert"), this);
     QShortcut *minusButtonShortcut = new QShortcut(QKeySequence("Delete"), this);
 
+    QShortcut *plusKeyShortcut = new QShortcut(QKeySequence("+"), this);
+    QShortcut *minusKeyShortcut = new QShortcut(QKeySequence("-"), this);
+
     connect(plusButtonShortcut, &QShortcut::activated, this, &QRKRegister::plusSlot);
     connect(minusButtonShortcut, &QShortcut::activated, this, &QRKRegister::minusSlot);
+    connect(plusKeyShortcut, &QShortcut::activated, this, &QRKRegister::plusSlot);
+    connect(minusKeyShortcut, &QShortcut::activated, this, &QRKRegister::minusSlot);
 
     ui->buttonGroup->setId(ui->cashReceipt, PAYED_BY_CASH);
     ui->buttonGroup->setId(ui->creditcardReceipt, PAYED_BY_CREDITCARD);
@@ -873,6 +878,7 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
             setButtonGroupEnabled(true);
             return;
         }
+        m_orderListModel->setGiven(given.getGiven());
     }
 
     if (m_orderListModel->rowCount() > 0)

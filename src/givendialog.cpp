@@ -79,3 +79,13 @@ void GivenDialog::textChanged(QString given)
     ui->lcdNumber->setText(QLocale().toString(retourMoney,'f',2) + " " + Database::getCurrency());
 
 }
+
+double GivenDialog::getGiven()
+{
+    bool ok = false;
+    double value = QLocale().toDouble(ui->givenEdit->text(), &ok);
+    if (ok)
+        return value;
+
+    return 0.0;
+}

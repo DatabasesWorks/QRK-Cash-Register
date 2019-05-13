@@ -536,6 +536,10 @@ bool Utils::isNumber(QVariant number)
 {
     bool check;
     number.toDouble(&check);
+    if (check)
+        return check;
+
+    QLocale().toDouble(number.toString(), &check);
     return check;
 }
 

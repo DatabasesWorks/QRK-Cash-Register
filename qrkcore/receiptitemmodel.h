@@ -61,6 +61,7 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     void newOrder(bool addRow = true);
     void clear();
     void plus();
+    void setGiven(double given);
 
     bool setReceiptServerMode(QJsonObject obj);
     bool setR2BServerMode(QJsonObject obj);
@@ -105,6 +106,7 @@ private:
     bool m_changeProductNumber = false;
 
     int m_currentReceipt;
+    double m_given = 0.0;
 };
 
 #endif // RECEIPTITEMMODEL_H

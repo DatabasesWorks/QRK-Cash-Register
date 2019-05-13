@@ -26,6 +26,7 @@
 #include "qrkdocument.h"
 #include "documentprinter.h"
 #include "preferences/qrksettings.h"
+#include "RK/rk_signaturemodule.h"
 #include "reports.h"
 #include "qrkdelegate.h"
 #include "qrktimedmessagebox.h"
@@ -155,7 +156,7 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
     bool isDamaged = false;
     ui->pixmapLabel->setPixmap(Utils::getQRCode(receiptNum, isDamaged));
     ui->pixmapLabel->show();
-    if (isDamaged)
+    if (RKSignatureModule::isDEPactive() && isDamaged)
         ui->qrcodeTextLabel->setText(tr("Sicherheitseinrichtung ausgefallen"));
     else
         ui->qrcodeTextLabel->setText("");

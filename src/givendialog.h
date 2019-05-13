@@ -36,6 +36,7 @@ class GivenDialog : public QDialog
 public:
     explicit GivenDialog(double &sum, QWidget *parent = 0);
     ~GivenDialog();
+    double getGiven();
 
 private slots:
     void accept();

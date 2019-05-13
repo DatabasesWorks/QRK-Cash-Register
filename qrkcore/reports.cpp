@@ -40,6 +40,7 @@
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QTextDocument>
+#include <QTextCursor>
 #include <QDebug>
 
 Reports::Reports(QObject *parent, bool servermode)
@@ -1099,11 +1100,11 @@ QString Reports::getReport(int id, bool test)
 
     text.append("<!DOCTYPE html><html><head>\n");
     text.append("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n");
-    text.append("</head><body>\n<table cellpadding=\"3\" cellspacing=\"1\" width=\"100%\">\n");
+    text.append("</head><body>\n<table border=\"0\" cellpadding=\"3\" cellspacing=\"1\" width=\"100%\">\n");
 
     int x = 0;
 
-    int span = (settings.value("report_by_productgroup", false).toBool())?4:5;
+    int span = 4;
     bool needOneMoreCol = false;
 
     text.append(QString("<tr><th colspan=\"%1\">%2</th></tr>").arg(span).arg(header) );
@@ -1126,12 +1127,12 @@ QString Reports::getReport(int id, bool test)
         QStringList list;
 
         if (t.indexOf('-') == 0 && t.size() == 1) {
-            span = (settings.value("report_by_productgroup", false).toBool())?4:5;
+            span = 4;
             t.replace('-',"<hr>");
             text.append(QString("<td colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(t));
             needOneMoreCol = false;
         } else if (t.indexOf('=') == 0  && t.size() == 1) {
-            span = (settings.value("report_by_productgroup", false).toBool())?4:5;
+            span = 4;
             t.replace('=',"<hr size=\"5\">");
             text.append(QString("<td colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(t));
             needOneMoreCol = false;
@@ -1140,9 +1141,9 @@ QString Reports::getReport(int id, bool test)
             span = span - list.count();
             foreach (const QString &str, list) {
                 if (test)
-                    text.append(QString("<td align=\"right\" colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg("0,00"));
+                    text.append(QString("<td nowrap align=\"right\" colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg("0,00"));
                 else
-                    text.append(QString("<td align=\"right\" colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(str));
+                    text.append(QString("<td nowrap align=\"right\" colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(str));
                 span = 1;
             }
             needOneMoreCol = true;
@@ -1154,8 +1155,12 @@ QString Reports::getReport(int id, bool test)
             QString align = "left";
             foreach (const QString &str, list) {
                 align = (count != 1)?"right":"left";
+
+                bool nowrap = Utils::isNumber(str);
                 if (test && count > 1)
                     text.append(QString("<td align=\"%1\" colspan=\"%2\" %3>%4</td>").arg(align).arg(span).arg(color).arg("0,00"));
+                else if (nowrap)
+                    text.append(QString("<td align=\"%1\" colspan=\"%2\" %3><nobr>%4</nobr></td>").arg(align).arg(span).arg(color).arg(str));
                 else
                     text.append(QString("<td align=\"%1\" colspan=\"%2\" %3>%4</td>").arg(align).arg(span).arg(color).arg(str));
 
@@ -1182,8 +1187,9 @@ QString Reports::getReport(int id, bool test)
             needOneMoreCol = true;
         }
 
-        if (!settings.value("report_by_productgroup", false).toBool() && needOneMoreCol)
-            text.append(QString("<td colspan=\"%1\" %2></td>").arg(span).arg(color));
+//        if (!settings.value("report_by_productgroup", false).toBool() && needOneMoreCol)
+//        if (needOneMoreCol)
+//            text.append(QString("<td colspan=\"%1\" %2></td>").arg(span).arg(color));
 
         text.append("</tr>");
     }
@@ -1197,6 +1203,15 @@ void Reports::printDocument(int id, QString title)
     QString DocumentTitle = QString("BON_%1_%2").arg(id).arg(title);
     QTextDocument doc;
     doc.setHtml(Reports::getReport(id));
+
+    QTextCursor cursor(&doc);
+    cursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
+    bool isDamaged;
+    QImage img = Utils::getQRCode(id, isDamaged).toImage();
+    cursor.insertImage(img);
+    if (RKSignatureModule::isDEPactive() && isDamaged)
+        cursor.insertHtml("</br><small>Sicherheitseinrichtung ausgefallen</small>");
+
     DocumentPrinter p;
     p.printDocument(&doc, DocumentTitle);
 }

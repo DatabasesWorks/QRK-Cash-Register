@@ -128,6 +128,12 @@ bool ImportWorker::loadJSonFile(QString filename)
         receiptInfo = receiptInfo.mid(begin,end);
     }
 
+    if (receiptInfo.isEmpty()) {
+        Spread::Instance()->setImportInfo(tr("INFO: Import %1 wurde ignoriert -> Keine JSON Datei.").arg(filename),true);
+        fileMover(filename, ".false");
+        return false;
+    }
+
     QrkSettings settings;
     QJsonParseError jerror;
 
