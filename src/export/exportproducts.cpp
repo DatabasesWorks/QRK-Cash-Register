@@ -112,10 +112,10 @@ bool ExportProducts::productsExport(QString outputFilename, QStringList required
     bool firstLine = true;
 
 //    query.prepare(QString("SELECT * FROM products WHERE \"group\" > 1"));
-    query.prepare("SELECT " + selectlist + " FROM products INNER JOIN groups where \"group\" = groups.id AND \"group\" > 1");
-    qDebug() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
+    query.prepare("SELECT " + selectlist + " FROM products INNER JOIN groups where `group` = groups.id AND `group` > 1");
 
     if(query.exec()){
+        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
         while (query.next()) {
             const QSqlRecord record= query.record();
             int count = record.count();
@@ -149,6 +149,9 @@ bool ExportProducts::productsExport(QString outputFilename, QStringList required
                 if (i < count -1) outStream << ';';
             }
         }
+    } else {
+        qWarning() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
     }
     outputFile.close();
     Spread::Instance()->setProgressBarValue(-1);
