@@ -20,6 +20,9 @@
 #
 # -- 21
 
+  VERSION 1.10.6 Build 190605
+  * FIX MySQL Artikel Export
+
   VERSION 1.10.5 Build 190510
   + Gegeben und Rückgeld steht bei aktivierten Gegeben-Dialog auch am BON
   + JSON Import wurde erweitert. Optionalen Schlüssel "given" (zB. "given": "123.45")
