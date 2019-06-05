@@ -624,6 +624,7 @@ bool Database::addProduct(const QJsonObject &data)
     }
 
     if (query.exec()) {
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " Query: " << getLastExecutedQuery(query);
         return true;
     } else {
         qWarning() << "Function Name: " << Q_FUNC_INFO << " error: " << query.lastError().text();
