@@ -33,7 +33,7 @@ class QRK_EXPORT Export : public QObject
         Q_OBJECT
 
     public:
-        explicit Export(QObject *parent = 0);
+        explicit Export(QObject *parent = Q_NULLPTR);
         ~Export();
 
         bool depExport(QString filename);

@@ -91,7 +91,7 @@ CREATE TABLE `products` (
   `sold` double NOT NULL DEFAULT '0',
   `net` double NOT NULL,
   `gross` double NOT NULL,
-  `group` int(11) NOT NULL DEFAULT '2',
+  `groupid` int(11) NOT NULL DEFAULT '2',
   `visible` tinyint(1) NOT NULL DEFAULT '1',
   `completer` tinyint(1) NOT NULL DEFAULT '1',
   `tax` double NOT NULL DEFAULT '20',
@@ -101,8 +101,11 @@ CREATE TABLE `products` (
   `coupon` tinyint(1) NOT NULL DEFAULT '0',
   `stock` double NOT NULL DEFAULT '0',
   `minstock` double NOT NULL DEFAULT '0',
+  `version` int(11) NOT NULL DEFAULT '0',
+  `origin` int(11) NOT NULL DEFAULT '0',
+  `lastchange` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `group` (`group`)
+  KEY `groupid` (`groupid`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 CREATE TABLE `receipts` (
@@ -120,11 +123,19 @@ CREATE TABLE `receipts` (
   KEY `receipts_stornoId_index` (`stornoId`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
+CREATE TABLE `receiptspay` (
+    `receiptNum`	INTEGER DEFAULT NULL,
+    `payedBy`	INTEGER NOT NULL DEFAULT '0',
+    `gross`	double NOT NULL DEFAULT '0',
+    KEY `receiptspay_index` (`receiptNum`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
 CREATE TABLE `reports` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `receiptNum` int(11) DEFAULT NULL,
   `timestamp` datetime NOT NULL,
   `text` text,
+  `type`	INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `reports_receiptNum_index` (`receiptNum`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
@@ -150,16 +161,16 @@ INSERT INTO `taxTypes` (`id`, `tax`, `comment`, `taxlocation`) VALUES
 (6, 19, 'Satz-Normal', 'DE'),
 (7, 7, 'Satz-Ermaessigt-1', 'DE'),
 (8, 0, 'Satz-Null', 'DE'),
-(9, 8, 'Satz-Normal', 'CH'),
+(9, 7.7, 'Satz-Normal', 'CH'),
 (10, 2.5, 'Satz-Ermaessigt-1', 'CH'),
-(11, 3.8, 'Satz-Besonders', 'CH'),
+(11, 3.7, 'Satz-Besonders', 'CH'),
 (12, 0, 'Satz-Null', 'CH');
 
 ALTER TABLE `orders`
   ADD CONSTRAINT `product` FOREIGN KEY (`product`) REFERENCES `products` (`id`);
 
 ALTER TABLE `products`
-  ADD CONSTRAINT `group` FOREIGN KEY (`group`) REFERENCES `groups` (`id`);
+  ADD CONSTRAINT `groupid` FOREIGN KEY (`groupid`) REFERENCES `groups` (`id`);
 
 CREATE TABLE `permissions` (
     `ID` bigint(20) unsigned NOT NULL auto_increment,

@@ -25,8 +25,7 @@ TARGET = QRK-UnitTests
 
 TEMPLATE = app qt
 
-QT += core testlib
-QT -= gui
+QT += core testlib sql widgets
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked as deprecated (the exact warnings
@@ -43,14 +42,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #QMAKE_LFLAGS += -Wl,--rpath=../qrkcore
 CONFIG += console warn_off no_testcase_installs
 
-SOURCES += test-main.cpp
+SOURCES += test-main.cpp \
+    importtest.cpp
 
-HEADERS +=
+HEADERS += \
+    importtest.h
 
 INCLUDEPATH += $$SRC_DIR/qrkcore
 DEPENDPATH += $$SRC_DIR/qrkcore
-
-DEFINES += QT_DEPRECATED_WARNINGS
 
 win32:CONFIG(release, debug|release): LIBS += -L../qrkcore/release -lQrkCore
 else:win32:CONFIG(debug, debug|release): LIBS += -L../qrkcore/debug -lQrkCore

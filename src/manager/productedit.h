@@ -20,8 +20,8 @@
  *
 */
 
-#ifndef _PRODUCTEDIT_H_
-#define _PRODUCTEDIT_H_
+#ifndef PRODUCTEDIT_H_
+#define PRODUCTEDIT_H_
 
 #include <QDialog>
 #include <QSqlQueryModel>
@@ -53,10 +53,16 @@ class ProductEdit : public QDialog
 
   private:
     Ui::ProductEdit *ui;
+    bool updateData(int id, QString name, QString itemnum, int version, bool visible);
+
     int m_id;
     QSqlQueryModel *m_groupsModel;
     QSqlQueryModel *m_taxModel;
     int m_barcodeReaderPrefix;
+    QString m_name;
+    QString m_itemnum;
+    int m_version;
+    int m_origin;
 };
 
 #endif

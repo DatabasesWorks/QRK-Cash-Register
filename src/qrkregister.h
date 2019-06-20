@@ -28,6 +28,8 @@
 #include "pluginmanager/Interfaces/barcodesinterface.h"
 #include "defines.h"
 
+#include <QJsonObject>
+
 class QButtonGroup;
 
 namespace Ui {
@@ -38,7 +40,7 @@ class QRKRegister : public QWidget
 {
     Q_OBJECT
   public:
-    explicit QRKRegister(QWidget *parent = 0);
+    explicit QRKRegister(QWidget *parent = Q_NULLPTR);
     ~QRKRegister();
     void init();
     void newOrder();
@@ -48,6 +50,7 @@ class QRKRegister : public QWidget
     void cancelRegisterButton_clicked();
     void finishedReceipt();
     void fullScreen(bool);
+    void sendDatagram(QString what, QString data);
 
   public slots:
     void safetyDevice(bool active);
@@ -103,7 +106,7 @@ class QRKRegister : public QWidget
 
     void numPadValueButtonPressed(const QString &text, REGISTER_COL column);
 
-    BarcodesInterface *barcodesInterface = 0;
+    BarcodesInterface *barcodesInterface = Q_NULLPTR;
 
     int m_currentReceipt;
     ReceiptItemModel *m_orderListModel;
@@ -132,6 +135,8 @@ class QRKRegister : public QWidget
     int m_decimaldigits = 2;
     int m_maximumWindowsHeight;
     QSize m_quickButtonSize;
+    QJsonObject m_orderRoot;
+
 
 };
 

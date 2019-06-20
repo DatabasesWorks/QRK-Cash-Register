@@ -43,7 +43,7 @@ class CsvImportWizardPage1 : public QWizardPage
     Q_OBJECT
 
   public:
-    explicit CsvImportWizardPage1(QWidget *parent = 0);
+    explicit CsvImportWizardPage1(QWidget *parent = Q_NULLPTR);
     ~CsvImportWizardPage1();
     bool isComplete() const;
     void setModel(QStandardItemModel *model);

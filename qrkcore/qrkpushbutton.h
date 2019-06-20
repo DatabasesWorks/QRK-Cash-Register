@@ -31,9 +31,9 @@ class QRK_EXPORT QrkPushButton : public QPushButton
     Q_OBJECT
 
 public:
-    QrkPushButton(QWidget *parent = nullptr);
-    QrkPushButton(const QString &text, QWidget *parent = nullptr);
-    QrkPushButton(const QIcon &icon, const QString &text, QWidget *parent = nullptr);
+    QrkPushButton(QWidget *parent = Q_NULLPTR);
+    QrkPushButton(const QString &text, QWidget *parent = Q_NULLPTR);
+    QrkPushButton(const QIcon &icon, const QString &text, QWidget *parent = Q_NULLPTR);
 
     void setMinimumSize(const QSize);
 };

@@ -42,7 +42,7 @@ class CKVSOFT_EXPORT UniqueMachineFingerprint : public QObject
 {
     Q_OBJECT
 public:
-    explicit UniqueMachineFingerprint(QObject *parent = nullptr);
+    explicit UniqueMachineFingerprint(QObject *parent = Q_NULLPTR);
     const QString getSystemUniqueId();
     bool validate( QString testIdString );
 

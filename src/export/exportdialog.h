@@ -34,7 +34,7 @@ class ExportDialog : public QDialog
     Q_OBJECT
 
   public:
-    ExportDialog(bool save2dir, QWidget *parent = 0);
+    ExportDialog(bool save2dir, QWidget *parent = Q_NULLPTR);
     ~ExportDialog();
     QString getFilename();
     QString getFrom();

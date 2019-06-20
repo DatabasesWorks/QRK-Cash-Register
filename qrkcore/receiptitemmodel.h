@@ -50,7 +50,7 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
 {
     Q_OBJECT
   public:
-    ReceiptItemModel(QObject* parent = 0);
+    ReceiptItemModel(QObject* parent = Q_NULLPTR);
     ~ReceiptItemModel();
 
     QJsonObject compileData(int id = 0);
@@ -61,7 +61,8 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     void newOrder(bool addRow = true);
     void clear();
     void plus();
-    void setGiven(double given);
+    void setGiven(QMap<int, double> given);
+    void setGiven(int, double);
 
     bool setReceiptServerMode(QJsonObject obj);
     bool setR2BServerMode(QJsonObject obj);
@@ -89,8 +90,10 @@ private:
     bool doEndOfDay(QDate date);
     void initPlugins();
     int getFreeProductNumber(int number, int currentRow);
+    QString getFreeProductNumber(QString number, int currentRow);
 
-    WsdlInterface *wsdlInterface = 0;
+
+    WsdlInterface *wsdlInterface = Q_NULLPTR;
 
     QDate m_lastEOD;
     QString m_currency;
@@ -106,7 +109,7 @@ private:
     bool m_changeProductNumber = false;
 
     int m_currentReceipt;
-    double m_given = 0.0;
+    QMap<int, double> m_given;
 };
 
 #endif // RECEIPTITEMMODEL_H

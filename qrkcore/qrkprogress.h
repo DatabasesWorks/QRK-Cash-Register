@@ -35,7 +35,7 @@ class QRK_EXPORT QRKProgress : public QDialog
     Q_OBJECT
 
 public:
-    QRKProgress(QDialog *parent = 0);
+    QRKProgress(QDialog *parent = Q_NULLPTR);
     ~QRKProgress();
 
     void setWaitMode(bool waitmode = true);

@@ -77,7 +77,7 @@ void Acl::settempUserId(int userId)
 void Acl::resetTempUserId()
 {
     QDateTime now = QDateTime::currentDateTime();
-    int remain = now.secsTo(m_timeout);
+    qint64 remain = now.secsTo(m_timeout);
     if (remain > 0 || m_tempuserId < 1)
         return;
 
@@ -483,8 +483,12 @@ bool Acl::hasPermission(QString permKey, bool allowtempuser)
     if (m_userId == 0 || m_masteradmin)
         return true;
 
+
     bool access = false;
     permKey = permKey.toLower();
+    if (!existPermission(permKey))
+        insertPermission(permKey);
+
     if (m_perms.contains(permKey))
         access = m_perms.value(permKey).value("value").toBool();
 
@@ -500,6 +504,40 @@ bool Acl::hasPermission(QString permKey, bool allowtempuser)
 
     qDebug() << "Function Name: " << Q_FUNC_INFO << "no permissions: " << permKey;
     qDebug() << "Function Name: " << Q_FUNC_INFO << "userId: " << m_userId;
+
+    return false;
+}
+
+bool Acl::existPermission(QString perm)
+{
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery query(dbc);
+
+    query.prepare("SELECT id FROM permissions WHERE permKey = :perm LIMIT 1");
+    query.bindValue(":perm", perm);
+    query.exec();
+    if (query.next()) {
+        return true;
+    }
+
+    return false;
+}
+
+bool Acl::insertPermission(QString perm)
+{
+    if (existPermission(perm))
+        return true;
+
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery query(dbc);
+
+    query.prepare("INSERT INTO `permissions` (ID,permKey,permName) VALUES (,:perm,:autoperm)");
+    query.bindValue(":perm", perm);
+    query.bindValue(":autoperm", "added by QRK: " + perm);
+    query.exec();
+    if (query.next()) {
+        return true;
+    }
 
     return false;
 }
@@ -525,7 +563,7 @@ void Acl::saveUser(User *user, int &id)
     query.bindValue(":name", user->getUserName());
     query.bindValue(":password", (sba.isEmpty() ? getPasswordByUserId(id) : crypto.encrypt(sba)));
     query.bindValue(":displayname", user->getDisplayName());
-    query.bindValue(":gender", (int)user->getGender());
+    query.bindValue(":gender", int(user->getGender()));
     query.bindValue(":avatar", user->getAvatar());
     query.bindValue(":date", QDateTime::currentDateTime().toString(Qt::ISODate));
     query.exec();
@@ -533,7 +571,7 @@ void Acl::saveUser(User *user, int &id)
         query.prepare("INSERT INTO users (username, displayname, password, value, gender, avatar, addDate) VALUES(:name, :displayname, :password, :value, :gender, :avatar, :date)");
         query.bindValue(":name", user->getUserName());
         query.bindValue(":displayname", user->getDisplayName());
-        query.bindValue(":gender", (int)user->getGender());
+        query.bindValue(":gender", int(user->getGender()));
         query.bindValue(":avatar", user->getAvatar());
         query.bindValue(":password", crypto.encrypt(sba));
         query.bindValue(":value", val);

@@ -23,8 +23,8 @@
 #ifndef DEFINES
 #define DEFINES
 
-#define QRK_VERSION_MAJOR "1.10.6"
-#define QRK_VERSION_MINOR "Build-190605"
+#define QRK_VERSION_MAJOR "1.12"
+#define QRK_VERSION_MINOR "Build-190619"
 
 enum REGISTER_COL
 {

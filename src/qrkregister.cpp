@@ -52,7 +52,7 @@
 #include <QDir>
 #include <QtWidgets>
 #include <QMouseEvent>
-#include <QDebug>
+
 QRKRegister::QRKRegister(QWidget *parent)
     : QWidget(parent), ui(new Ui::QRKRegister), m_currentReceipt(0)
 {
@@ -187,8 +187,9 @@ void QRKRegister::finishedItemChanged()
 {
     ui->orderList->resizeColumnsToContents();
     ui->orderList->horizontalHeader()->setSectionResizeMode(REGISTER_COL_PRODUCT, QHeaderView::Stretch);
-
+    ui->orderList->resizeRowsToContents();
     updateOrderSum();
+    emit sendDatagram("orders", QJsonDocument(m_orderRoot).toJson(QJsonDocument::Compact));
 }
 
 //--------------------------------------------------------------------------------
@@ -202,6 +203,7 @@ void QRKRegister::init()
     ui->barcodeLineEdit->setEnabled(true);
     ui->debitcardReceipt->setHidden(settings.value("hideDebitcardButton", false).toBool());
     ui->creditcardReceipt->setHidden(settings.value("hideCreditcardButton", false).toBool());
+    ui->receiptToInvoice->setHidden(settings.value("hideR2BButton", false).toBool());
 
     ui->orderList->setModel(m_orderListModel);
 
@@ -353,7 +355,7 @@ void QRKRegister::barcodeFinderButton_clicked(bool)
     connect(&finder, &BarcodeFinder::barcodeCommit, ui->barcodeLineEdit, &QLineEdit::editingFinished);
 
     finder.exec();
-    disconnect(&finder, &BarcodeFinder::barcodeCommit, 0, 0);
+    disconnect(&finder, &BarcodeFinder::barcodeCommit, Q_NULLPTR, Q_NULLPTR);
 
 }
 
@@ -382,7 +384,7 @@ void QRKRegister::quickProductButtons(int id)
     if (query.next())
         bordercolor = (query.value("color").toString() == "")?bordercolor: query.value(0).toString();
 
-    ok = query.prepare(QString("SELECT id, name, gross, color FROM products WHERE `group`=%1 AND visible=1 ORDER by name").arg(id));
+    ok = query.prepare(QString("SELECT id, name, gross, color FROM products WHERE groupid=%1 AND visible=1 ORDER by name").arg(id));
 
     if (!ok) {
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
@@ -566,17 +568,31 @@ void QRKRegister::updateOrderSum()
     if (rows == 0)
         setButtonGroupEnabled(false);
 
-    for (int row = 0; row < rows; row++)
-    {
+    QJsonObject Root;
+    QJsonArray Orders;
+
+    for (int row = 0; row < rows; row++) {
+        QJsonObject order;
+
         QStringList dTemp = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_TOTAL, QModelIndex())).toString().split(" ");
         QString sTemp = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString();
-        if (sTemp.isEmpty())
+        if (sTemp.isEmpty()) {
             enabled = false;
-
+        } else {
+            order["product"] = sTemp;
+            order["count"] = m_orderListModel->data(m_orderListModel->index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
+            order["sum"] = dTemp[0].toDouble();
+            Orders.append(order);
+        }
         double d4 = dTemp[0].toDouble();
 
         sum += d4;
+
     }
+
+    Root["Orders"] = Orders;
+    Root["sum"] = sum;
+    m_orderRoot = Root;
 
     if (rows > 0)
         setButtonGroupEnabled(enabled);
@@ -644,16 +660,46 @@ void QRKRegister::newOrder()
 
     if (!list.empty()) {
         QString date = list.takeAt(0);
+        QString localeDate = QLocale().toString(QDateTime::fromString(date, Qt::ISODate), QLocale::ShortFormat);
+
         QString bonNr = list.takeAt(0);
         QString taxName = Database::getActionType(list.takeAt(0).toInt());
         double gross = list.takeAt(0).toDouble();
 
         if (bonNr.length()) {
-            ui->lastReceiptLabel->setText(QString(tr("Letzter Barumsatz: BON Nr. %1, %2, %3: %4 %5"))
-                                          .arg(bonNr)
-                                          .arg(date)
-                                          .arg(taxName)
-                                          .arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()));
+            QMap<int, double> givenMap = Database::getGiven(bonNr.toInt());
+            if (givenMap.size() > 0) {
+                QString payedByText;
+                QBCMath given(givenMap.value(PAYED_BY_CASH));
+                given.round(2);
+                QBCMath secondPay(givenMap.value(PAYED_BY_DEBITCARD));
+                if (secondPay == 0) secondPay = givenMap.value(PAYED_BY_CREDITCARD);
+                secondPay.round(2);
+
+                QBCMath retourMoney((given + secondPay) - gross);
+                retourMoney.round(2);
+                QString givenText = tr("BAR: %1 %2").arg(given.toLocale()).arg(Database::getCurrency());
+
+                QString retourMoneyText = "";
+                if (retourMoney > 0.0) {
+                    retourMoneyText = tr("Rückgeld: %1 %2").arg(retourMoney.toLocale()).arg(Database::getCurrency());
+                    if (secondPay == 0.0) givenText = tr("Gegeben: %1 %2").arg(given.toLocale()).arg(Database::getCurrency());
+                }
+                QString secondText = "";
+                if (secondPay > 0.0) {
+                    secondText = tr("%1: %2 %3").arg(givenMap.lastKey() == PAYED_BY_DEBITCARD?tr("Bankomat"):tr("Kreditkarte")).arg(secondPay.toLocale()).arg(Database::getCurrency());
+                    payedByText = tr("Mischzahlung %1 %2\t%3 %4").arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()).arg(givenText).arg(secondText);
+                } else {
+                    payedByText = tr("%1 %2 %3\t%4 %5").arg(taxName).arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()).arg(givenText).arg(retourMoneyText);
+                }
+                ui->lastReceiptLabel->setText(tr("Letzter Barumsatz: BON Nr. %1 %2 %3").arg(bonNr).arg(localeDate).arg(payedByText));
+            } else {
+                ui->lastReceiptLabel->setText(QString(tr("Letzter Barumsatz: BON Nr. %1, %2, %3: %4 %5"))
+                                              .arg(bonNr)
+                                              .arg(localeDate)
+                                              .arg(taxName)
+                                              .arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()));
+            }
         }
     }
 
@@ -851,6 +897,7 @@ void QRKRegister::minusSlot()
         ui->plusButton->setEnabled(true);
 
     updateOrderSum();
+    emit finishedItemChanged();
 }
 
 //--------------------------------------------------------------------------------
@@ -869,6 +916,8 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
         setButtonGroupEnabled(true);
         return;
     }
+
+    emit sendDatagram("topay", ui->sumLabel->text().replace(Database::getCurrency() ,""));
 
     if (m_useGivenDialog && payedBy == PAYED_BY_CASH) {
         double sum = QLocale().toDouble(ui->sumLabel->text().replace(Database::getCurrency() ,""));
@@ -953,6 +1002,9 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
         QMessageBox::warning(this, tr("Fehler"), tr("Datenbank und/oder Signatur Fehler!\nAktueller BON kann nicht erstellt werden. (Rollback: %1).\nÜberprüfen Sie ob genügend Speicherplatz für die Datenbank vorhanden ist. Weitere Hilfe gibt es im Forum. http:://www.ckvsoft.at").arg(sql_ok?tr("durchgeführt"):tr("fehlgeschlagen") ));
         qCritical() << "Function Name: " << Q_FUNC_INFO << " Error: " << dbc.lastError().text();
     }
+
+    emit sendDatagram("finished", "");
+
 }
 
 //--------------------------------------------------------------------------------
@@ -974,7 +1026,7 @@ void QRKRegister::receiptToInvoiceSlot()
             rc++;
         }
 
-        bool productExists = Database::exists("products", r2b.getInvoiceNum());
+        bool productExists = Database::exists(r2b.getInvoiceNum());
         if (productExists) {
             QMessageBox msgWarning(QMessageBox::Warning,"","");
             msgWarning.setWindowTitle(QObject::tr("Warnung"));
@@ -1028,6 +1080,8 @@ void QRKRegister::setCurrentReceiptNum(int id)
 
 void QRKRegister::onCancelRegisterButton_clicked()
 {
+    emit sendDatagram("cancelregister", "");
+
     writeSettings();
 
     if (m_orderListModel->rowCount() > 0 ) {
@@ -1155,7 +1209,9 @@ void QRKRegister::splitterMoved(int pos, int)
 
     ui->orderList->setColumnHidden(REGISTER_COL_TAX, m_orderlistTaxColumnHidden);
     ui->orderList->setColumnHidden(REGISTER_COL_SINGLE, m_orderlistSinglePriceColumnHidden);
+    ui->orderList->resizeRowsToContents();
     setButtonsHidden();
+
 }
 
 void QRKRegister::setButtonsHidden()
@@ -1198,7 +1254,7 @@ void QRKRegister::singlePriceChanged(QString product, QString singleprice, QStri
     if (!m_usePriceChangedDialog)
         return;
 
-    if (!Database::exists("products", product))
+    if (!Database::exists(product))
             return;
 
     QJsonObject data = Database::getProductByName(product);

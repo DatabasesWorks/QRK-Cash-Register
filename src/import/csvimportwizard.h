@@ -36,7 +36,7 @@ class CsvImportWizard : public QWizard
     Q_OBJECT
 
   public:
-    CsvImportWizard(QWidget *parent = 0);
+    CsvImportWizard(QWidget *parent = Q_NULLPTR);
     QStandardItemModel getModel();
 
     CsvImportWizardPage1 *m_pageImport;

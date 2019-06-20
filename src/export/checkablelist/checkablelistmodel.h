@@ -32,7 +32,7 @@
 class CheckableListModel : public QStandardItemModel
 {
 public:
-    CheckableListModel(QObject* parent = 0);
+    CheckableListModel(QObject* parent = Q_NULLPTR);
     QVariant data(const QModelIndex &index, int role) const;
     QStringList getSelectedList();
 

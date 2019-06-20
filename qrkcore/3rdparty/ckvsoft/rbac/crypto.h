@@ -35,7 +35,7 @@ class CKVSOFT_EXPORT Crypto : QObject
         Q_OBJECT
 
     public:
-        Crypto(QObject *parent = 0);
+        Crypto(QObject *parent = Q_NULLPTR);
         static QString encrypt(const SecureByteArray &plain);
         static QString encrypt(const SecureByteArray &plain, const SecureByteArray &password);
         static QString decrypt(const QString &encryptedHex, const SecureByteArray &password);

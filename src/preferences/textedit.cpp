@@ -68,10 +68,6 @@ TextEdit::TextEdit(QWidget *parent)
                QKeySequence("Ctrl+E").toString(QKeySequence::NativeText) + " " + tr("auslösen"));
 }
 
-TextEdit::~TextEdit()
-{
-}
-
 void TextEdit::setCompleter(QCompleter *completer)
 {
     if (c)

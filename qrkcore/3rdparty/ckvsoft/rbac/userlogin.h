@@ -30,7 +30,7 @@ class CKVSOFT_EXPORT UserLogin : public base_login
         Q_OBJECT
 
     public:
-        UserLogin(QWidget* parent = 0);
+        UserLogin(QWidget* parent = Q_NULLPTR);
         ~UserLogin();
 
     private slots:

@@ -42,7 +42,7 @@ public:
         DISCOUNT
     };
 
-    explicit QrkDelegate(int type, QObject *parent = 0);
+    explicit QrkDelegate(int type, QObject *parent = Q_NULLPTR);
 
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;

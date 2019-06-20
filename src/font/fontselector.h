@@ -34,7 +34,7 @@ class FontSelector : public QDialog
     Q_OBJECT
 
   public:
-    explicit FontSelector(QFont font, QWidget *parent = 0);
+    explicit FontSelector(QFont font, QWidget *parent = Q_NULLPTR);
     ~FontSelector();
     QFont getFont();
 

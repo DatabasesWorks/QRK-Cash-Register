@@ -713,6 +713,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     sumProducts.round(2);
 
     QStringList stat;
+    stat.append("=A");
     stat.append(QString("Anzahl verkaufter Artikel oder Leistungen: %1").arg(sumProducts.toLocale()));
 
     /* Anzahl Zahlungen */
@@ -745,8 +746,10 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     stat.append(QString("Anzahl Stornos: %1").arg(query.value("count_id").toInt()));
     stat.append("-");
 
+
     /* Umsätze Zahlungsmittel */
-    query.prepare(Database::getSalesPerPaymentSQLQueryString());
+    query.prepare("SELECT actionTypes.actionText, receiptNum, gross from receipts LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3 ORDER BY receipts.payedBy");
+//    query.prepare(Database::getSalesPerPaymentSQLQueryString());
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
 
@@ -763,6 +766,51 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
      */
 
     stat.append(tr("Umsätze nach Zahlungsmittel"));
+
+    QMap<QString, double> zm;
+    while (query.next()) {
+        QString key = query.value("actionText").toString();
+        int id = query.value("receiptNum").toInt();
+        QBCMath total(query.value("gross").toString());
+        total.round(2);
+
+        QMap<int, double> mixed = Database::getGiven(id);
+        if (mixed.size() > 1) {
+            QString type = Database::getActionType(mixed.lastKey());
+            QBCMath secondPay(mixed.last());
+            secondPay.round(2);
+            total -= secondPay;
+            if ( zm.contains(type) ) {
+                zm[type] += secondPay.toDouble();
+            } else {
+                zm[type] = secondPay.toDouble();
+            }
+        }
+
+        if ( zm.contains(key) ) {
+            zm[key] += total.toDouble();
+        } else {
+            zm[key] = total.toDouble();
+        }
+        qApp->processEvents();
+    }
+
+    QMap<QString, double>::iterator i;
+    QBCMath totalsum = 0.0;
+
+    for (i = zm.begin(); i != zm.end(); ++i) {
+        QString key = i.key();
+        QBCMath total(i.value());
+        total.round(2);
+        stat.append(QString("%1: %2").arg(key, total.toLocale()));
+        totalsum += total;
+    }
+    totalsum.round(2);
+    stat.append("-");
+    stat.append(QString("Summe: %1").arg(totalsum.toLocale()));
+    stat.append("-");
+
+    /*
     QMap<QString, QMap<double, double> > zm;
     QMap<double, double> map;
     while (query.next())
@@ -804,6 +852,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
         stat.append(QString("Summe %1: %2").arg(key, total.toLocale()));
         stat.append("-");
     }
+    */
 
     /*
      * FIXME: We do this workaroud, while SUM and ROUND will
@@ -823,9 +872,9 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     }
 
     stat.append(tr("Umsätze nach Steuersätzen"));
+    QMap<double, double> map;
     map.clear();
-    while (query.next())
-    {
+    while (query.next()) {
         QBCMath key(query.value("tax").toString());
         key.round(2);
         QBCMath total(query.value("total").toString());
@@ -835,6 +884,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
         } else {
             map[key.toDouble()] = total.toDouble();
         }
+        qApp->processEvents();
     }
 
     QMap<double, double>::iterator j;
@@ -889,99 +939,107 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     stat.append(QString("%1: %2").arg(type).arg(sales));
     stat.append("=");
 
-    if (settings.value("report_by_productgroup", false).toBool()) {
-        /* Warengruppe
-         * SELECT sum(orders.count) AS count, groups.name, orders.tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total FROM orders inner join groups as groups LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE products.'group' = groups.id AND receipts.payedBy < 3 GROUP BY groups.name, products.tax ORDER BY orders.tax, products.name ASC
+    /* Warengruppe
+         * SELECT sum(orders.count) AS count, groups.name, orders.tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total FROM orders inner join groups as groups LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE products.groupid = groups.id AND receipts.payedBy < 3 GROUP BY groups.name, products.tax ORDER BY orders.tax, products.name ASC
          * TODO:
          */
-        if (Database::isAnyValueFunctionAvailable())
-            query.prepare("SELECT groups.name, ANY_VALUE(products.tax) as tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total FROM orders inner join groups as groups LEFT JOIN products ON orders.product=products.id LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND products.'group' = groups.id AND receipts.payedBy < 3 GROUP BY groups.name, products.tax ORDER BY products.tax ASC");
-        else
-            query.prepare("SELECT groups.name, products.tax as tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total FROM orders inner join groups as groups LEFT JOIN products ON orders.product=products.id LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND products.'group' = groups.id AND receipts.payedBy < 3 GROUP BY groups.name, products.tax ORDER BY products.tax ASC");
+    if (Database::isAnyValueFunctionAvailable())
+        query.prepare("SELECT groups.name, ANY_VALUE(products.tax) as tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total FROM orders inner join groups as groups LEFT JOIN products ON orders.product=products.id LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND products.groupid = groups.id AND receipts.payedBy < 3 GROUP BY groups.name, products.tax ORDER BY groups.name, products.tax ASC");
+    else
+        query.prepare("SELECT groups.name, products.tax as tax, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total FROM orders inner join groups as groups LEFT JOIN products ON orders.product=products.id LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND products.groupid = groups.id AND receipts.payedBy < 3 GROUP BY groups.name, products.tax ORDER BY groups.name, products.tax ASC");
 
-        query.bindValue(":fromDate", from.toString(Qt::ISODate));
-        query.bindValue(":toDate", to.toString(Qt::ISODate));
+    query.bindValue(":fromDate", from.toString(Qt::ISODate));
+    query.bindValue(":toDate", to.toString(Qt::ISODate));
 
-        ok = query.exec();
-        if (!ok) {
-            qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-            qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
-        }
+    ok = query.exec();
+    if (!ok) {
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
+    }
 
-        stat.append(tr("Warengruppen Abrechnung"));
-        stat.append("-");
-        QBCMath total_productgroup(0);
-        while (query.next()) {
-            QBCMath total(query.value("total").toDouble());
-            total.round(2);
-            total_productgroup += total;
-            QBCMath tax(query.value("tax").toDouble());
-            tax.round(2);
-            QBCMath totalTax;
-            totalTax = total / (tax + 100.00) * 100.00;
-            totalTax.round(2);
-            totalTax = total - totalTax;
-            totalTax.round(2);
+    stat.append("=W");
+    stat.append(tr("Warengruppen Abrechnung"));
+    stat.append("-");
+    QBCMath total_productgroup(0);
+    QString previousName = "";
+    while (query.next()) {
+        QBCMath total(query.value("total").toDouble());
+        total.round(2);
+        total_productgroup += total;
+        QBCMath tax(query.value("tax").toDouble());
+        tax.round(2);
+        QBCMath totalTax;
+        totalTax = total / (tax + 100.00) * 100.00;
+        totalTax.round(2);
+        totalTax = total - totalTax;
+        totalTax.round(2);
 
-            stat.append(QString("%1: %2")
+        QString name = query.value("name").toString().trimmed();
+        if (name.compare(previousName) != 0) {
+            previousName = name;
+            stat.append(QString("%1 : %2") /* do not remove the space before : */
                         .arg(query.value("name").toString())
                         .arg(total.toLocale()));
-
-            stat.append(tr("davon MwSt. %1%: %2")
-                        .arg(Utils::getTaxString(tax).replace(".",","))
-                        .arg(totalTax.toLocale()));
-
-        }
-        total_productgroup.round(2);
-        stat.append("-");
-        stat.append(tr("Warengruppe Summe: %2").arg(total_productgroup.toLocale()));
-        stat.append("=");
-
-    } else {
-
-        if (Database::isAnyValueFunctionAvailable())
-            query.prepare("SELECT sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, ANY_VALUE(orders.tax) as tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY tax, products.name ASC");
-        else
-            query.prepare("SELECT sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, orders.tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY orders.tax, products.name ASC");
-
-        query.bindValue(":fromDate", from.toString(Qt::ISODate));
-        query.bindValue(":toDate", to.toString(Qt::ISODate));
-
-        ok = query.exec();
-        if (!ok) {
-            qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-            qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
         }
 
-        stat.append(tr("Verkaufte Artikel oder Leistungen (Gruppiert) Gesamt %1").arg(sumProducts.toLocale()));
-        while (query.next())
-        {
-            QString name;
-            if (query.value("discount").toDouble() != 0.0) {
-                QBCMath discount(query.value("discount").toDouble());
-                discount.round(2);
-                name = QString("%1 (Rabatt -%2%)").arg(query.value("name").toString()).arg(discount.toLocale());
-            } else {
-                name = query.value("name").toString();
-            }
+        stat.append(tr("davon MwSt. %1%: %2")
+                    .arg(Utils::getTaxString(tax).replace(".",","))
+                    .arg(totalTax.toLocale()));
 
-            QBCMath total(query.value("total").toDouble());
-            total.round(2);
-            QBCMath gross(query.value("gross").toDouble());
-            gross.round(2);
-            QBCMath tax(query.value("tax").toDouble());
-            tax.round(2);
-            QBCMath count = query.value("count").toDouble();
-            count.round(settings.value("decimalDigits", 2).toInt());
-
-            stat.append(QString("%1: %2: %3: %4: %5%")
-                        .arg(count.toLocale())
-                        .arg(name)
-                        .arg(gross.toLocale())
-                        .arg(total.toLocale())
-                        .arg(Utils::getTaxString(tax).replace(".",",")));
-        }
+        qApp->processEvents();
     }
+    total_productgroup.round(2);
+    stat.append("-");
+    stat.append(tr("Warengruppe Summe: %2").arg(total_productgroup.toLocale()));
+    stat.append("=");
+
+    // Artikelabrechnung
+    if (Database::isAnyValueFunctionAvailable())
+        query.prepare("SELECT sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, ANY_VALUE(orders.tax) as tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY tax, products.name ASC");
+    else
+        query.prepare("SELECT sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, orders.tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY orders.tax, products.name ASC");
+
+    query.bindValue(":fromDate", from.toString(Qt::ISODate));
+    query.bindValue(":toDate", to.toString(Qt::ISODate));
+
+    ok = query.exec();
+    if (!ok) {
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
+    }
+
+    stat.append("=P");
+    stat.append(tr("Verkaufte Artikel oder Leistungen (Gruppiert) Gesamt %1").arg(sumProducts.toLocale()));
+    while (query.next()) {
+        QString name;
+        if (query.value("discount").toDouble() != 0.0) {
+            QBCMath discount(query.value("discount").toDouble());
+            discount.round(2);
+            name = QString("%1 (Rabatt -%2%)").arg(query.value("name").toString()).arg(discount.toLocale());
+        } else {
+            name = query.value("name").toString();
+        }
+
+        QBCMath total(query.value("total").toDouble());
+        total.round(2);
+        QBCMath gross(query.value("gross").toDouble());
+        gross.round(2);
+        QBCMath tax(query.value("tax").toDouble());
+        tax.round(2);
+        QBCMath count = query.value("count").toDouble();
+        count.round(settings.value("decimalDigits", 2).toInt());
+
+        stat.append(QString("%1: %2: %3: %4: %5%")
+                    .arg(count.toLocale())
+                    .arg(name)
+                    .arg(gross.toLocale())
+                    .arg(total.toLocale())
+                    .arg(Utils::getTaxString(tax).replace(".",",")));
+
+        qApp->processEvents();
+    }
+    stat.append("=");
+
     return stat;
 }
 
@@ -1002,12 +1060,18 @@ bool Reports::insert(QStringList list, int id, QDateTime to)
     int i=0;
     bool ret = true;
     Journal journal;
+    int type = 0;
     foreach (QString line, list) {
+        if (line.startsWith(tr("=A"))) { type = 0; continue; }
+        if (line.startsWith(tr("=W"))) { type = 1; continue; }
+        if (line.startsWith(tr("=P"))) { type = 2; continue; }
+
         journal.journalInsertLine("Textposition", line);
-        query.prepare("INSERT INTO reports (receiptNum, timestamp, text) VALUES(:receiptNum, :timestamp, :text)");
+        query.prepare("INSERT INTO reports (receiptNum, timestamp, text, type) VALUES(:receiptNum, :timestamp, :text, :type)");
         query.bindValue(":receiptNum", id);
         query.bindValue(":timestamp", to.toString(Qt::ISODate));
         query.bindValue(":text", line);
+        query.bindValue(":type", type);
 
         ret = query.exec();
         if (!ret) {
@@ -1017,6 +1081,7 @@ bool Reports::insert(QStringList list, int id, QDateTime to)
         }
 
         Spread::Instance()->setProgressBarValue(((float)i++ / (float)count) * 100 );
+        qApp->processEvents();
     }
     return ret;
 }
@@ -1039,6 +1104,7 @@ QStringList Reports::createYearStat(int id, QDate date)
     to.setDate(QDate::fromString(date.toString()));
     to.setTime(QTime::fromString("23:59:59"));
 
+    eoy.append("=A");
     eoy.append(QString("Jahressummen %1:").arg(date.year()));
     eoy.append("-");
 
@@ -1083,12 +1149,22 @@ QString Reports::getReport(int id, bool test)
     else
         header = QString("BON # %1, %2 - %3").arg(id).arg(Database::getActionType(type)).arg(query.value("timestamp").toDate().toString(format));
 
-    query.prepare("SELECT text FROM reports WHERE receiptNum=:id");
+
+    int not_type = 0;
+    if (settings.value("report_by_productgroup", false).toBool()) {
+        not_type = 2;
+    } else {
+        not_type = 1;
+    }
+
+    query.prepare("SELECT text FROM reports WHERE receiptNum=:id AND type != :not_type");
 
     if (test)
-        query.prepare("SELECT text FROM reports WHERE receiptNum=(SELECT min(receiptNum) FROM reports)");
+        query.prepare("SELECT text FROM reports WHERE receiptNum=(SELECT min(receiptNum) FROM reports) AND type != :not_type");
     else
         query.bindValue(":id", id);
+
+    query.bindValue(":not_type", not_type);
 
     ok = query.exec();
     if (!ok) {
@@ -1136,7 +1212,7 @@ QString Reports::getReport(int id, bool test)
             t.replace('=',"<hr size=\"5\">");
             text.append(QString("<td colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(t));
             needOneMoreCol = false;
-        } else if (t.indexOf(QRegularExpression("[0-9]{1,2}%:")) != -1) {
+        } else if (t.indexOf(QRegularExpression("[0-9]{1,2}%:")) != -1){
             list = t.split(":");
             span = span - list.count();
             foreach (const QString &str, list) {
@@ -1188,8 +1264,8 @@ QString Reports::getReport(int id, bool test)
         }
 
 //        if (!settings.value("report_by_productgroup", false).toBool() && needOneMoreCol)
-//        if (needOneMoreCol)
 //            text.append(QString("<td colspan=\"%1\" %2></td>").arg(span).arg(color));
+//        if (needOneMoreCol)
 
         text.append("</tr>");
     }
@@ -1204,13 +1280,15 @@ void Reports::printDocument(int id, QString title)
     QTextDocument doc;
     doc.setHtml(Reports::getReport(id));
 
-    QTextCursor cursor(&doc);
-    cursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
-    bool isDamaged;
-    QImage img = Utils::getQRCode(id, isDamaged).toImage();
-    cursor.insertImage(img);
-    if (RKSignatureModule::isDEPactive() && isDamaged)
-        cursor.insertHtml("</br><small>Sicherheitseinrichtung ausgefallen</small>");
+    if (RKSignatureModule::isDEPactive()) {
+        QTextCursor cursor(&doc);
+        cursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
+        bool isDamaged;
+        QImage img = Utils::getQRCode(id, isDamaged).toImage();
+        cursor.insertImage(img);
+        if (isDamaged)
+            cursor.insertHtml("</br><small>Sicherheitseinrichtung ausgefallen</small>");
+    }
 
     DocumentPrinter p;
     p.printDocument(&doc, DocumentTitle);

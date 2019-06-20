@@ -48,7 +48,7 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
             QMap<QString, QSqlDatabase>::iterator it_conn = it_thread.value().find(connectionName);
             if (it_conn != it_thread.value().end()) {
                 QSqlDatabase connection = it_conn.value();
-                qDebug() << "Function Name: " << Q_FUNC_INFO << " found SQL connection instances Thread: " << thread << " Name: " << connectionName;
+                // qDebug() << "Function Name: " << Q_FUNC_INFO << " found SQL connection instances Thread: " << thread << " Name: " << connectionName;
                 if (connection.isValid()) {
                     return it_conn.value();
                 }
@@ -105,8 +105,6 @@ void DatabaseManager::clear()
 void DatabaseManager::removeCurrentThread(QString connectionName)
 {
     QString objectname = QString::number((long long)QThread::currentThread(), 16);
-    QString cn = Database::database().connectionName();
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " cn: " << cn << " on: " << objectname;
 
     if (s_instances.contains(objectname)) {
         QMap<QString, QSqlDatabase> map = s_instances.value(objectname);

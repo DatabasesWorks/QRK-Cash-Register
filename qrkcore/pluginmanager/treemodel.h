@@ -36,7 +36,7 @@ class QRK_EXPORT TreeModel : public QAbstractItemModel
     Q_OBJECT
 
 public:
-    explicit TreeModel(QObject *parent = 0);
+    explicit TreeModel(QObject *parent = Q_NULLPTR);
     ~TreeModel();
 
     QVariant data(const QModelIndex &index, int role) const;

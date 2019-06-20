@@ -33,6 +33,7 @@
 #include <QSqlQuery>
 #include <QCompleter>
 #include <QPainter>
+#include <QDateTime>
 #include <QDebug>
 
 #include "iostream"
@@ -100,7 +101,8 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         editor->setPlaceholderText(tr("Artikelname"));
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare("SELECT name FROM products WHERE visible = 1");
+//        query.prepare("SELECT name FROM products WHERE visible = 1");
+        query.prepare("select p2.name from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin where visible = 1");
         query.exec();
 
         QStringList list;
@@ -122,7 +124,8 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
         QLineEdit *editor = new QLineEdit( parent );
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare("SELECT itemnum FROM products WHERE visible = 1 AND itemnum IS NOT ''");
+//        query.prepare("SELECT itemnum FROM products WHERE visible = 1 AND itemnum IS NOT ''");
+        query.prepare("select p2.itemnum from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin where visible = 1 AND itemnum > ''");
         query.exec();
 
         QStringList list;
@@ -139,19 +142,23 @@ QWidget* QrkDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &
 
         connect( editor , &QLineEdit::textChanged, this, &QrkDelegate::commitAndCloseEditor) ;
 //        QRegExp rx("[1-9]\\d{1,16}"); // without leading 0
-        QRegExp rx("\\d{0,16}");
-        QValidator *intVal = new QRegExpValidator(rx);
-        editor->setValidator(intVal);
+//        QRegExp rx("\\d{0,16}");
+//        QValidator *intVal = new QRegExpValidator(rx);
+//        editor->setValidator(intVal);
 
         return editor ;
     } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
         QLineEdit* editor = new QLineEdit(parent);
-//        QDoubleValidator *doubleVal = new QDoubleValidator(-99999.99, 99999.99, 2);
-//        doubleVal->setNotation(QDoubleValidator::StandardNotation);
-//        editor->setValidator(doubleVal);
-        QRegExpValidator* rxv = new QRegExpValidator(QRegExp("[-+]?[0-9]*[\\.,]?[0-9]+([eE][-+]?[0-9]+)?"));
-        editor->setValidator(rxv);
+        if (m_type == DISCOUNT) {
+            QDoubleValidator *doubleVal = new QDoubleValidator(0.00, 99.99, 2);
+            doubleVal->setNotation(QDoubleValidator::StandardNotation);
+            editor->setValidator(doubleVal);
+        } else {
+            QRegExpValidator* rxv = new QRegExpValidator(QRegExp("[-+]?[0-9]*[\\.,]?[0-9]+([eE][-+]?[0-9]+)?"));
+            editor->setValidator(rxv);
+        }
         editor->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+
         return editor;
     }
 
@@ -237,6 +244,10 @@ void QrkDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
         v.replace(",",".");
         double value = v.toDouble();
 
+        if (m_type == DISCOUNT) {
+            if (value < 0.00 || value > 99.99)
+                value = 0.00;
+        }
         QLineEdit* line = static_cast<QLineEdit*>(editor);
         line->setText(QString().setNum(value));
     }
@@ -266,11 +277,12 @@ void QrkDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const
         QLineEdit *edit = static_cast<QLineEdit *>( editor ) ;
         model->setData( index, edit->text() ) ;
 
-    }else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
+    } else if (m_type == NUMBERFORMAT_DOUBLE || m_type == DISCOUNT) {
         QLineEdit* line = static_cast<QLineEdit*>(editor);
         QString value = line->text();
         model->setData(index,value);
     }
+
     QStyledItemDelegate::setModelData(editor, model, index);
 
 }

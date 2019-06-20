@@ -37,7 +37,7 @@ class CKVSOFT_EXPORT PermissionsAdmin : public QWidget, private Ui::base_admin
         Q_OBJECT
 
     public:
-        explicit PermissionsAdmin(QWidget *parent = 0);
+        explicit PermissionsAdmin(QWidget *parent = Q_NULLPTR);
         ~PermissionsAdmin();
         void maybeSaved();
 

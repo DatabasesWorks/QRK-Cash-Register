@@ -33,17 +33,19 @@ class QRK_EXPORT Database : public QObject
 {
     Q_OBJECT
   public:
-    Database(QObject *parent = 0);
+    Database(QObject *parent = Q_NULLPTR);
     ~Database();
 
     static QJsonObject getConnectionDefinition();
-    static bool open(bool dbSelect);
+    static bool open(bool dbSelect, QString TESTFILE = "");
     static void reopen();
     static QDateTime getLastJournalEntryDate();
     static QString getLastExecutedQuery(const QSqlQuery &query);
     static QString getShopName();
     static QString getShopMasterData();
     static QStringList getLastReceipt();
+    static QDate getFirstReceiptDate();
+    static QDateTime getFirstReceiptDateTime();
     static QDate getLastReceiptDate();
     static QDateTime getLastReceiptDateTime();
     static bool addCustomerText(int id, QString text);
@@ -55,9 +57,14 @@ class QRK_EXPORT Database : public QObject
 
     static bool addProduct(const QJsonObject &data);
     static QJsonObject getProductByName(QString name, int visible = 1);
-    static bool exists(const QString type, const QString &name);
+    static QJsonObject getProductById(int id, int visible = 1);
+
+    static bool exists(const QString &name);
     static bool exists(const QString type, const int &id, const QString fieldname = "id");
+    static bool exists(const QString type, const QString &name, const QString fieldname)
+;
     static int getPayedBy(int);
+    static QMap<int, double> getGiven(int id);
     static int getActionTypeByName(const QString &name);
     static QString getActionType(int id);
     static QString getTaxType(double id);
@@ -69,6 +76,10 @@ class QRK_EXPORT Database : public QObject
     static QString getShortCurrency();
     static QString getTaxLocation();
     static QString getDefaultTax();
+    static QString getAdvertisingText();
+    static QString getHeaderText();
+    static QString getFooterText();
+
     static int getLastReceiptNum(bool realReceipt = false);
     static QString getDayCounter();
     static QString getMonthCounter();

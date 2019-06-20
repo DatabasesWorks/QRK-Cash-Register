@@ -25,6 +25,7 @@
 
 #include <QMainWindow>
 #include <QDate>
+#include <QUdpSocket>
 
 class QRKHome;
 class QRKDocument;
@@ -98,6 +99,8 @@ private slots:
     void exitSlot();
     void logOnOff(bool);
     void restore();
+    void newApplicationVersionAvailable(QString version);
+    void sendDatagram(QString what, QString data);
 
 protected slots:
     virtual void timerDone();
@@ -138,7 +141,7 @@ private:
     bool m_previousSafetyDeviceState;
     QThread *m_checkerThread;
     VersionChecker *m_versionChecker;
-    void newApplicationVersionAvailable(QString version);
+    QUdpSocket udpSocket;
 
 };
 

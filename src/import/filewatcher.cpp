@@ -21,7 +21,7 @@
 */
 
 #include "filewatcher.h"
-#include "importworker.h"
+#include "import/importworker.h"
 #include "singleton/spreadsignal.h"
 #include "utils/utils.h"
 

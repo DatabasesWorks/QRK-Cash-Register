@@ -105,7 +105,7 @@ quint16 UniqueMachineFingerprint::getVolumeHash()
     DWORD serialNum = 0;
 
     // Determine if this volume uses an NTFS file system.
-    GetVolumeInformation( (LPCWSTR) "c:\\", nullptr, 0, &serialNum, nullptr, nullptr, nullptr, 0 );
+    GetVolumeInformation( (LPCWSTR) "c:\\", Q_NULLPTR, 0, &serialNum, Q_NULLPTR, Q_NULLPTR, Q_NULLPTR, 0 );
     quint16 hash = (quint16)(( serialNum + ( serialNum >> 16 )) & 0xFFFF );
 
     return hash;
@@ -300,7 +300,7 @@ quint16 UniqueMachineFingerprint::getCpuHash()
 
 int eq(const char *const a, const char *const b)
 {
-    if (a == nullptr || b == nullptr)
+    if (a == Q_NULLPTR || b == Q_NULLPTR)
         return 0;
     else
         return !strcmp(a, b);
@@ -449,7 +449,7 @@ bool UniqueMachineFingerprint::validate( QString testIdString )
     for ( quint32 i = 0; i < 5; i++ ) {
         QString testNum = testStringList.takeFirst();
         if ( testNum.isEmpty() ) return false;
-        testId[i] = testNum.toUShort(nullptr, 16 );
+        testId[i] = testNum.toUShort(Q_NULLPTR, 16 );
     }
     unsmear( testId );
 

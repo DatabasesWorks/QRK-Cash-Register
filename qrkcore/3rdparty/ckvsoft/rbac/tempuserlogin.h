@@ -30,7 +30,7 @@ class CKVSOFT_EXPORT TempUserLogin : public base_login
         Q_OBJECT
 
     public:
-        TempUserLogin(QWidget* parent = 0);
+        TempUserLogin(QWidget* parent = Q_NULLPTR);
         ~TempUserLogin();
 
     private slots:

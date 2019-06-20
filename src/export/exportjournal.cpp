@@ -51,9 +51,9 @@ void ExportJournal::Export()
     if (dlg.exec() == QDialog::Accepted ) {
         QString filename = dlg.getFilename();
         if (journalExport(filename, dlg.getFrom(), dlg.getTo())) {
-            QMessageBox::information(0, tr("Export"), tr("Journal wurde nach %1 exportiert.").arg(filename));
+            QMessageBox::information(Q_NULLPTR, tr("Export"), tr("Journal wurde nach %1 exportiert.").arg(filename));
         } else {
-            QMessageBox::warning(0, tr("Export"), tr("Journal konnte nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
+            QMessageBox::warning(Q_NULLPTR, tr("Export"), tr("Journal konnte nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
         }
     }
 }

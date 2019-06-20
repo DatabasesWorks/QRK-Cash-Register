@@ -45,7 +45,7 @@ class CKVSOFT_EXPORT Acl : public QObject
             FULL
         };
 
-        Acl(QObject *parent = 0);
+        Acl(QObject *parent = Q_NULLPTR);
         ~Acl();
 
         void setuserId(int userId);
@@ -113,6 +113,8 @@ class CKVSOFT_EXPORT Acl : public QObject
         void merge(QMap<QString, QMap<QString, QVariant> > &map1, QMap<QString, QMap<QString, QVariant> > map2);
         QMap<QString, QMap<QString, QVariant> > getRolePerms(QStringList roleid);
         QString getRoleNameFromID(int id);
+        bool existPermission(QString perm);
+        bool insertPermission(QString perm);
 };
 
 //Global variable

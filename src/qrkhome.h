@@ -38,7 +38,7 @@ class QRKHome : public QWidget
 {
     Q_OBJECT
   public:
-    explicit QRKHome(bool servermode = false, QWidget *parent = 0);
+    explicit QRKHome(bool servermode = false, QWidget *parent = Q_NULLPTR);
     ~QRKHome();
 
     void init();

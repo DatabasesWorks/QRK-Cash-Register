@@ -54,7 +54,7 @@ class ChartWidget : public QWidget
         enum PIETYPE { Histogramm , Pie, Dpie };
         enum LEGENDTYPE{ /*Horizontal,*/ Vertical, Round, None };
 
-        explicit ChartWidget(QWidget *parent = nullptr);
+        explicit ChartWidget(QWidget *parent = Q_NULLPTR);
         void setType(PIETYPE t);
         void setLegendType(LEGENDTYPE t);
         void addItem(QString name, QColor color, float value);

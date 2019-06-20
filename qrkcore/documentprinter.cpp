@@ -22,6 +22,7 @@
 
 #include "documentprinter.h"
 #include "database.h"
+#include "defines.h"
 #include "utils/utils.h"
 #include "utils/qrcode.h"
 #include "reports.h"
@@ -41,6 +42,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QStandardPaths>
 #include <QPrinter>
+#include <QPrinterInfo>
 #include <QTextDocument>
 #include <QDebug>
 
@@ -53,10 +55,16 @@ DocumentPrinter::DocumentPrinter(QObject *parent)
     QList<QString> receiptPrinterFontList = settings.value("receiptprinterfont", "Courier-New,8,100").toString().split(",");
 
     m_noPrinter = settings.value("noPrinter", false).toBool();
-    if (settings.value("receiptPrinter", "").toString().isEmpty())
+
+    if (settings.value("receiptPrinter", "").toString().isEmpty() || QPrinterInfo::defaultPrinterName().isEmpty())
         m_noPrinter = true;
 
-    m_pdfPrinterPath = settings.value("pdfDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)+ "/pdf").toString();
+    m_pdfPrinterPath = settings.value("pdfDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString();
+    if (!QDir().exists(m_pdfPrinterPath)) {
+        m_pdfPrinterPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        settings.save2Settings("pdfDirectory", m_pdfPrinterPath);
+    }
+
     m_printerFont = QFont(printerFontList.at(0));
     m_printerFont.setPointSize(printerFontList.at(1).toInt());
     m_printerFont.setStretch(printerFontList.at(2).toInt());
@@ -150,6 +158,7 @@ void DocumentPrinter::printDocument(QTextDocument *document, QString title)
         if (!confname.isEmpty())
             confname = "_" + confname;
         printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-REPORT_%2.pdf").arg(confname).arg( title ));
+        printer.setOutputFormat(QPrinter::PdfFormat);
         document->adjustSize();
 
     } else {
@@ -276,6 +285,7 @@ void DocumentPrinter::printTagged(QJsonObject data)
             if (!confname.isEmpty())
                 confname = "_" + confname;
             printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2.pdf").arg(confname).arg( description ));
+            printer.setOutputFormat(QPrinter::PdfFormat);
         } else {
             printer.setPrinterName(settings.value("receiptPrinter").toString());
         }
@@ -367,6 +377,7 @@ void DocumentPrinter::printCollectionReceipt(QJsonObject data, QPrinter &printer
         if (!confname.isEmpty())
             confname = "_" + confname;
         printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2-ABHOLBON.pdf").arg(confname).arg( m_receiptNum ));
+        printer.setOutputFormat(QPrinter::PdfFormat);
     } else {
         printer.setPrinterName(collectionPrinter);
     }
@@ -521,7 +532,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     boldFont.setBold(true);
     boldFont.setPointSize(m_receiptPrinterFont.pointSize() + 2);
 
-    QFontMetrics boldMetr(boldFont);
+    QFontMetrics boldMetr(boldFont, &printer);
 
     QPen pen(Qt::black);
     painter.setPen(pen);
@@ -875,17 +886,32 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
 
     y += 5 + boldMetr.height();
 
-    if (!data.value("given").isUndefined()) {
-        QBCMath given(data.value("given").toDouble());
+    QMap<int, double> givenMap = Database::getGiven(data.value("receiptNum").toInt());
+
+    if (givenMap.size() > 0) {
+        QBCMath given(givenMap.value(PAYED_BY_CASH));
         given.round(2);
-        QBCMath retourMoney(given - QLocale().toDouble(sum));
+        QBCMath secondPay(givenMap.value(PAYED_BY_DEBITCARD));
+        if (secondPay == 0) secondPay = givenMap.value(PAYED_BY_CREDITCARD);
+        secondPay.round(2);
+
+        QBCMath retourMoney((given + secondPay) - QLocale().toDouble(sum));
         retourMoney.round(2);
         QString givenText = tr("Gegeben: %1").arg(given.toLocale());
-        QString retourMoneyText = tr("Rückgeld: %1").arg(retourMoney.toLocale());
         painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, givenText);
         y += m_feedTax + fontMetr.height();
-        painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, retourMoneyText);
-        y += m_feedTax + fontMetr.height();
+
+        if (retourMoney > 0.0) {
+            QString retourMoneyText = tr("Rückgeld: %1").arg(retourMoney.toLocale());
+            painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, retourMoneyText);
+            y += m_feedTax + fontMetr.height();
+        }
+        if (secondPay > 0.0) {
+            QString secondText = tr("%1: %2").arg(givenMap.lastKey() == PAYED_BY_DEBITCARD?tr("Bankomat"):tr("Kreditkarte")).arg(secondPay.toLocale());
+            painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, secondText);
+            y += m_feedTax + fontMetr.height();
+        }
+
     }
 
     QJsonArray Taxes = data["Taxes"].toArray();
@@ -1101,6 +1127,7 @@ bool DocumentPrinter::initPrinter(QPrinter &printer)
         if (!confname.isEmpty())
             confname = "_" + confname;
         printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2.pdf").arg(confname).arg( m_receiptNum ));
+        printer.setOutputFormat(QPrinter::PdfFormat);
     } else {
         printer.setPrinterName(settings.value("receiptPrinter").toString());
     }
@@ -1120,7 +1147,6 @@ bool DocumentPrinter::initPrinter(QPrinter &printer)
     printer.setPageMargins(marginsF,QPageLayout::Millimeter);
 
     printer.setFullPage(false);
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " margins:" << printer.pageLayout().margins();
     return true;
 }
 

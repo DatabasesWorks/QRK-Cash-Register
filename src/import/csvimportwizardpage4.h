@@ -36,7 +36,7 @@ class CsvImportWizardPage4 : public QWizardPage
     Q_OBJECT
 
   public:
-    explicit CsvImportWizardPage4(QWidget *parent = 0);
+    explicit CsvImportWizardPage4(QWidget *parent = Q_NULLPTR);
     ~CsvImportWizardPage4();
     bool isComplete() const;
     void setMap(QMap<QString, QJsonObject> *m);

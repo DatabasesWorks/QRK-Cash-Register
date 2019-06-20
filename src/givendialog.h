@@ -24,6 +24,7 @@
 #define GIVENDIALOG_H
 
 #include <QDialog>
+#include <QMap>
 
 namespace Ui {
 class GivenDialog;
@@ -34,17 +35,25 @@ class GivenDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit GivenDialog(double &sum, QWidget *parent = 0);
+    explicit GivenDialog(double &sum, QWidget *parent = Q_NULLPTR);
     ~GivenDialog();
-    double getGiven();
+    QMap<int, double> getGiven();
 
 private slots:
     void accept();
     void textChanged(QString);
+    void mixedButton();
+    void mixedPay(int id, bool checked);
 
 private:
     Ui::GivenDialog *ui;
+    double getGivenValue();
+    void resetGiven();
+    void setLCDPalette(QColor color);
+
     double m_sum;
+    QMap<int, double> mixedMap;
+    bool m_mixed = false;
 };
 
 #endif // GIVENDIALOG_H

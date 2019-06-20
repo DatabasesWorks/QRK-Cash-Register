@@ -31,7 +31,7 @@ class QRKDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit QRKDialog(QWidget *parent = 0);
+    explicit QRKDialog(QWidget *parent = Q_NULLPTR);
 
     void registerMandatoryField(QLineEdit* le, const QString& regexp = "");
     void unregisterMandatoryField(QLineEdit* le);

@@ -33,7 +33,7 @@ class AboutDlg : public QDialog
     Q_OBJECT
 
 public:
-    AboutDlg( QWidget* parent = 0);
+    AboutDlg( QWidget* parent = Q_NULLPTR);
     ~AboutDlg();
 
 private:

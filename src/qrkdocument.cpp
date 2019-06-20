@@ -129,6 +129,7 @@ void QRKDocument::documentList(bool servermode)
 
     QrkSettings settings;
     m_receiptPrintDialog = settings.value("useReceiptPrintedDialog", true).toBool();
+    m_hiddeproductnumber = !settings.value("useInputProductNumber", false).toBool();
 
 }
 
@@ -185,7 +186,35 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
         else if (Database::getStorno(receiptNum) == 2)
             stornoText = tr("(Storno Beleg für Beleg Nr: %1)").arg(Database::getStornoId(receiptNum));
 
-        ui->documentLabel->setText(tr("Beleg Nr: %1\t%2\t%3 %4\t\t%5").arg(receiptNum).arg(payedByText).arg(QLocale().toString(price, 'f', 2)).arg(Database::getCurrency()).arg(stornoText));
+        QMap<int, double> givenMap = Database::getGiven(receiptNum);
+        if (givenMap.size() > 0) {
+            QBCMath given(givenMap.value(PAYED_BY_CASH));
+            given.round(2);
+            QBCMath secondPay(givenMap.value(PAYED_BY_DEBITCARD));
+            if (secondPay == 0) secondPay = givenMap.value(PAYED_BY_CREDITCARD);
+            secondPay.round(2);
+
+            QBCMath retourMoney((given + secondPay) - price);
+            retourMoney.round(2);
+            QString givenText = tr("BAR: %1 %2").arg(given.toLocale()).arg(Database::getCurrency());
+
+            QString retourMoneyText = "";
+            if (retourMoney > 0.0) {
+                retourMoneyText = tr("Rückgeld: %1 %2").arg(retourMoney.toLocale()).arg(Database::getCurrency());
+                if (secondPay == 0.0) givenText = tr("Gegeben: %1 %2").arg(given.toLocale()).arg(Database::getCurrency());
+            }
+            QString secondText = "";
+            if (secondPay > 0.0) {
+                secondText = tr("%1: %2 %3").arg(givenMap.lastKey() == PAYED_BY_DEBITCARD?tr("Bankomat"):tr("Kreditkarte")).arg(secondPay.toLocale()).arg(Database::getCurrency());
+                payedByText = tr("\tMischzahlung\t%1 %2\t%3 %4").arg(QLocale().toString(price, 'f', 2)).arg(Database::getCurrency()).arg(givenText).arg(secondText);
+            } else {
+                payedByText = tr("\t%1\t%2 %3 \t%4 %5").arg(payedByText).arg(QLocale().toString(price, 'f', 2)).arg(Database::getCurrency()).arg(givenText).arg(retourMoneyText);
+            }
+            ui->documentLabel->setText(tr("Beleg Nr: %1 %2\t%3").arg(receiptNum).arg(payedByText).arg(stornoText));
+        } else {
+            ui->documentLabel->setText(tr("Beleg Nr: %1\t%2\t%3 %4\t\t%5").arg(receiptNum).arg(payedByText).arg(QLocale().toString(price, 'f', 2)).arg(Database::getCurrency()).arg(stornoText));
+        }
+
         ui->customerTextLabel->setText(tr("Kunden Zusatztext: ") + Database::getCustomerText(receiptNum));
 
         QSqlDatabase dbc = Database::database();
@@ -209,6 +238,7 @@ void QRKDocument::onDocumentSelectionChanged(const QItemSelection &, const QItem
         ui->documentContent->resizeColumnsToContents();
         ui->documentContent->horizontalHeader()->setSectionResizeMode(REGISTER_COL_PRODUCT, QHeaderView::Stretch);
         //ui->documentContent->setColumnHidden(REGISTER_COL_NET, true);
+        ui->documentContent->setColumnHidden(REGISTER_COL_PRODUCTNUMBER, m_hiddeproductnumber);
 
     }
 }
@@ -301,13 +331,15 @@ void QRKDocument::onPrintcopyButton_clicked(bool isInvoiceCompany)
         QTextDocument doc;
         doc.setHtml(Reports::getReport(id));
 
-        QTextCursor cursor(&doc);
-        cursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
-        bool isDamaged;
-        QImage img = Utils::getQRCode(id, isDamaged).toImage();
-        cursor.insertImage(img);
-        if (isDamaged)
-            cursor.insertHtml("</br><small>Sicherheitseinrichtung ausgefallen</small>");
+        if (RKSignatureModule::isDEPactive()) {
+            QTextCursor cursor(&doc);
+            cursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
+            bool isDamaged;
+            QImage img = Utils::getQRCode(id, isDamaged).toImage();
+            cursor.insertImage(img);
+            if (isDamaged)
+                cursor.insertHtml("</br><small>Sicherheitseinrichtung ausgefallen</small>");
+        }
 
         DocumentPrinter p;
         p.printDocument(&doc, DocumentTitle);

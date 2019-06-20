@@ -55,4 +55,5 @@ CsvImportWizard::CsvImportWizard(QWidget *parent) :
     addPage(m_pageSaveAgain);
 
     connect(m_pageSave, &CsvImportWizardPage3::removePage, this, &CsvImportWizard::removePage);
+    connect(this, &CsvImportWizard::rejected, m_pageSave, &CsvImportWizardPage3::cancel);
 }

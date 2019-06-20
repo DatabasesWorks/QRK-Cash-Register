@@ -163,8 +163,25 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
         data["isR2B"] = m_isR2B;
     }
 
-    if (payedBy == PAYED_BY_CASH && m_given > 0.0)
-        data["given"] = m_given;
+    if (payedBy == PAYED_BY_CASH && m_given.value(PAYED_BY_CASH, 0.0) > 0.0) {
+        QSqlDatabase dbc = Database::database();
+        QSqlQuery query(dbc) ;
+        query.prepare(QString("INSERT INTO receiptspay (receiptNum, payedBy, gross) VALUES (:receiptNum, :payedBy, :gross)"));
+        query.bindValue(":receiptNum", m_currentReceipt);
+        query.bindValue(":payedBy", PAYED_BY_CASH);
+        query.bindValue(":gross", m_given.value(PAYED_BY_CASH));
+        query.exec();
+        if (m_given.value(PAYED_BY_DEBITCARD, 0.0) > 0.0) {
+            query.bindValue(":payedBy", PAYED_BY_DEBITCARD);
+            query.bindValue(":gross", m_given.value(PAYED_BY_DEBITCARD));
+            query.exec();
+        }
+        if (m_given.value(PAYED_BY_CREDITCARD, 0.0) > 0.0) {
+            query.bindValue(":payedBy", PAYED_BY_CREDITCARD);
+            query.bindValue(":gross", m_given.value(PAYED_BY_CREDITCARD));
+            query.exec();
+        }
+    }
 
     if (RKSignatureModule::isDEPactive()) {
         Utils utils;
@@ -252,22 +269,13 @@ QJsonObject ReceiptItemModel::compileData(int id)
     double sumYear = Utils::getYearlyTotal(year);
 
     // AdvertisingText
-    query.prepare("SELECT strValue FROM globals WHERE name='printAdvertisingText'");
-    query.exec();
-    query.next();
-    Root["printAdvertisingText"] = query.value(0).toString();
+    Root["printAdvertisingText"] = Database::getAdvertisingText();
 
     // Header
-    query.prepare("SELECT strValue FROM globals WHERE name='printHeader'");
-    query.exec();
-    query.next();
-    Root["printHeader"] = query.value(0).toString();
+    Root["printHeader"] = Database::getHeaderText();
 
     // Footer
-    query.prepare("SELECT strValue FROM globals WHERE name='printFooter'");
-    query.exec();
-    query.next();
-    Root["printFooter"] = query.value(0).toString();
+    Root["printFooter"] = Database::getFooterText();
 
     // TaxTypes
 
@@ -659,7 +667,7 @@ bool ReceiptItemModel::setR2BServerMode(QJsonObject obj)
         ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
     if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
-        ReceiptItemModel::setGiven(obj.value("given").toString().toDouble());
+        ReceiptItemModel::setGiven(PAYED_BY_CASH, obj.value("given").toString().toDouble());
 
     m_isR2B = true;
 
@@ -740,7 +748,7 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
         ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
     if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
-        ReceiptItemModel::setGiven(obj.value("given").toString().toDouble());
+        ReceiptItemModel::setGiven(PAYED_BY_CASH,obj.value("given").toString().toDouble());
 
     return ret;
 }
@@ -775,6 +783,36 @@ int ReceiptItemModel::getFreeProductNumber(int number, int currentRow)
     return number;
 }
 
+QString ReceiptItemModel::getFreeProductNumber(QString number, int currentRow)
+{
+
+    QString itemData = data(index(currentRow, REGISTER_COL_PRODUCT, QModelIndex())).toString();
+    int row_count = rowCount();
+    for (int row = 0; row < row_count; row++)
+    {
+        if (row == currentRow)
+            continue;
+        if (number == data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString()) {
+            if (data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString() != itemData) {
+                number = getFreeProductNumber(number.append("1"), row);
+            }
+        } else {
+            if (data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString() == itemData) {
+                qDebug() << "Function Name: " << Q_FUNC_INFO << " Data: " << m_manualProductsNumber;
+                blockSignals(true);
+                item(currentRow, REGISTER_COL_PRODUCTNUMBER)->setText(data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString());
+                item(currentRow, REGISTER_COL_PRODUCT)->setText(data(index(row, REGISTER_COL_PRODUCT, QModelIndex())).toString());
+                blockSignals(false);
+                item(currentRow, REGISTER_COL_TAX)->setText(data(index(row, REGISTER_COL_TAX, QModelIndex())).toString());
+                item(currentRow, REGISTER_COL_SINGLE)->setText(data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toString());
+                qDebug() << "Function Name: " << Q_FUNC_INFO << " Data Single: " << data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toString();
+                return data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
+            }
+        }
+    }
+    return number;
+}
+
 void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&)
 {
 
@@ -798,7 +836,7 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     if (col == REGISTER_COL_PRODUCT) {
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare(QString("SELECT itemnum, gross, tax FROM products WHERE name=:name"));
+        query.prepare(QString("SELECT itemnum, gross, tax, lastchange FROM products WHERE name=:name"));
         query.bindValue(":name", s);
         query.exec();
 
@@ -813,6 +851,7 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         if (!m_changeProductNumber && query.next()) {
             qDebug() << "Function Name: " << Q_FUNC_INFO << " ItemNum: " << query.value("itemnum").toString();
             blockSignals(true);
+            setData(index(i.row(),0),tr("Letzte Datensatzänderung: %1").arg(QLocale().toString(query.value("lastchange").toDateTime())),Qt::ToolTipRole);
             item(row, REGISTER_COL_PRODUCTNUMBER)->setText(query.value("itemnum").toString());
             blockSignals(false);
             item(row, REGISTER_COL_TAX)->setText(query.value("tax").toString());
@@ -821,8 +860,13 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
             qDebug() << "Function Name: " << Q_FUNC_INFO << " productNumber: " << data(index(row, REGISTER_COL_PRODUCTNUMBER, QModelIndex())).toString();
             qDebug() << "Function Name: " << Q_FUNC_INFO << " manualProductNumber: " << m_manualProductsNumber;
             item(row, REGISTER_COL_SINGLE)->setText("0");
-            if (!m_manualProductsNumber.isEmpty() && !Database::exists("products", m_manualProductsNumber.toInt(), "itemnum")) m_manualProductsNumber = QString::number(getFreeProductNumber(m_manualProductsNumber.toInt(), row));
-            if (!m_manualProductsNumber.isEmpty() && Database::exists("products", m_manualProductsNumber.toInt(), "itemnum")) m_manualProductsNumber = Database::getNextProductNumber();
+            if (!m_manualProductsNumber.isEmpty() && Utils::isNumber(m_manualProductsNumber)) {
+                if (!Database::exists("products", m_manualProductsNumber.toInt(), "itemnum")) m_manualProductsNumber = QString::number(getFreeProductNumber(m_manualProductsNumber.toInt(), row));
+                if (Database::exists("products", m_manualProductsNumber.toInt(), "itemnum")) m_manualProductsNumber = Database::getNextProductNumber();
+            } else if (!m_manualProductsNumber.isEmpty()) {
+                if (!Database::exists("products", m_manualProductsNumber, "itemnum")) m_manualProductsNumber = getFreeProductNumber(m_manualProductsNumber, row);
+                if (Database::exists("products", m_manualProductsNumber, "itemnum")) m_manualProductsNumber = Database::getNextProductNumber();
+            }
             blockSignals(true);
             item(row, REGISTER_COL_PRODUCTNUMBER)->setText(m_manualProductsNumber);
             item(row, REGISTER_COL_TAX)->setText(Database::getDefaultTax());
@@ -835,11 +879,12 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         m_changeProductNumber = true;
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare(QString("SELECT name, gross, tax FROM products WHERE itemnum=:itemnum"));
+        query.prepare(QString("SELECT name, gross, tax, lastchange FROM products WHERE itemnum=:itemnum"));
         query.bindValue(":itemnum", s);
         query.exec();
         if (!m_changeProduct && query.next()) {
             blockSignals(true);
+            setData(index(i.row(),0),tr("Letzte Datensatzänderung: %1").arg(QLocale().toString(query.value("lastchange").toDateTime())),Qt::ToolTipRole);
             item(row, REGISTER_COL_PRODUCT)->setText(query.value("name").toString());
             blockSignals(false);
             item(row, REGISTER_COL_TAX)->setText(query.value("tax").toString());
@@ -991,7 +1036,12 @@ void ReceiptItemModel::initPlugins()
         qDebug() << "Function Name: " << Q_FUNC_INFO << " WSDL: not available";
 }
 
-void ReceiptItemModel::setGiven(double given)
+void ReceiptItemModel::setGiven(int payed, double given)
+{
+    m_given.insert(payed, given);
+}
+
+void ReceiptItemModel::setGiven(QMap<int, double> given)
 {
     m_given = given;
 }

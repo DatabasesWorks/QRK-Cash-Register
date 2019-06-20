@@ -33,6 +33,7 @@
 #include <QSqlError>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <QDateTime>
 #include <QDebug>
 
 //--------------------------------------------------------------------------------
@@ -72,7 +73,7 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     QValidator *intVal = new QRegExpValidator(rx, this);
 
     QRegExp rx16("\\d{1,16}");
-    ui->itemNum->setValidator(new QRegExpValidator(rx16, this));
+//    ui->itemNum->setValidator(new QRegExpValidator(rx16, this));
     ui->barcode->setValidator(new QRegExpValidator(rx16, this));
 
     ui->net->setValidator(doubleVal);
@@ -100,13 +101,18 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
     ui->taxComboBox->setModelColumn(1);  // show tax
     ui->taxComboBox->setCurrentIndex(0);
 
+    m_origin = m_id;
     if ( m_id != -1 ) {
-        QSqlQuery query(QString("SELECT `name`, `group`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon`, `stock`, `minstock` FROM products WHERE id=%1").arg(id), dbc);
+        QSqlQuery query(QString("SELECT `name`, `groupid`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon`, `stock`, `minstock`, `version`, `origin` FROM products WHERE id=%1").arg(id), dbc);
         query.next();
 
         ui->name->setText(query.value("name").toString());
-        ui->name->setReadOnly(true);
-        ui->name->setToolTip(tr("Bestehende Artikelnamen dürfen nicht umbenannt werden. Versuchen Sie diesen Artikel zu löschen und legen danach einen neuen Artikel an."));
+        m_name = query.value("name").toString();
+        m_itemnum = query.value("itemnum").toString();
+        m_version = query.value("version").toInt();
+        m_origin  = query.value("origin").toInt();
+//        ui->name->setReadOnly(true);
+//        ui->name->setToolTip(tr("Bestehende Artikelnamen dürfen nicht umbenannt werden. Versuchen Sie diesen Artikel zu löschen und legen danach einen neuen Artikel an."));
         ui->visibleCheckBox->setChecked(query.value("visible").toBool());
         ui->net->setText(QBCMath::bcroundL(query.value("net").toString(),2));
         ui->gross->setText(QBCMath::bcroundL(query.value("gross").toString(),2));
@@ -123,13 +129,13 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
 
         int i;
         for (i = 0; i < m_groupsModel->rowCount(); i++)
-            if ( query.value("group").toInt() == m_groupsModel->data(m_groupsModel->index(i, 0), Qt::DisplayRole).toInt() )
+            if ( query.value("groupid").toInt() == m_groupsModel->data(m_groupsModel->index(i, 0), Qt::DisplayRole).toInt() )
                 break;
 
         ui->groupComboBox->setCurrentIndex(i);
 
         for (i = 0; i < m_taxModel->rowCount(); i++)
-            if ( query.value("tax").toDouble() == m_taxModel->data(m_taxModel->index(i, 1), Qt::DisplayRole).toDouble() )
+            if ( qFuzzyCompare(query.value("tax").toDouble(), m_taxModel->data(m_taxModel->index(i, 1), Qt::DisplayRole).toDouble()) )
                 break;
 
         ui->taxComboBox->setCurrentIndex(i);
@@ -254,6 +260,12 @@ void ProductEdit::itemnumChanged()
         return;
     }
 
+    if (!Utils::isNumber(ui->itemNum->text())) {
+        if (Database::exists("products", ui->itemNum->text(), "itemnum"))
+            ui->itemNum->setText(Database::getNextProductNumber());
+        return;
+    }
+
     if (Database::exists("products", ui->itemNum->text().toInt(), "itemnum"))
         ui->itemNum->setText(Database::getNextProductNumber());
 }
@@ -265,7 +277,7 @@ void ProductEdit::accept()
         return;
 
     int id = Database::getProductIdByName(ui->name->text());
-    if (m_id != id) {
+    if (id != -1 && m_id != id) {
         QMessageBox msgBox;
         msgBox.setIcon(QMessageBox::Question);
         msgBox.setWindowTitle(tr("Artikel schon vorhanden"));
@@ -280,8 +292,47 @@ void ProductEdit::accept()
             return;
 
     }
-    m_id = id;
+    QString itemNum = ui->itemNum->text();
 
+    if (!Utils::isNumber(itemNum)) {
+        QMessageBox msgBox;
+        msgBox.setIcon(QMessageBox::Question);
+        msgBox.setWindowTitle(tr("Fehler in Artikelnummer"));
+        msgBox.setText(tr("Artikelnummer ist nicht die nächste freie: %1").arg(itemNum));
+        msgBox.setStandardButtons(QMessageBox::Yes);
+        msgBox.addButton(QMessageBox::No);
+        msgBox.setButtonText(QMessageBox::Yes, tr("Übernehmen"));
+        msgBox.setButtonText(QMessageBox::No, tr("Abbrechen"));
+        msgBox.setDefaultButton(QMessageBox::No);
+
+        if(msgBox.exec() == QMessageBox::No)
+            return;
+    }
+
+//    m_id = id;
+
+    bool visible = ui->visibleCheckBox->isChecked();
+    if (itemNum.isEmpty()) itemNum = Database::getNextProductNumber();
+    if (m_itemnum.isEmpty()) m_itemnum = Database::getNextProductNumber();
+
+    if (m_name.compare(ui->name->text()) != 0 || m_itemnum.compare(itemNum) != 0) {
+        if (m_id == -1) {
+            updateData(m_id, ui->name->text(), itemNum, 0, visible);
+        } else {
+            if (updateData(m_id, m_name, m_itemnum, m_version, 0))
+                updateData(-1, ui->name->text(), itemNum, m_version+1, visible);
+        }
+    } else {
+        updateData(m_id, ui->name->text(), itemNum, 0, visible);
+    }
+
+    QDialog::accept();
+}
+
+//--------------------------------------------------------------------------------
+
+bool ProductEdit::updateData(int id, QString name, QString itemnum, int version, bool visible)
+{
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
@@ -291,23 +342,23 @@ void ProductEdit::accept()
     double net = QLocale().toDouble(ui->gross->text()) / (1.0 + tax / 100.0);
     bool collectionReceipt = ui->collectionReceiptCheckBox->isChecked();
 
-    if ( m_id == -1 )  // new entry
+
+    if ( id == -1 )  // new entry
     {
-        query.prepare(QString("INSERT INTO products (name, `group`, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock)"));
+        query.prepare(QString("INSERT INTO products (name, groupid, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock, version, origin) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock, :version, :origin)"));
         if (ui->itemNum->text().isEmpty())
             ui->itemNum->setText(Database::getNextProductNumber());
     } else {
-        query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, `group`=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock WHERE id=:id"));
-        query.bindValue(":id", m_id);
+        query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, groupid=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, version=:version, origin=:origin, lastchange=:lastchange WHERE id=:id"));
+        query.bindValue(":lastchange", QDateTime::currentDateTime());
+        query.bindValue(":id", id);
     }
 
-    QString itemNum = ui->itemNum->text();
-    if (itemNum.isEmpty()) itemNum = Database::getNextProductNumber();
-    query.bindValue(":name", ui->name->text());
-    query.bindValue(":itemnum", itemNum);
+    query.bindValue(":name", name);
+    query.bindValue(":itemnum", itemnum);
     query.bindValue(":barcode", ui->barcode->text());
     query.bindValue(":group", m_groupsModel->data(m_groupsModel->index(ui->groupComboBox->currentIndex(), 0)).toInt());
-    query.bindValue(":visible", ui->visibleCheckBox->isChecked());
+    query.bindValue(":visible", visible);
     query.bindValue(":net", net);
     query.bindValue(":gross", QLocale().toDouble(ui->gross->text()));
     query.bindValue(":tax", tax);
@@ -315,6 +366,8 @@ void ProductEdit::accept()
     query.bindValue(":coupon", collectionReceipt);
     query.bindValue(":stock", QLocale().toDouble(ui->stockLineEdit->text()));
     query.bindValue(":minstock", QLocale().toDouble(ui->minstockLineEdit->text()));
+    query.bindValue(":version", version);
+    query.bindValue(":origin", m_origin);
 
     bool ok = query.exec();
     if (!ok) {
@@ -322,7 +375,14 @@ void ProductEdit::accept()
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
     }
 
-    QDialog::accept();
-}
+    id = Database::getProductIdByName(name);
 
-//--------------------------------------------------------------------------------
+    if (id != -1 && m_origin == -1) {
+        query.prepare(QString("UPDATE products SET origin=:origin WHERE id=:id"));
+        query.bindValue(":id", id);
+        query.bindValue(":origin", id);
+        ok = query.exec();
+    }
+
+    return ok;
+}

@@ -39,7 +39,7 @@ class User : public QObject
             FEMALE
         };
 
-        explicit User(int userId, QObject *parent = nullptr);
+        explicit User(int userId, QObject *parent = Q_NULLPTR);
         int getUserId();
         QString getUserName();
         QString getDisplayName();

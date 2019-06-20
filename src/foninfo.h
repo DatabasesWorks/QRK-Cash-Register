@@ -34,7 +34,7 @@ class FONInfo : public QDialog
     Q_OBJECT
 
 public:
-    explicit FONInfo(QWidget *parent = 0);
+    explicit FONInfo(QWidget *parent = Q_NULLPTR);
     ~FONInfo();
 
 private slots:

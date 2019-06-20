@@ -38,7 +38,7 @@ class QRKDocument : public QWidget
 
   public:
 
-    explicit QRKDocument(QWidget *parent = 0);
+    explicit QRKDocument(QWidget *parent = Q_NULLPTR);
     ~QRKDocument();
     void documentList(bool);
 
@@ -67,6 +67,7 @@ class QRKDocument : public QWidget
     int m_currentReceipt;
     bool m_receiptPrintDialog;
     bool m_servermode;
+    bool m_hiddeproductnumber;
 };
 
 #endif // QRKDOCUMENT_H

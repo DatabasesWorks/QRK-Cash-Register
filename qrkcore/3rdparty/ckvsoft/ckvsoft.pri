@@ -39,7 +39,8 @@ HEADERS += $$PWD/ckvtemplate.h \
     $$PWD/rbac/tempuserlogin.h \
     $$PWD/uniquemachinefingerprint.h \
     $$PWD/numerickeypad.h \
-    $$PWD/headerview.h
+    $$PWD/headerview.h \
+    $$PWD/qsqlrtmodel.h
 
 SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/acl.cpp \

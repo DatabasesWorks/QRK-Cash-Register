@@ -20,8 +20,8 @@
  *
 */
 
-#ifndef _GROUPS_WIDGET_H_
-#define _GROUPS_WIDGET_H_
+#ifndef GROUPSWIDGET_H_
+#define GROUPSWIDGET_H_
 
 #include <QWidget>
 

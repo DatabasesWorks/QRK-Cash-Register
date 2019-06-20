@@ -36,7 +36,7 @@ class CKVSOFT_EXPORT NumericKeypad : public QWidget
     Q_OBJECT
 
 public:
-    NumericKeypad(bool full = true, QWidget *parent = 0 );
+    NumericKeypad(bool full = true, QWidget *parent = Q_NULLPTR);
     void clear();
 
     const QString text() const;
@@ -60,7 +60,7 @@ private slots:
 
 private:
 
-    QrkPushButton *m_buttonDiscount = 0;
+    QrkPushButton *m_buttonDiscount = Q_NULLPTR;
     QLineEdit *m_lineEdit;
     QString m_text;
     int m_digits = 2;

@@ -33,7 +33,7 @@ class CKVSOFT_EXPORT HeaderView : public QHeaderView
     Q_OBJECT
 
 public:
-    HeaderView(QWidget *parent = 0);
+    HeaderView(QWidget *parent = Q_NULLPTR);
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
 

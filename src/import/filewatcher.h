@@ -34,7 +34,7 @@ class FileWatcher : public QWidget
     Q_OBJECT
 
 public:
-    FileWatcher(QWidget* parent=0);
+    FileWatcher(QWidget* parent = Q_NULLPTR);
     ~FileWatcher();
     void removeDirectories();
 

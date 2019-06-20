@@ -32,7 +32,7 @@ class QSortFilterSqlQueryModel : public QSqlQueryModel
 
   public:
 
-    explicit QSortFilterSqlQueryModel(QObject *parent = 0);
+    explicit QSortFilterSqlQueryModel(QObject *parent = Q_NULLPTR);
 
     //void setQuery(const QSqlQuery &query);
     void setQuery(const QString & query, const QSqlDatabase & dbc = QSqlDatabase::database() );

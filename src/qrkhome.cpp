@@ -43,7 +43,7 @@
 #include <QDebug>
 
 QRKHome::QRKHome(bool servermode, QWidget *parent)
-    : QWidget(parent),ui(new Ui::QRKHome), m_menu(nullptr)
+    : QWidget(parent),ui(new Ui::QRKHome), m_menu(Q_NULLPTR)
 {
     connect(Spread::Instance(), &SpreadSignal::updateSafetyDevice, this, &QRKHome::safetyDevice);
     connect(RBAC::Instance(), static_cast<void(Acl::*)()>(&Acl::userChanged), this, &QRKHome::init);
@@ -161,44 +161,22 @@ QRKHome::~QRKHome()
 
 void QRKHome::dayPushButton_clicked(bool)
 {
-    QDateTime from;
-    QDateTime to;
     // ---------- DAY -----------------------------
-    from.setDate(QDate::currentDate());
-    to.setDate(QDate::currentDate());
-    to.setTime(QTime::fromString("23:59:59"));
-
-    SalesInfo info(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    SalesInfo info(SALESINFO_DAY);
     info.exec();
 }
 
 void QRKHome::monthPushButton_clicked(bool)
 {
-
-    QDateTime from;
-    QDateTime to;
-
     // ---------- MONTH -----------------------------
-    from.setDate(QDate::fromString(QString("%1-%2-01").arg(QDate::currentDate().year()).arg(QDate::currentDate().month()),"yyyy-M-d"));
-    to.setDate(QDate::fromString(QDate::currentDate().toString()));
-    to.setTime(QTime::fromString("23:59:59"));
-
-    SalesInfo info(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    SalesInfo info(SALESINFO_MONTH);
     info.exec();
 }
 
 void QRKHome::yearPushButton_clicked(bool)
 {
-    QDateTime from;
-    QDateTime to;
-
     // ----------- YEAR ---------------------------
-    QString fromString = QString("%1-01-01").arg(QDate::currentDate().year());
-    from.setDate(QDate::fromString(fromString, "yyyy-MM-dd"));
-    to.setDate(QDate::fromString(QDate::currentDate().toString()));
-    to.setTime(QTime::fromString("23:59:59"));
-
-    SalesInfo info(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    SalesInfo info(SALESINFO_YEAR);
     info.exec();
 }
 
@@ -393,7 +371,7 @@ void QRKHome::menuSlot()
 void QRKHome::settingsSlot()
 {
     if(!RBAC::Instance()->hasPermission("settings_access")) {
-        QMessageBox::warning(nullptr, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("settings_access"))));
+        QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("settings_access"))));
         return;
     }
 
@@ -410,7 +388,7 @@ void QRKHome::settingsSlot()
 void QRKHome::taskSlot()
 {
     if(!RBAC::Instance()->hasPermission("tasks_access", true)) {
-        QMessageBox::warning(nullptr, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("task_access"))));
+        QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("task_access"))));
         return;
     }
 
@@ -529,7 +507,7 @@ void QRKHome::serverCriticalMessageBox(QString title, QString message)
                                title,
                                message,
                                QMessageBox::Yes,
-                               nullptr);
+                               Q_NULLPTR);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Weiter"));
         messageBox.setWindowFlags(messageBox.windowFlags() | Qt::WindowStaysOnTopHint);
         messageBox.exec();

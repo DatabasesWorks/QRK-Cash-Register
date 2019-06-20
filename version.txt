@@ -20,8 +20,20 @@
 #
 # -- 21
 
-  VERSION 1.10.6 Build 190605
-  * FIX MySQL Artikel Export
+  VERSION 1.12 Build 190619
+  + Mischzahlung. Nur mit BAR verknüpfbar (BAR/Bankomat oder BAR/Kreditkarte) Bei aktivierten Gegebendialog besteht die Möglichkeit einen
+    Teil in BAR und den Restbetrag mit Bankomat oder Kreditkarte zu bezahlen. Restgelt gibt es in diesen Fall keines.
+  + Artikel können umbenannt werden.
+  + R2B Button kann in den Einstellungen als unsichtbar konfiguriert werden.
+  + Änderungsdatum eines Datensatzes wird als ToolTip im Kassenmodus angezeigt.
+  * Rabatt Eingabe nur von 0.00 bis 99.99 Prozent möglich.
+  * Datenbank: Es wird immer ein vollständiger Tages/Monatsabschluss generiert.
+    Die Auswahl "Warengruppen verwenden" wird bei Ausdruck / Dokumentenansicht berücksichtigt.
+  * Anpassung Schweizer Steuersatz
+  * Eingabe von Alphanumerischen Artikelnummern war nicht möglich
+  * FIX CSV Export MySQL
+  * FIX CSV Export. Wenn der Texttrenner als Character innerhalb eines Textfeldes vorkommt wurde dieser ignoriert
+  * FIX CSV Import. Bei Abbruch wurde der Import Task nicht gestoppt.
 
   VERSION 1.10.5 Build 190510
   + Gegeben und Rückgeld steht bei aktivierten Gegeben-Dialog auch am BON

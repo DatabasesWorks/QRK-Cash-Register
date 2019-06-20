@@ -33,17 +33,30 @@ namespace Ui {
 class SalesInfo;
 }
 
+enum SALESINFO
+{
+    SALESINFO_DAY = 0,
+    SALESINFO_MONTH,
+    SALESINFO_YEAR
+};
+
 class SalesInfo : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit SalesInfo(QString from, QString to, QWidget *parent = 0);
+    explicit SalesInfo(SALESINFO what, QWidget *parent = Q_NULLPTR);
     ~SalesInfo();
 
 private:
     Ui::SalesInfo *ui;
-    void loadData(QString from, QString to);
+    void setDateRange();
+    void loadData();
+    void printInfo();
+
+    SALESINFO m_what;
+    QString m_from;
+    QString m_to;
 };
 
 class SalesDelegate : public QStyledItemDelegate
@@ -51,7 +64,7 @@ class SalesDelegate : public QStyledItemDelegate
         Q_OBJECT
 
     public:
-        SalesDelegate(QObject *parent = 0);
+        SalesDelegate(QObject *parent = Q_NULLPTR);
 
         QString displayText(const QVariant &value, const QLocale &locale) const;
         void paint(QPainter *painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;

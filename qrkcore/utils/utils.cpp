@@ -515,12 +515,12 @@ void Utils::diskSpace(QString path, qint64 &size, qint64 &bytesAvailable, double
     QStorageInfo storage = QStorageInfo::root();
     storage.setPath(path);
 
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " storage rootpath: " << storage.rootPath();
-    if (storage.isReadOnly())
+    if (storage.isReadOnly()) {
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " storage rootpath: " << storage.rootPath();
         qDebug() << "Function Name: " << Q_FUNC_INFO << " isReadOnly:" << storage.isReadOnly();
-
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " name:" << storage.name();
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " fileSystemType:" << storage.fileSystemType();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " name:" << storage.name();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " fileSystemType:" << storage.fileSystemType();
+    }
 
     size = storage.bytesTotal() /1024/1024;
     bytesAvailable = storage.bytesAvailable() /1024/1024;

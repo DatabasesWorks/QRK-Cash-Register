@@ -45,34 +45,7 @@
 #include "qrkprogress.h"
 #include "qrkpushbutton.h"
 #include "qrkmultimedia.h"
-
-class CustomTabStyle : public QProxyStyle
-{
-    public:
-        QSize sizeFromContents(ContentsType type, const QStyleOption *option,
-                               const QSize &size, const QWidget *widget) const
-        {
-            QSize s = QProxyStyle::sizeFromContents(type, option, size, widget);
-            if (type == QStyle::CT_TabBarTab)
-                s.transpose();
-            return s;
-        }
-
-        void drawControl(ControlElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const
-        {
-            if (element == CE_TabBarTabLabel)
-            {
-                if (const QStyleOptionTab *tab = qstyleoption_cast<const QStyleOptionTab *>(option))
-                {
-                    QStyleOptionTab opt(*tab);
-                    opt.shape = QTabBar::RoundedNorth;
-                    QProxyStyle::drawControl(element, &opt, painter, widget);
-                    return;
-                }
-            }
-            QProxyStyle::drawControl(element, option, painter, widget);
-        }
-};
+#include "customtabstyle.h"
 
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent, Qt::CustomizeWindowHint | Qt::WindowTitleHint)
@@ -248,6 +221,7 @@ void SettingsDialog::accept()
 
     settings.save2Settings("hideCreditcardButton", m_receiptmain->hideCreditcardButton());
     settings.save2Settings("hideDebitcardButton", m_receiptmain->hideDebitcardButton());
+    settings.save2Settings("hideR2BButton", m_receiptmain->hideR2BButton());
     settings.save2Settings("quickButtonSize", m_receiptmain->getQuickButtonSize());
     settings.save2Settings("ButtonSize", m_receiptmain->getButtonSize());
     settings.save2Settings("numpadButtonSize", m_receiptmain->getNumpadButtonSize());
@@ -522,6 +496,7 @@ ReceiptMainTab::ReceiptMainTab(QWidget *parent)
     m_decimalRoundSpin->setSuffix(" " + tr("Stellen"));
     m_hideDebitcardCheck = new QCheckBox;
     m_hideCreditcardCheck = new QCheckBox;
+    m_hideR2BButtonCheck = new QCheckBox;
 
     /* Default Taxes*/
     m_defaultTaxComboBox = new QComboBox();
@@ -559,21 +534,23 @@ ReceiptMainTab::ReceiptMainTab(QWidget *parent)
     extraLayout->addWidget( m_hideCreditcardCheck, 2,4,1,1);
     extraLayout->addWidget( new QLabel(tr("Bankomat Taste verbergen:")), 3,3,1,1);
     extraLayout->addWidget( m_hideDebitcardCheck, 3,4,1,1);
+    extraLayout->addWidget( new QLabel(tr("Bon zu Rechnung Taste verbergen:")), 4,3,1,1);
+    extraLayout->addWidget( m_hideR2BButtonCheck, 4,4,1,1);
 
     extraLayout->addWidget( new QLabel(tr("Virtuellen Ziffernblock verwenden:")),3,1,1,1);
     extraLayout->addWidget( m_useVirtualNumPadCheck, 3,2,1,1);
 
     extraLayout->addWidget( new QLabel(tr("Artikelnummer Eingabe ermöglichen:")),4,1,1,1);
     extraLayout->addWidget( m_useInputProductNumberCheck, 4,2,1,1);
-    extraLayout->addWidget( new QLabel(tr("Kopfzeilen verschiebbar:")),4,3,1,1);
-    extraLayout->addWidget( m_registerHeaderMoveableCheck, 4,4,1,1);
+    extraLayout->addWidget( new QLabel(tr("Kopfzeilen verschiebbar:")),5,1,1,1);
+    extraLayout->addWidget( m_registerHeaderMoveableCheck, 5,2,1,1);
 
-    extraLayout->addWidget( new QLabel(tr("Meistverkauften Artikel als Standard Artikel verwenden:")), 5,1,1,3);
-    extraLayout->addWidget( m_useMaximumItemSoldCheck, 5,4,1,2);
+    extraLayout->addWidget( new QLabel(tr("Meistverkauften Artikel als Standard Artikel verwenden:")), 6,1,1,3);
+    extraLayout->addWidget( m_useMaximumItemSoldCheck, 6,4,1,2);
 
-    extraLayout->addWidget( new QLabel(tr("Dezimale Eingabe bei Anzahl Artikel:")),6,1,1,2);
-    extraLayout->addWidget( m_useDecimalQuantityCheck, 6,4,1,1);
-    extraLayout->addWidget( m_decimalRoundSpin, 6,3,1,1);
+    extraLayout->addWidget( new QLabel(tr("Dezimale Eingabe bei Anzahl Artikel:")),7,1,1,2);
+    extraLayout->addWidget( m_useDecimalQuantityCheck, 7,4,1,1);
+    extraLayout->addWidget( m_decimalRoundSpin, 7,3,1,1);
 
     extraLayout->setColumnStretch(1,1);
     extraLayout->setColumnStretch(3,1);
@@ -651,6 +628,7 @@ ReceiptMainTab::ReceiptMainTab(QWidget *parent)
 
     m_hideCreditcardCheck->setChecked(settings.value("hideCreditcardButton", false).toBool());
     m_hideDebitcardCheck->setChecked(settings.value("hideDebitcardButton", false).toBool());
+    m_hideR2BButtonCheck->setChecked(settings.value("hideR2BButton", false).toBool());
 
     QSize qbuttonsize = settings.value("quickButtonSize", QSize(150, 80)).toSize();
     m_quickButtonHeight->setValue(qbuttonsize.height());
@@ -725,6 +703,11 @@ bool ReceiptMainTab::hideCreditcardButton()
 bool ReceiptMainTab::hideDebitcardButton()
 {
     return m_hideDebitcardCheck->isChecked();
+}
+
+bool ReceiptMainTab::hideR2BButton()
+{
+    return m_hideR2BButtonCheck->isChecked();
 }
 
 bool ReceiptMainTab::useVirtualNumPad()
@@ -2506,7 +2489,7 @@ void SCardReaderTab::activateButton_clicked(bool)
                                QObject::tr("DEP-7 aktivieren"),
                                QObject::tr("Keine gültige Signaturerstellungseinheit gefunden."),
                                QMessageBox::Yes | QMessageBox::No,
-                               0);
+                               Q_NULLPTR);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ja"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Nein"));
         messageBox.exec();
@@ -2518,7 +2501,7 @@ void SCardReaderTab::activateButton_clicked(bool)
                                        QObject::tr("Kassenidentifikationsnummer"),
                                        QObject::tr("Keine gültige Kassenidentifikationsnummer."),
                                        QMessageBox::Yes,
-                                       0);
+                                       Q_NULLPTR);
                 messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ok"));
                 messageBox.exec();
                 return;
@@ -2527,7 +2510,7 @@ void SCardReaderTab::activateButton_clicked(bool)
                                    QObject::tr("DEP-7 aktivieren"),
                                    QObject::tr("Achtung!\nWenn das DEP-7 (RKSV Daten Erfassungs Prodokoll) aktiviert wird beachten sie Bitte folgende Punkte.\n1. Es werden alle Rechnungen elektronisch signiert und im DEP gespeichert.\n2. Eine De-aktivierung ist nur möglich wenn die Kasse außer Betrieb genommen wird.\n3. Sie müssen den erstellten Startbeleg sicher aufbewahren.\n4. Die Inbetriebnahme muß dem zuständigen Finanzamt gemeldet werden.\n5. Die Kassenidentifikationsnummer kann nicht mehr geändert werden"),
                                    QMessageBox::Yes | QMessageBox::No,
-                                   0);
+                                   Q_NULLPTR);
             messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ja"));
             messageBox.setButtonText(QMessageBox::No, QObject::tr("Nein"));
             if (messageBox.exec() == QMessageBox::Yes ) {
@@ -2536,7 +2519,7 @@ void SCardReaderTab::activateButton_clicked(bool)
                 waitbar.setWaitMode(true);
                 waitbar.show();
 
-                Reports rep(0, true);
+                Reports rep(Q_NULLPTR, true);
                 bool check = rep.checkEOAnyServerMode();
                 if (check) {
                     ReceiptItemModel rec;
@@ -2558,7 +2541,7 @@ void SCardReaderTab::activateButton_clicked(bool)
                                    QObject::tr("Kasse außer Betrieb nehmen"),
                                    QObject::tr("Achtung!\nDie Kasse wird außer Betrieb genommen. Das DEP-7 (RKSV Daten Erfassungs Prodokoll) wird de-aktiviert. Melden Sie die außer Betriebnahme dem zuständigen Finanzamt."),
                                    QMessageBox::Yes | QMessageBox::No,
-                                   0);
+                                   Q_NULLPTR);
             messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ja"));
             messageBox.setButtonText(QMessageBox::No, QObject::tr("Nein"));
             if (messageBox.exec() == QMessageBox::Yes ) {
@@ -2567,13 +2550,12 @@ void SCardReaderTab::activateButton_clicked(bool)
                 waitbar.setWaitMode(true);
                 waitbar.show();
 
-                RKSignatureModule::setDEPactive(false);
-                m_scardActivateButton->setText(tr("Kasse außer Betrieb."));
-                m_scardActivateButton->setEnabled(false);
-
-                Reports rep(0, true);
+                Reports rep(Q_NULLPTR, true);
                 bool check = rep.checkEOAnyServerMode();
                 if (check) {
+                    RKSignatureModule::setDEPactive(false);
+                    m_scardActivateButton->setText(tr("Kasse außer Betrieb."));
+                    m_scardActivateButton->setEnabled(false);
                     ReceiptItemModel rec;
                     if (rec.createNullReceipt(CONCLUSION_RECEIPT)) {
                         m_scardActivateButton->setVisible(false);

@@ -50,7 +50,7 @@ void ProductChart::setupModel()
 {
     QSqlDatabase dbc = Database::database();
     QSqlQuery q(dbc);
-    q.prepare("SELECT COUNT(id) FROM products WHERE products.`group` > 1");
+    q.prepare("SELECT COUNT(id) FROM products WHERE products.groupid > 1");
     int rows = 0;
     if (q.next())
         rows = q.value(0).toInt();
@@ -137,7 +137,7 @@ void ProductChart::loadData(SORTORDER order)
     QSqlDatabase dbc = Database::database();
     QSqlQuery q(dbc);
 
-    q.prepare("SELECT sum(sold) as sold, sum(sold * gross) as gross FROM products WHERE products.`group` > 1");
+    q.prepare("SELECT sum(sold) as sold, sum(sold * gross) as gross FROM products WHERE products.groupid > 1");
     q.exec();
     q.next();
     QBCMath whole(q.value("sold").toDouble());
@@ -148,9 +148,9 @@ void ProductChart::loadData(SORTORDER order)
     QBCMath current(0.0);
 
     if (order == SOLD)
-        q.prepare("SELECT name, sold FROM products  WHERE products.`group` > 1 ORDER BY sold DESC LIMIT :limit");
+        q.prepare("SELECT name, sold FROM products  WHERE products.groupid > 1 ORDER BY sold DESC LIMIT :limit");
     else
-        q.prepare("SELECT name, sold * gross as sumgross FROM products  WHERE products.`group` > 1 ORDER BY sumgross DESC LIMIT :limit");
+        q.prepare("SELECT name, sold * gross as sumgross FROM products  WHERE products.groupid > 1 ORDER BY sumgross DESC LIMIT :limit");
 
     q.bindValue(":limit", m_maxview);
     q.exec();

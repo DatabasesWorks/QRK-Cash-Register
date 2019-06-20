@@ -46,7 +46,7 @@ class CKVSOFT_EXPORT AclWizard : public QWizard
             ROLE
         };
 
-        AclWizard(WizardType type, QWidget *parent = 0);
+        AclWizard(WizardType type, QWidget *parent = Q_NULLPTR);
 
         void accept() override;
         void reject() override;
@@ -67,7 +67,7 @@ class CKVSOFT_EXPORT AclIntroPage : public QWizardPage
         Q_OBJECT
 
     public:
-        AclIntroPage(QWidget *parent = 0);
+        AclIntroPage(QWidget *parent = Q_NULLPTR);
 
     private:
         QLabel *label;
@@ -78,7 +78,7 @@ class CKVSOFT_EXPORT AclRoleIntroPage : public QWizardPage
         Q_OBJECT
 
     public:
-        AclRoleIntroPage(QWidget *parent = 0);
+        AclRoleIntroPage(QWidget *parent = Q_NULLPTR);
 
     private:
         QLabel *label;
@@ -89,7 +89,7 @@ class CKVSOFT_EXPORT AclRoleInfoPage : public QWizardPage
         Q_OBJECT
 
     public:
-        AclRoleInfoPage(QWidget *parent = 0);
+        AclRoleInfoPage(QWidget *parent = Q_NULLPTR);
 
     private:
         bool isComplete() const;
@@ -111,7 +111,7 @@ class CKVSOFT_EXPORT AclUserIntroPage : public QWizardPage
         Q_OBJECT
 
     public:
-        AclUserIntroPage(QWidget *parent = 0);
+        AclUserIntroPage(QWidget *parent = Q_NULLPTR);
 
     private:
         QLabel *label;
@@ -122,7 +122,7 @@ class CKVSOFT_EXPORT AclUserInfoPage : public QWizardPage
         Q_OBJECT
 
     public:
-        AclUserInfoPage(QWidget *parent = 0);
+        AclUserInfoPage(QWidget *parent = Q_NULLPTR);
 
     private:
         bool isComplete() const;
@@ -155,7 +155,7 @@ class CKVSOFT_EXPORT AclUserRolesInfoPage : public QWizardPage
         Q_OBJECT
 
     public:
-        AclUserRolesInfoPage(QWidget *parent = 0);
+        AclUserRolesInfoPage(QWidget *parent = Q_NULLPTR);
 
     private:
         void manageUserRoles();

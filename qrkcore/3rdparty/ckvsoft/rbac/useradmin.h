@@ -39,7 +39,7 @@ class CKVSOFT_EXPORT UserAdmin : public QWidget, private Ui::base_admin
         Q_OBJECT
 
     public:
-        explicit UserAdmin(QWidget *parent = 0);
+        explicit UserAdmin(QWidget *parent = Q_NULLPTR);
         ~UserAdmin();
         void maybeSaved();
 
@@ -70,7 +70,7 @@ class CKVSOFT_EXPORT UserAdmin : public QWidget, private Ui::base_admin
         QAction *m_addAction;
         QAction *m_removeAction;
         QMenu *m_menu;
-        User *m_user = 0;
+        User *m_user = Q_NULLPTR;
 
         QMap<int, User*> m_userprofile;
 

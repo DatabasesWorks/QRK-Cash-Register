@@ -38,12 +38,13 @@ class CsvImportWizardPage3 : public QWizardPage
     Q_OBJECT
 
   public:
-    explicit CsvImportWizardPage3(QWidget *parent = 0);
+    explicit CsvImportWizardPage3(QWidget *parent = Q_NULLPTR);
     ~CsvImportWizardPage3();
     bool isComplete() const;
     void setModel(QStandardItemModel *model);
     void setMap(QMap<QString, QVariant> *m);
     void setMap(QMap<QString, QJsonObject> *m);
+    void cancel();
 
 signals:
     void removePage(int id);
@@ -59,6 +60,8 @@ private slots:
     QStandardItemModel *m_model;
     QMap<QString, QVariant> *m_map;
     QMap<QString, QJsonObject> *m_errormap;
+    QThread *m_thread = Q_NULLPTR;
+
     bool m_autoGroup;
     bool m_guessGroup;
     bool m_ignoreExistingProduct;
@@ -94,10 +97,12 @@ class ImportData : public QObject
     int createGroup(QString name);
     QString getGroupById(int id);
     int getGroupByName(QString name);
+    bool updateData(int id, QJsonObject data);
 
     QStandardItemModel *m_model;
     QMap<QString, QVariant> *m_map;
     QMap<QString, QJsonObject> *m_errormap;
+
     bool m_ignoreExistingProduct;
     bool m_updateExistingProduct;
     bool m_guessGroup;
@@ -106,7 +111,10 @@ class ImportData : public QObject
     bool m_visibleProduct;
     bool m_autoitemnum;
     int m_autominitemnum;
+    int m_realVisible;
     double m_defaulttax;
+    int m_version;
+    int m_origin;
 
 };
 

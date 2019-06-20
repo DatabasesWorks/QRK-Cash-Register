@@ -39,7 +39,7 @@ class CheckableListDialog : public QDialog
     Q_OBJECT
 
 public:
-    CheckableListDialog(QWidget *parent = 0);
+    CheckableListDialog(QWidget *parent = Q_NULLPTR);
     void setModelData(QStringList list, QStringList selected);
     QStringList getRequiredList();
 

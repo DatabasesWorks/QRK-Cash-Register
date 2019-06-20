@@ -31,7 +31,7 @@ class QRK_EXPORT Reports : public ReceiptItemModel
 {
     Q_OBJECT
   public:
-    Reports(QObject *parent = 0, bool mode = false);
+    Reports(QObject *parent = Q_NULLPTR, bool mode = false);
     ~Reports();
 
     bool checkEOAny(QDate checkDate = QDate::currentDate(), bool checkDay = true);

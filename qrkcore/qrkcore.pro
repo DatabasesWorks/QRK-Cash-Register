@@ -80,7 +80,10 @@ SOURCES = database.cpp \
     qrkprogress.cpp \
     databasemanager.cpp \
     qrkpushbutton.cpp \
-    qrkmultimedia.cpp
+    qrkmultimedia.cpp \
+    import/importworker.cpp \
+    utils/infoserver.cpp \
+    tableview.cpp
 
 
 HEADERS = database.h \
@@ -123,7 +126,10 @@ HEADERS = database.h \
     databasemanager.h \
     qrktimedmessagebox.h \
     qrkpushbutton.h \
-    qrkmultimedia.h
+    qrkmultimedia.h \
+    import/importworker.h \
+    utils/infoserver.h \
+    tableview.h
 
 FORMS = databasedefinition.ui \
     pluginmanager/pluginview.ui \

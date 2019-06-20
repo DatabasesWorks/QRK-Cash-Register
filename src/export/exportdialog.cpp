@@ -90,9 +90,9 @@ void ExportDialog::onExportButton_clicked()
     QString lastUsedDirectory = settings.value("lastUsedDirectory", QDir::currentPath()).toString();
 
     if (m_saveTodir) {
-        m_filename = QFileDialog::getExistingDirectory(0, tr("Speichern nach ..."),lastUsedDirectory, QFileDialog::DontUseNativeDialog | QFileDialog::ShowDirsOnly | QFileDialog::DontConfirmOverwrite);
+        m_filename = QFileDialog::getExistingDirectory(Q_NULLPTR, tr("Speichern nach ..."),lastUsedDirectory, QFileDialog::DontUseNativeDialog | QFileDialog::ShowDirsOnly | QFileDialog::DontConfirmOverwrite);
     } else {
-        m_filename = QFileDialog::getSaveFileName(0, tr("Datei speichern"), lastUsedDirectory, "Journal (*.csv)", 0, QFileDialog::DontUseNativeDialog);
+        m_filename = QFileDialog::getSaveFileName(Q_NULLPTR, tr("Datei speichern"), lastUsedDirectory, "Journal (*.csv)", Q_NULLPTR, QFileDialog::DontUseNativeDialog);
     }
 
     if (m_filename.isNull())

@@ -72,19 +72,22 @@ void QRKMessageHandler(QtMsgType type, const QMessageLogContext &, const QString
     switch (type) {
     case QtDebugMsg:
         if (debug)
-            txt = QString("%1 %2 %3 Debug: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg((long)QThread::currentThread(), 16).arg(QApplication::applicationVersion()).arg(str);
+            txt = QString("%1 %2 %3 Debug: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg(long(QThread::currentThread()), 16).arg(QApplication::applicationVersion()).arg(str);
+        else
+            return;
+
         break;
     case QtInfoMsg:
-        txt = QString("%1 %2 %3 Info: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg((long)QThread::currentThread(), 16).arg(QApplication::applicationVersion()).arg(str);
+        txt = QString("%1 %2 %3 Info: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg(long(QThread::currentThread()), 16).arg(QApplication::applicationVersion()).arg(str);
         break;
     case QtWarningMsg:
-        txt = QString("%1 %2 %3 Warning: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg((long)QThread::currentThread(), 16).arg(QApplication::applicationVersion()).arg(str);
+        txt = QString("%1 %2 %3 Warning: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg(long(QThread::currentThread()), 16).arg(QApplication::applicationVersion()).arg(str);
         break;
     case QtCriticalMsg:
-        txt = QString("%1 %2 %3 Critical: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg((long)QThread::currentThread(), 16).arg(QApplication::applicationVersion()).arg(str);
+        txt = QString("%1 %2 %3 Critical: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg(long(QThread::currentThread()), 16).arg(QApplication::applicationVersion()).arg(str);
         break;
     case QtFatalMsg:
-        txt = QString("%1 %2 %3 Fatal: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg((long)QThread::currentThread(), 16).arg(QApplication::applicationVersion()).arg(str);
+        txt = QString("%1 %2 %3 Fatal: %4").arg(QDateTime::currentDateTime().toString("yyyy.MM.dd hh:mm:ss.zzz")).arg(long(QThread::currentThread()), 16).arg(QApplication::applicationVersion()).arg(str);
         break;
     }
 
@@ -197,7 +200,7 @@ int main(int argc, char *argv[])
     splash->setMinimumHeight(228);
     splash->show();
 
-    Qt::Alignment topRight = Qt::AlignLeft | Qt::AlignBottom;
+    int topRight = Qt::AlignLeft | Qt::AlignBottom;
     splash->showMessage(QObject::tr("QRK wird gestartet ..."),topRight, Qt::black);
 
 #ifndef QT_DEBUG
@@ -325,7 +328,7 @@ int main(int argc, char *argv[])
                                QObject::tr("Eventueller Datum/Uhrzeit Fehler"),
                                QObject::tr("ACHTUNG! Die Uhrzeit des Computers ist eventuell falsch.\n\nLetzter Datenbankeintrag: %1\nDatum/Uhrzeit: %2").arg(Database::getLastJournalEntryDate().toString()).arg(QDateTime::currentDateTime().toString()),
                                QMessageBox::Yes | QMessageBox::No,
-                               0);
+                               Q_NULLPTR);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("QRK beenden?"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Weiter machen"));
 
@@ -352,7 +355,7 @@ int main(int argc, char *argv[])
                                QObject::tr("DEP-7 Fehler"),
                                QObject::tr("ACHTUNG! Das gespeicherte DEP-7 hat einen oder mehrere Fehler.\nEvtl. gibt es Zugriffsprobleme auf Ihre Datenbank.\nBitte sichern Sie Ihre Daten. Melden Sie die Kasse bei FON ab und nochmals neu an.\nBis dahin müssen Sie Belege per Hand erstellen und in der neuen Kasse erfassen.\nFür Infos steht Ihnen das Forum zu Verfügung."),
                                QMessageBox::Yes | QMessageBox::No,
-                               0);
+                               Q_NULLPTR);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Kasse außer\nBetrieb nehmen?"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Weiter machen"));
         messageBox.setDetailedText(error.join('\n'));
@@ -394,7 +397,7 @@ int main(int argc, char *argv[])
                                QObject::tr("DEMOMODUS"),
                                QObject::tr("Wird QRK (Qt Registrier Kasse) im Echtbetrieb verwendet?\n\nJA wenn QRK im produktiven Einsatz ist.\n\nNEIN wenn DEMO Daten verwendet werden."),
                                QMessageBox::Yes | QMessageBox::No,
-                               0);
+                               Q_NULLPTR);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("Ja"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Nein"));
 
@@ -422,7 +425,7 @@ int main(int argc, char *argv[])
     QString cri = Database::getCashRegisterId();
     if ( cri.isEmpty() ) {
         splash->setHidden(true);
-        QMessageBox::warning(0, QObject::tr("Kassenidentifikationsnummer"), QObject::tr("Stammdaten müssen vollständig ausgefüllt werden.."));
+        QMessageBox::warning(Q_NULLPTR, QObject::tr("Kassenidentifikationsnummer"), QObject::tr("Stammdaten müssen vollständig ausgefüllt werden.."));
         RBAC::Instance()->setuserId(0);
         SettingsDialog tab;
         tab.exec();
@@ -447,13 +450,13 @@ int main(int argc, char *argv[])
 
     UniqueMachineFingerprint fp;
     qInfo() << "Serialnumber: " << fp.getSystemUniqueId();
-    qInfo() << "Validate: " << fp.validate(fp.getSystemUniqueId());
+    qInfo() << "ProductInfo: " << QSysInfo::prettyProductName() << " " << QSysInfo::productType() << " " << QSysInfo::productVersion() << " " << QSysInfo::currentCpuArchitecture();
 
     splash->finish(&mainWidget);
 
 #if defined(_WIN32) || defined(__APPLE__)
     // Set feed URL before doing anything else
-    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.10/Appcast.xml");
+    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.12/Appcast.xml");
     FvUpdater::sharedUpdater()->setRequiredSslFingerPrint("c3b038cb348c7d06328579fb950a48eb");	// Optional
     FvUpdater::sharedUpdater()->setHtAuthCredentials("username", "password");	// Optional
     FvUpdater::sharedUpdater()->setUserCredentials(Database::getShopName() + "/" + Database::getCashRegisterId() + "/" + QApplication::applicationVersion());

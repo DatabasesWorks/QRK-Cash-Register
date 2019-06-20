@@ -20,13 +20,14 @@
  *
 */
 
-#ifndef _PRODUCTSWIDGET_H_
-#define _PRODUCTSWIDGET_H_
+#ifndef PRODUCTSWIDGET_H_
+#define PRODUCTSWIDGET_H_
 
 #include <QWidget>
 
-class QSqlRelationalTableModel;
+//class QSqlRelationalTableModel;
 class QSortFilterProxyModel;
+class QSqlRTModel;
 
 class ProductEdit;
 
@@ -52,7 +53,7 @@ class ProductsWidget : public QWidget
 
   private:
     Ui::ProductsWidget *ui;
-    QSqlRelationalTableModel *m_model;
+    QSqlRTModel *m_model;
     ProductEdit *m_newProductDialog;
     QSortFilterProxyModel *m_proxyModel;
 };

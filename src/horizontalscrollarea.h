@@ -13,7 +13,6 @@ class HorizontalScrollArea : public QScrollArea
     Q_OBJECT
 
 public:
-//    HorizontalScrollArea(QWidget *parent = Q_NULLPTR);
     HorizontalScrollArea(int rows, int cols, QWidget *parent = Q_NULLPTR);
 
     void addWidget(QWidget *w, int row, int col);

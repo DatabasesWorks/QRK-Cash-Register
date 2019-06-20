@@ -36,7 +36,7 @@ class CKVSOFT_EXPORT Widget : public QWidget
 {
         Q_OBJECT
     public:
-        explicit Widget(QWidget *parent = 0) : QWidget(parent)
+        explicit Widget(QWidget *parent = Q_NULLPTR) : QWidget(parent)
         {
         }
 
@@ -55,7 +55,7 @@ class CKVSOFT_EXPORT AclManager : public QDialog
         Q_OBJECT
 
     public:
-        explicit AclManager(QWidget *parent = 0);
+        explicit AclManager(QWidget *parent = Q_NULLPTR);
         ~AclManager();
 
         void createFirstRoleAndUser();

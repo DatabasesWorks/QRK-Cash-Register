@@ -60,8 +60,7 @@ class TextEdit : public QTextEdit
     Q_OBJECT
 
 public:
-    TextEdit(QWidget *parent = 0);
-    ~TextEdit();
+    TextEdit(QWidget *parent = Q_NULLPTR);
 
     void setCompleter(QCompleter *c);
     QCompleter *completer() const;

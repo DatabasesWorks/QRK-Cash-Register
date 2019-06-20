@@ -65,6 +65,7 @@
 #include <QTreeView>
 #include <QThread>
 #include <QScreen>
+#include <QDebug>
 
 //-----------------------------------------------------------------------
 
@@ -161,6 +162,7 @@ QRK::QRK(bool servermode)
     connect(m_qrk_register, &QRKRegister::cancelRegisterButton_clicked, this, &QRK::onCancelRegisterButton_clicked);
     connect(m_qrk_register, &QRKRegister::finishedReceipt, this, &QRK::finishedReceipt);
     connect(m_qrk_register, &QRKRegister::fullScreen, this, &QRK::setFullScreenMode);
+    connect(m_qrk_register, &QRKRegister::sendDatagram, this, &QRK::sendDatagram);
 
     connect(m_qrk_document, &QRKDocument::cancelDocumentButton, this, &QRK::onCancelDocumentButton_clicked);
     connect(m_qrk_document, &QRKDocument::documentButton_clicked, this, &QRK::onDocumentButton_clicked);
@@ -551,7 +553,7 @@ void QRK::onCancelDocumentButton_clicked()
 void QRK::onRegisterButton_clicked()
 {
     if(!RBAC::Instance()->hasPermission("register_access")) {
-        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("register_access"))));
+        QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("register_access"))));
         return;
     }
 
@@ -563,7 +565,7 @@ void QRK::onRegisterButton_clicked()
 void QRK::onManagerButton_clicked()
 {
     if(!RBAC::Instance()->hasPermission("manager_access")) {
-        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("manager_access"))));
+        QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("manager_access"))));
         return;
     }
 
@@ -593,7 +595,7 @@ void QRK::finishedReceipt()
 void QRK::onDocumentButton_clicked()
 {
     if(!RBAC::Instance()->hasPermission("documents_access")) {
-        QMessageBox::warning(0, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("documents_access"))));
+        QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("documents_access"))));
         return;
     }
 
@@ -644,7 +646,7 @@ void QRK::closeEvent (QCloseEvent *event)
         return;
     }
 
-    disconnect(m_qrk_home, &QRKHome::servermodefinished, 0,0);
+    disconnect(m_qrk_home, &QRKHome::servermodefinished, Q_NULLPTR, Q_NULLPTR);
     QrkTimedMessageBox mb(5, tr("Beenden"),
                    tr("Möchten sie wirklich beenden ?"),
                    QMessageBox::Question,
@@ -723,7 +725,7 @@ void QRK::backupDEP()
                                QObject::tr("Externes DEP-7 Backup"),
                                QObject::tr("Das externe Medium %1 ist nicht vorhanden oder nicht beschreibbar.\nBitte beheben Sie den Fehler und drücken OK. Wenn das Backup zu einen späteren Zeitpunkt durchgeführt werden soll klicken Sie abbrechen.").arg(directoryname),
                                QMessageBox::Yes | QMessageBox::No,
-                               0);
+                               Q_NULLPTR);
         messageBox.setButtonText(QMessageBox::Yes, QObject::tr("OK"));
         messageBox.setButtonText(QMessageBox::No, QObject::tr("Abbrechen"));
 
@@ -770,7 +772,7 @@ void QRK::restartApplication()
 
 void QRK::newApplicationVersionAvailable(QString version)
 {    
-    disconnect(m_versionChecker, &VersionChecker::Version, 0, 0);
+    disconnect(m_versionChecker, &VersionChecker::Version, Q_NULLPTR, Q_NULLPTR);
 
     QString currentVersion = qApp->applicationVersion().right(6);
     if (QString::compare(version.right(6), currentVersion, Qt::CaseInsensitive) > 0) {
@@ -785,4 +787,15 @@ void QRK::newApplicationVersionAvailable(QString version)
         messageBox.exec();
     }
     connect(m_versionChecker, &VersionChecker::Version, this, &QRK::newApplicationVersionAvailable);
+}
+
+void QRK::sendDatagram(QString what, QString data)
+{
+//    qDebug() << "Function Name: " << Q_FUNC_INFO << what << " data: " << data;
+    QByteArray datagram;
+    QDataStream out(&datagram, QIODevice::WriteOnly);
+    out << what << data;
+
+    udpSocket.writeDatagram(datagram, QHostAddress::Broadcast, 5824);
+
 }

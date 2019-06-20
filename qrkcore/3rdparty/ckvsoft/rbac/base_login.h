@@ -39,7 +39,7 @@ class CKVSOFT_EXPORT base_login : public QDialog
         Q_OBJECT
 
     public:
-        explicit base_login(QWidget *parent = nullptr);
+        explicit base_login(QWidget *parent = Q_NULLPTR);
         ~base_login();
 
     protected:

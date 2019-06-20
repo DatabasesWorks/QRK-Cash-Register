@@ -35,7 +35,7 @@ class QRK_EXPORT DocumentPrinter : public QObject
     Q_OBJECT
 
   public:
-    DocumentPrinter(QObject *parent = 0);
+    DocumentPrinter(QObject *parent = Q_NULLPTR);
     ~DocumentPrinter();
 
     void printReceipt(QJsonObject data);

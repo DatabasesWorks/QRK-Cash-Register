@@ -32,7 +32,7 @@ class ExportJournal : public QDialog
     Q_OBJECT
 
 public:
-    explicit ExportJournal(QWidget *parent = 0);
+    explicit ExportJournal(QWidget *parent = Q_NULLPTR);
     ~ExportJournal();
 
     void Export();

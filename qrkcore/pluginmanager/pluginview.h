@@ -39,7 +39,7 @@ class QRK_EXPORT PluginView : public QDialog
         Q_OBJECT
 
     public:
-        explicit PluginView(QWidget *parent = 0);
+        explicit PluginView(QWidget *parent = Q_NULLPTR);
         ~PluginView();
         void setCloseButtonVisible(bool visible);
 

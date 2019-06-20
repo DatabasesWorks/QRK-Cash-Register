@@ -33,7 +33,6 @@
 VersionChecker::VersionChecker(QObject *parent) :
     QObject(parent)
 {
-    qDebug() << "Function Name: " << Q_FUNC_INFO << "VersionChecker: " << QThread::currentThread();
 }
 
 VersionChecker::~VersionChecker()
@@ -45,14 +44,12 @@ VersionChecker::~VersionChecker()
 
 void VersionChecker::run()
 {
-    qDebug() << "Function Name: " << Q_FUNC_INFO << "VersionChecker: " << QThread::currentThread();
     m_manager = new QNetworkAccessManager(this);
     m_url = "http://service.ckvsoft.at/qrk";
     timer = new QTimer(this);
-    qDebug() << "Function Name: " << Q_FUNC_INFO << "VersionChecker: Parent of m_timer = " << timer->parent();
     connect(timer, &QTimer::timeout, this, &VersionChecker::getVersion);
 #if defined(_WIN32) || defined(__APPLE__)
-    timer->start(3600000);
+    timer->start(1800000);
 #else
     timer->start(2000);
 #endif
@@ -86,7 +83,7 @@ void VersionChecker::getVersion()
         qDebug() << "Function Name: " << Q_FUNC_INFO << " Version: " << jsondata.value("version").toString();
     }
 
-    timer->start(14400000);
+    timer->start(7200000);
 }
 
 bool VersionChecker::doRequest(QNetworkRequest req, QJsonObject &obj)

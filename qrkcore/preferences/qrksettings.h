@@ -35,7 +35,7 @@ class QRK_EXPORT QrkSettings : public QSettings
 {
     Q_OBJECT
 public:
-    QrkSettings(QObject *parent = 0);
+    QrkSettings(QObject *parent = Q_NULLPTR);
     ~QrkSettings();
 
     void save2Database(QString name, QString value);

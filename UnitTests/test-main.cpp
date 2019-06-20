@@ -21,6 +21,7 @@
 */
 
 #include "3rdparty/ckvsoft/rbac/crypto.h"
+#include "importtest.h"
 
 #include <cryptopp/aes.h>
 #include <cryptopp/modes.h>
@@ -43,7 +44,12 @@ class QRK : public QObject
         Q_OBJECT
 
     private slots:
-        void crypto_make_key(void)
+    void ImportServer(void)
+    {
+        QVERIFY(ImportTest::test() == true);
+    }
+
+    void crypto_make_key(void)
         {
             const SecureByteArray masterPassword = QString("7h15p455w0rd15m0r37h4n53cr37").toUtf8();
             SecureByteArray key;
@@ -99,10 +105,13 @@ class QRK : public QObject
 
         void datetime(void)
         {
-            QTime time = QTime(4,30,0);
-            QDateTime dt = QDateTime::currentDateTime().addSecs(-QTime(0, 0, 0).secsTo(time));
+            QTime timeFrom = QTime(04,00,0);
+            QTime timeTo = QTime(21,00,0);
+            QDateTime dtFrom = QDateTime::currentDateTime().addSecs(-QTime(0, 0, 0).secsTo(timeFrom));
+            QDateTime dtTo = QDateTime::currentDateTime().addSecs(QTime(0, 0, 0).secsTo(timeTo));
             QDate date = QDate::currentDate();
-            qDebug() << "time: " << time << " datetime: " << dt << " datetime date: " << dt.date() << " date: " << date;
+            qDebug() << "timeFrom: " << timeFrom << " datetimeFrom: " << dtFrom << " datetimeFrom date: " << dtFrom.date() << " date: " << date;
+            qDebug() << "timeTo: " << timeTo << " datetimeTo: " << dtTo << " datetimeTo date: " << dtTo.date() << " date: " << date;
 //            QVERIFY(dt.date() == date);
         }
 
@@ -127,5 +136,6 @@ class QRK : public QObject
 
 };
 
-QTEST_GUILESS_MAIN(QRK)
+// QTEST_GUILESS_MAIN(QRK)
+QTEST_MAIN(QRK)
 #include "test-main.moc"

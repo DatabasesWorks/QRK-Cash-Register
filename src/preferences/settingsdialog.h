@@ -48,7 +48,7 @@ class Widget: public QWidget
 {
         Q_OBJECT
     public:
-        explicit Widget(QWidget *parent = 0):QWidget(parent){}
+        explicit Widget(QWidget *parent = Q_NULLPTR):QWidget(parent){}
 
         void disableWidgets()
         {
@@ -66,7 +66,7 @@ class ReceiptMainTab : public Widget
     Q_OBJECT
 
 public:
-    explicit ReceiptMainTab(QWidget *parent = 0);
+    explicit ReceiptMainTab(QWidget *parent = Q_NULLPTR);
     bool getInputNetPrice();
     bool getDiscount();
     bool getMaximumItemSold();
@@ -77,6 +77,7 @@ public:
     QSize getNumpadButtonSize();
     bool hideDebitcardButton();
     bool hideCreditcardButton();
+    bool hideR2BButton();
     QString getDefaultTax();
     bool useVirtualNumPad();
     bool useInputProductNumber();
@@ -93,6 +94,7 @@ private:
     QSpinBox *m_decimalRoundSpin;
     QCheckBox *m_hideDebitcardCheck;
     QCheckBox *m_hideCreditcardCheck;
+    QCheckBox *m_hideR2BButtonCheck;
     QCheckBox *m_useVirtualNumPadCheck;
     QCheckBox *m_useInputProductNumberCheck;
     QCheckBox *m_registerHeaderMoveableCheck;
@@ -113,7 +115,7 @@ class BarcodeTab : public Widget
     Q_OBJECT
 
 public:
-    explicit BarcodeTab(QWidget *parent = 0);
+    explicit BarcodeTab(QWidget *parent = Q_NULLPTR);
     int getBarcodePrefix();
     QString getBarcodeSuccessSound();
     QString getBarcodeFailureSound();
@@ -139,7 +141,7 @@ class ExtraTab : public Widget
     Q_OBJECT
 
 public:
-    explicit ExtraTab(QWidget *parent = 0);
+    explicit ExtraTab(QWidget *parent = Q_NULLPTR);
     bool getGivenDialog();
     bool getPriceChangedDialog();
     bool getStockDialog();
@@ -203,7 +205,7 @@ class ServerTab : public Widget
     Q_OBJECT
 
 public:
-    explicit ServerTab(QWidget *parent = 0);
+    explicit ServerTab(QWidget *parent = Q_NULLPTR);
     QString getImportDirectory();
     QString getImportCodePage();
     bool getServerFullscreen();
@@ -225,7 +227,7 @@ class GeneralTab : public Widget
     Q_OBJECT
 
 public:
-    explicit GeneralTab(QWidget *parent = 0);
+    explicit GeneralTab(QWidget *parent = Q_NULLPTR);
     QString getBackupDirectory();
     QString getPdfDirectory();
     QString getDataDirectory();
@@ -258,7 +260,7 @@ class PrinterTab : public Widget
     Q_OBJECT
 
 public:
-    explicit PrinterTab(QStringList availablePrinters, QWidget *parent = 0);
+    explicit PrinterTab(QStringList availablePrinters, QWidget *parent = Q_NULLPTR);
 
     bool getReportPrinterPDF();
     QString getReportPrinter();
@@ -291,7 +293,7 @@ class ReceiptPrinterTab : public Widget
     Q_OBJECT
 
 public:
-    explicit ReceiptPrinterTab(QStringList availablePrinters, QWidget *parent = 0);
+    explicit ReceiptPrinterTab(QStringList availablePrinters, QWidget *parent = Q_NULLPTR);
 
     QString getReceiptPrinter();
     bool getUseReportPrinter();
@@ -344,7 +346,7 @@ class ReceiptTab : public Widget
     Q_OBJECT
 
 public:
-    explicit ReceiptTab(QStringList availablePrinters, QWidget *parent = 0);
+    explicit ReceiptTab(QStringList availablePrinters, QWidget *parent = Q_NULLPTR);
 
     QString getReceiptPrinterHeading();
     bool getPrintCompanyNameBold();
@@ -385,7 +387,7 @@ class ReceiptEnhancedTab : public Widget
     Q_OBJECT
 
 public:
-    explicit ReceiptEnhancedTab(QWidget *parent = 0);
+    explicit ReceiptEnhancedTab(QWidget *parent = Q_NULLPTR);
 
     QString getAdvertising();
     bool getUseAdvertising();
@@ -416,7 +418,7 @@ class MasterDataTab : public Widget
     Q_OBJECT
 
 public:
-    explicit MasterDataTab(QWidget *parent = 0);
+    explicit MasterDataTab(QWidget *parent = Q_NULLPTR);
 
     QString getShopName();
     QString getShopOwner();
@@ -448,7 +450,7 @@ class SCardReaderTab : public Widget
     Q_OBJECT
 
 public:
-    explicit SCardReaderTab(QWidget *parent = 0);
+    explicit SCardReaderTab(QWidget *parent = Q_NULLPTR);
     QString getCurrentCardReader();
     QString getCurrentOnlineConnetionString();
     bool saveSettings();
@@ -480,7 +482,7 @@ class SettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SettingsDialog(QWidget *parent = 0);
+    explicit SettingsDialog(QWidget *parent = Q_NULLPTR);
 
 private slots:
     void masterTaxChanged(QString);

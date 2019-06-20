@@ -20,8 +20,8 @@
  *
 */
 
-#ifndef _GroupEdit_H_
-#define _GroupEdit_H_
+#ifndef GROUPEDIT_H_
+#define GROUPEDIT_H_
 
 #include <QDialog>
 #include <QSqlQueryModel>

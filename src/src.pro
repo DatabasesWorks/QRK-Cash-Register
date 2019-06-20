@@ -75,7 +75,6 @@ SOURCES += main.cpp \
     import/csvimportwizardpage3.cpp \
     export/exportdialog.cpp \
     export/exportdep.cpp \
-    import/importworker.cpp \
     manager/productswidget.cpp \
     manager/productedit.cpp \
     export/exportjournal.cpp \
@@ -115,7 +114,6 @@ HEADERS  += \
     import/csvimportwizardpage3.h \
     export/exportdialog.h \
     export/exportdep.h \
-    import/importworker.h \
     export/exportjournal.h \
     foninfo.h \
     preferences/settingsdialog.h \
@@ -126,7 +124,8 @@ HEADERS  += \
     export/exportproducts.h \
     export/checkablelist/checkablelistdialog.h \
     export/checkablelist/checkablelistmodel.h \
-    import/csvimportwizardpage4.h
+    import/csvimportwizardpage4.h \
+    preferences/customtabstyle.h
 
 FORMS += \
     ui/qrk.ui \

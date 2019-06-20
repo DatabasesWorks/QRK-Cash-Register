@@ -40,7 +40,7 @@ class CKVSOFT_EXPORT RolesAdmin : public QWidget, private Ui::base_admin
         Q_OBJECT
 
     public:
-        explicit RolesAdmin(QWidget *parent = 0);
+        explicit RolesAdmin(QWidget *parent = Q_NULLPTR);
         ~RolesAdmin();
         void maybeSaved();
 

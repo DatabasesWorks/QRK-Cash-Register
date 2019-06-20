@@ -32,7 +32,7 @@ class ExportProducts : public QDialog
     Q_OBJECT
 
 public:
-    explicit ExportProducts(QWidget *parent = 0);
+    explicit ExportProducts(QWidget *parent = Q_NULLPTR);
     ~ExportProducts();
 
     void Export();

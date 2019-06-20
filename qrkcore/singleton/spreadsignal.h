@@ -32,7 +32,7 @@ class QRK_EXPORT SpreadSignal : public QObject
 {
     Q_OBJECT
 public:
-    explicit SpreadSignal(QObject *parent = 0);
+    explicit SpreadSignal(QObject *parent = Q_NULLPTR);
     ~SpreadSignal() {}
 
     void setProgressBarValue(int value, bool add = false);

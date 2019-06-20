@@ -113,5 +113,7 @@
         <file>src/sql/QRK-sqlite-update-19.sql</file>
         <file>src/txt/gpl-3.0.de_AT.txt</file>
         <file>src/txt/gpl-3.0.txt</file>
+        <file>src/sql/QRK-mysql-update-20.sql</file>
+        <file>src/sql/QRK-sqlite-update-20.sql</file>
     </qresource>
 </RCC>

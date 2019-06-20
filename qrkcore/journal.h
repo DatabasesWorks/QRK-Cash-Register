@@ -32,7 +32,7 @@ class QRK_EXPORT Journal : public QObject
 {
     Q_OBJECT
 public:
-    explicit Journal(QObject *parent = 0);
+    explicit Journal(QObject *parent = Q_NULLPTR);
 
     void journalInsertReceipt(QJsonObject &data);
     void journalInsertLine(QString title, QString text);

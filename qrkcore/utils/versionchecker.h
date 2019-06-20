@@ -33,7 +33,7 @@ class QRK_EXPORT VersionChecker : public QObject
         Q_OBJECT
 
     public:
-        VersionChecker(QObject *parent = 0);
+        VersionChecker(QObject *parent = Q_NULLPTR);
         ~VersionChecker();
         void run();
 

@@ -55,7 +55,7 @@ public:
     QBCMath(qint64 num) : value(QString::number(num)) {  }
     QBCMath(quint32 num) : value(QString::number(num)) {  }
     QBCMath(quint64 num) : value(QString::number(num)) {  }
-    QBCMath(float num) : value(QString::number((double)num)) {  }
+    QBCMath(float num) : value(QString::number(double(num))) {  }
     QBCMath(double num) : value(QString::number(num, 'f')) {  }
     QBCMath(long double num) { std::stringstream ss; ss << num; value = QString::fromStdString(ss.str()); }
 

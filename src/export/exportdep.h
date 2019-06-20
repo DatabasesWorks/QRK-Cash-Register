@@ -31,7 +31,7 @@ class ExportDEP : private Export
 {
     Q_OBJECT
 public:
-    explicit ExportDEP(QObject *parent = 0);
+    explicit ExportDEP(QObject *parent = Q_NULLPTR);
 
     void dExport();
 

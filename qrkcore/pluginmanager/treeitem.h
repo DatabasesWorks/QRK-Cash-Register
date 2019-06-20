@@ -31,7 +31,7 @@
 class QRK_EXPORT TreeItem
 {
 public:
-    explicit TreeItem(const QList<QVariant> &data, TreeItem *parentItem = 0);
+    explicit TreeItem(const QList<QVariant> &data, TreeItem *parentItem = Q_NULLPTR);
     ~TreeItem();
 
     void appendChild(TreeItem *child);

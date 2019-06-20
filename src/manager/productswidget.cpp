@@ -24,9 +24,10 @@
 #include "productedit.h"
 #include "qrkdelegate.h"
 #include "database.h"
+#include "3rdparty/ckvsoft/qsqlrtmodel.h"
 #include <ui_productswidget.h>
 
-#include <QSqlRelationalTableModel>
+// #include <QSqlRelationalTableModel>
 #include <QSqlRelation>
 #include <QSqlQuery>
 #include <QSortFilterProxyModel>
@@ -48,11 +49,13 @@ ProductsWidget::ProductsWidget(QWidget *parent)
 
   QSqlDatabase dbc = Database::database();
 
-  m_model = new QSqlRelationalTableModel(this, dbc);
+//  m_model = new QSqlRelationalTableModel(this, dbc);
+  m_model = new QSqlRTModel(this, dbc);
   m_model->setTable("products");
-  m_model->setRelation(m_model->fieldIndex("group"), QSqlRelation("groups", "id", "name"));
+  m_model->setRelation(m_model->fieldIndex("groupid"), QSqlRelation("groups", "id", "name"));
 
-  m_model->setFilter("`group` > 1");
+  m_model->setFilter("groupid > 1");
+  m_model->setFrom("from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as products on p1.version=products.version and p1.origin=products.origin");
 
   m_model->setEditStrategy(QSqlTableModel::OnFieldChange);
 //  m_model->setEditStrategy(QSqlTableModel::OnRowChange);
@@ -195,6 +198,7 @@ void ProductsWidget::editSlot()
   {
     m_model->select();
     m_model->fetchMore();  // else the list is not filled with all possible rows
+    m_proxyModel->fetchMore(current);
     ui->tableView->resizeRowsToContents();
     ui->tableView->setCurrentIndex(m_proxyModel->mapFromSource(current));
   }

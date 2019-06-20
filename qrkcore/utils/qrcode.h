@@ -33,7 +33,7 @@ class QRK_EXPORT QRCode : public QObject
     Q_OBJECT
 
   public:
-    QRCode(QObject *parent = 0);
+    QRCode(QObject *parent = Q_NULLPTR);
     ~QRCode();
     QPixmap encodeTextToPixmap( QString text, int size = 2, int margin = 2, int ErrCLevel = 0 );
 

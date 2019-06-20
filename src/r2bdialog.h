@@ -33,7 +33,7 @@ class R2BDialog : public QRKDialog
 {
     Q_OBJECT
   public:
-    explicit R2BDialog(QWidget *parent = 0);
+    explicit R2BDialog(QWidget *parent = Q_NULLPTR);
     ~R2BDialog();
 
     QString getInvoiceNum();

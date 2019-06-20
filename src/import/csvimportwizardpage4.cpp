@@ -99,7 +99,7 @@ void CsvImportWizardPage4::setWidgetData()
         child_item->setText(0, tr("Artikelnummer: \"%1\", Barcode: \"%2\" vergeben an Artikelname \"%3\" ").arg(original["itemnum"].toString()).arg(original["barcode"].toString()).arg(original["name"].toString()));
         top_item->addChild(child_item);
 
-        if (Database::exists("products", j["name"].toString())) {
+        if (Database::exists(j["name"].toString())) {
             QTreeWidgetItem* child2_item = new QTreeWidgetItem;
             QJsonObject object = Database::getProductByName(j["name"].toString(), 0);
             QString itemnum = object["itemnum"].toString();

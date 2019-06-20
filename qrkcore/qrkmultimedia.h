@@ -36,7 +36,7 @@ class QRK_EXPORT QrkMultimedia : public QObject
 {
     Q_OBJECT
 public:
-    explicit QrkMultimedia(QObject *parent = nullptr);
+    explicit QrkMultimedia(QObject *parent = Q_NULLPTR);
     static QStringList getMultimediaFiles(QString path = "");
     static QString getMultimediaPath(QString path = "");
     static void play(QRKMULTIMEDIA what);

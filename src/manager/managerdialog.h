@@ -34,7 +34,7 @@ class ManagerDialog : public QDialog
     Q_OBJECT
 
   public:
-    ManagerDialog(QWidget *parent = 0);
+    ManagerDialog(QWidget *parent = Q_NULLPTR);
 
   signals:
 

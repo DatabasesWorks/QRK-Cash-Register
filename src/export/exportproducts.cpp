@@ -60,21 +60,21 @@ void ExportProducts::Export()
     if (settings.value("useDecimalQuantity", false).toBool())
         m_decimals = settings.value("decimalDigits", 2).toInt();
 
-    QString selected = settings.value("lastUsedExport", "products.itemnum,products.name,products.gross,products.group,products.tax" ).toString();
+    QString selected = settings.value("lastUsedExport", "products.itemnum,products.name,products.gross,products.groupid,products.tax" ).toString();
 
     CheckableListDialog cd;
     cd.setModelData(Database::getDatabaseTableHeaderNames("products"), selected.split(','));
     if (cd.exec() != QDialog::Accepted)
         return;
 
-    QString filename = QFileDialog::getSaveFileName(0, tr("Datei speichern"), lastUsedDirectory, "Artikel (*.csv)", 0, QFileDialog::DontUseNativeDialog);
+    QString filename = QFileDialog::getSaveFileName(Q_NULLPTR, tr("Datei speichern"), lastUsedDirectory, "Artikel (*.csv)", Q_NULLPTR, QFileDialog::DontUseNativeDialog);
 
     settings.save2Settings("lastUsedDirectory", filename);
 
     if (!filename.isNull() && productsExport(filename, cd.getRequiredList())) {
-        QMessageBox::information(0, tr("Export"), tr("Produkte wurden nach %1 exportiert.").arg(filename));
+        QMessageBox::information(Q_NULLPTR, tr("Export"), tr("Produkte wurden nach %1 exportiert.").arg(filename));
     } else {
-        QMessageBox::warning(0, tr("Export"), tr("Produkte konnten nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
+        QMessageBox::warning(Q_NULLPTR, tr("Export"), tr("Produkte konnten nicht nach %1 exportiert werden.\nÜberprüfen Sie bitte Ihre Schreibberechtigung.").arg(filename));
     }
     settings.save2Settings("lastUsedDirectory", QFileInfo(filename).absolutePath());
     settings.endGroup();
@@ -92,7 +92,7 @@ bool ExportProducts::productsExport(QString outputFilename, QStringList required
     settings.save2Settings("lastUsedExport", selectlist);
     settings.endGroup();
 
-    selectlist.replace("products.group", "groups.name as \"group\"");
+    selectlist.replace("products.groupid", "groups.name as \"groupname\"");
 
     QFile outputFile(outputFilename);
     // Try and open a file for output
@@ -111,11 +111,9 @@ bool ExportProducts::productsExport(QString outputFilename, QStringList required
     QSqlQuery query(dbc);
     bool firstLine = true;
 
-//    query.prepare(QString("SELECT * FROM products WHERE \"group\" > 1"));
-    query.prepare("SELECT " + selectlist + " FROM products INNER JOIN groups where `group` = groups.id AND `group` > 1");
+    query.prepare("SELECT " + selectlist + " FROM ((select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as products on p1.version=products.version and p1.origin=products.origin) INNER JOIN groups where groupid = groups.id AND groupid > 1");
 
     if(query.exec()){
-        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
         while (query.next()) {
             const QSqlRecord record= query.record();
             int count = record.count();
@@ -129,7 +127,7 @@ bool ExportProducts::productsExport(QString outputFilename, QStringList required
             outStream << endl;
             for(int i=0;i<count;++i) {
                 if (static_cast<QMetaType::Type>(record.field(i).type()) == QMetaType::QString) {
-                    outStream << "\"" << record.value(i).toString() << "\"";
+                    outStream << "\"" << record.value(i).toString().replace("\"","\"\"") << "\"";
                 } else if (static_cast<QMetaType::Type>(record.field(i).type()) == QMetaType::Double) {
                     QBCMath value(record.value(i).toString());
                     if ((record.fieldName(i) == "sold") || (record.fieldName(i) == "stock") || (record.fieldName(i) == "minstock")) {

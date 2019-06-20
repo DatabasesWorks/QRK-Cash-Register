@@ -33,9 +33,9 @@ INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,19.0,'Sa
 INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,7.0,'Satz-Ermaessigt-1','DE');
 INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,0.0,'Satz-Null','DE');
 
-INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,8.0,'Satz-Normal','CH');
+INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,7.7,'Satz-Normal','CH');
 INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,2.5,'Satz-Ermaessigt-1','CH');
-INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,3.8,'Satz-Besonders','CH');
+INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,3.7,'Satz-Besonders','CH');
 INSERT INTO `taxTypes`(`id`,`tax`,`comment`,`taxlocation`) VALUES (NULL,0.0,'Satz-Null','CH');
 
 CREATE TABLE `globals` (
@@ -65,7 +65,7 @@ CREATE TABLE `products` (
     `sold`	double NOT NULL DEFAULT 0,
     `net`	double NOT NULL,
     `gross`	double NOT NULL,
-    `group`	INTEGER NOT NULL DEFAULT 2,
+    `groupid`	INTEGER NOT NULL DEFAULT 2,
     `visible`	tinyint(1) NOT NULL DEFAULT 1,
     `completer`	tinyint(1) NOT NULL DEFAULT 1,
     `tax`	double NOT NULL DEFAULT '20',
@@ -75,7 +75,10 @@ CREATE TABLE `products` (
     `coupon`	tinyint(1) NOT NULL DEFAULT 0,
     `stock`	double NOT NULL DEFAULT 0,
     `minstock`	double NOT NULL DEFAULT 0,
-    CONSTRAINT `group` FOREIGN KEY (`group`) REFERENCES `groups` (`id`)
+    `version`	INTEGER NOT NULL DEFAULT 0,
+    `origin`	INTEGER NOT NULL DEFAULT 0,
+    `lastchange` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT `groupid` FOREIGN KEY (`groupid`) REFERENCES `groups` (`id`)
 );
 
 CREATE TABLE `orders` (
@@ -107,6 +110,14 @@ CREATE TABLE `receipts` (
 
 CREATE INDEX `receipts_stornoId_index` ON `receipts` (`stornoId`);
 
+CREATE TABLE `receiptspay` (
+    `receiptNum`	INTEGER DEFAULT NULL,
+    `payedBy`	INTEGER NOT NULL DEFAULT '0',
+    `gross`	double NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX `receiptspay_index` ON `receiptspay` (`receiptNum`);
+
 CREATE TABLE `customer` (
     `id`                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     `receiptNum`	INTEGER DEFAULT NULL,
@@ -133,7 +144,8 @@ CREATE TABLE `reports` (
         `id`            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         `receiptNum`	INTEGER,
         `timestamp`	datetime NOT NULL,
-        `text`          text
+        `text`          text,
+        `type`	INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX `reports_receiptNum_index` ON `reports` (`receiptNum`);
