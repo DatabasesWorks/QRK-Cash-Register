@@ -272,7 +272,7 @@ quint16 UniqueMachineFingerprint::getSystemSerialNumberHash()
 
 void UniqueMachineFingerprint::getCpuid( quint32 *p, unsigned int ax)
 {
-#ifdef __arm__
+#if defined(__arm__) || defined(__aarch64__)
         p[0] = 0xFD;
         p[1] = 0xC1;
         p[2] = 0x72;
@@ -314,7 +314,6 @@ const QString UniqueMachineFingerprint::getVolumeSerial()
     struct udev *udev;
     struct udev_enumerate *enumerate;
     struct udev_list_entry *devices, *dev_list_entry;
-    struct udev_device *dev;
 
     /* Create the udev object */
     udev = udev_new();
@@ -327,6 +326,7 @@ const QString UniqueMachineFingerprint::getVolumeSerial()
     devices = udev_enumerate_get_list_entry(enumerate);
     udev_list_entry_foreach(dev_list_entry, devices) {
         const char *path;
+        struct udev_device *dev;
 
         /* Get the filename of the /sys entry for the device
          * and create a udev_device object (dev) representing it */
@@ -441,7 +441,16 @@ const QString UniqueMachineFingerprint::getSystemUniqueId()
 bool UniqueMachineFingerprint::validate( QString testIdString )
 {
     // unpack the given string. parse failures return false.
-    QStringList testStringList = testIdString.split("-");
+    testIdString = testIdString.replace("-", "");
+
+    if (testIdString.size() != 28)
+        return false;
+
+    int step = 4;
+    for (int i = 8; i < testIdString.size(); i+=step+1)
+            testIdString.insert(i, "-");
+
+    QStringList testStringList = testIdString.split("-");    
     QString testname = testStringList.takeFirst();
     if ( testname.isEmpty() ) return false;
 

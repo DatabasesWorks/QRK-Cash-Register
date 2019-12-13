@@ -31,41 +31,45 @@ class QRK_EXPORT Reports : public ReceiptItemModel
 {
     Q_OBJECT
   public:
-    Reports(QObject *parent = Q_NULLPTR, bool mode = false);
+    Reports(QObject *parent = Q_NULLPTR, bool servermode = false);
     ~Reports();
 
-    bool checkEOAny(QDate checkDate = QDate::currentDate(), bool checkDay = true);
-    bool checkEOAnyServerMode();
+    bool mustDoEOAny(QDateTime check);
+    bool checkEOAny(QDateTime checkDate = QDateTime::currentDateTime(), bool checkDay = true);
+//    bool checkEOAnyServerMode();
 
     bool endOfDay();
     bool endOfDay(bool ask);
     bool endOfMonth();
 
-    static QString getReport(int id, bool test = false);
+    static QString getReport(int id, bool report_by_productgroup = false, bool test = false);
 
   private:
-    bool checkEOAnyMessageBoxYesNo(int type, QDate date, QString text = "");
-    void checkEOAnyMessageBoxInfo(int type, QDate date, QString text);
-    bool canCreateEOD(QDate);
-    bool canCreateEOM(QDate);
+    bool checkEOAnyMessageBoxYesNo(int type, QDateTime datetime, QString text = "");
+    void checkEOAnyMessageBoxInfo(int type, QDateTime datetime, QString text);
+    bool canCreateEOD(QDateTime);
+    bool canCreateEOM(QDateTime);
     int getReportType();
     bool nullReceipt(QDate date);
-    QDate getLastEOD();
-    QMap<int, QDate> getEOFMap(QDate checkDate = QDate::currentDate());
+    QDateTime getLastEODateTime();
+    QMap<int, QDateTime> getEOFMap(QDateTime checkDate = QDateTime::currentDateTime());
 
-    bool createEOD(int, QDate);
-    bool createEOM(int, QDate);
-    bool insert(QStringList, int, QDateTime);
+    qint64 getDiffTime(QDateTime dateTime, bool old = false);
+    qint64 getDiffTime(QDateTime dateTime, QTime curfew);
+
+    bool createEOD(int, QDateTime);
+    bool createEOM(int, QDateTime);
+    bool insert(QStringList, int, QDateTime, QDateTime);
 
     QStringList createStat(int, QString, QDateTime, QDateTime);
     QStringList createYearStat(int, QDate);
     void printDocument(int id, QString title);
 
-    bool doEndOfDay(QDate date);
-    bool doEndOfMonth(QDate date);
+    bool doEndOfDay(QDateTime datetime);
+    bool doEndOfMonth(QDateTime datetime);
 
     QString m_yearsales;
-    int m_currentReceipt;
+    int m_currentReceipt = 0;
     bool m_servermode;
 
 };

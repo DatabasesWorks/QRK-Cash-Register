@@ -40,7 +40,16 @@ HEADERS += $$PWD/ckvtemplate.h \
     $$PWD/uniquemachinefingerprint.h \
     $$PWD/numerickeypad.h \
     $$PWD/headerview.h \
-    $$PWD/qsqlrtmodel.h
+    $$PWD/qsqlrtmodel.h \
+    $$PWD/drag/dragflowwidget.h \
+    $$PWD/drag/dragpushbutton.h \
+    $$PWD/datetimedelegate.h \
+    $$PWD/quickbuttons.h \
+    $$PWD/buttoncolumndelegate.h \
+    $$PWD/jsontablemodel.h \
+    $$PWD/widget.h \
+    $$PWD/texteditdialog.h \
+    $$PWD/qlonglongspinbox.h
 
 SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/acl.cpp \
@@ -58,10 +67,18 @@ SOURCES += $$PWD/ckvtemplate.cpp \
     $$PWD/rbac/tempuserlogin.cpp \
     $$PWD/uniquemachinefingerprint.cpp \
     $$PWD/numerickeypad.cpp \
-    $$PWD/headerview.cpp
+    $$PWD/headerview.cpp \
+    $$PWD/drag/dragflowwidget.cpp \
+    $$PWD/drag/dragpushbutton.cpp \
+    $$PWD/datetimedelegate.cpp \
+    $$PWD/quickbuttons.cpp \
+    $$PWD/buttoncolumndelegate.cpp \
+    $$PWD/jsontablemodel.cpp \
+    $$PWD/texteditdialog.cpp
 
 FORMS += \
-    $$PWD/rbac/base_admin.ui
+    $$PWD/rbac/base_admin.ui \
+    $$PWD/quickbuttons.ui
 
 win32 {
     LIBS += -liphlpapi

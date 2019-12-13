@@ -67,9 +67,9 @@ void CsvImportWizardPage2::loadSettings()
     ui->visibleGroupCheckBox->setChecked( settings.value("visiblegroup", ui->visibleGroupCheckBox->isChecked()).toBool());
     ui->visibleProductCheckBox->setChecked( settings.value("visibleproduct", ui->visibleProductCheckBox->isChecked()).toBool());
     ui->autoItemnumCheckBox->setChecked( settings.value("autoitemnum", ui->autoItemnumCheckBox->isChecked()).toBool());
-    ui->autoitemnumSpinBox->setValue(settings.value("autominitemnum", Database::getNextProductNumber().toInt()).toInt());
-    ui->autoitemnumSpinBox->setMinimum(Database::getNextProductNumber().toInt());
-    ui->autoitemnumSpinBox->setMaximum(INT_MAX);
+    ui->autoitemnumSpinBox->setValue(Database::getNextProductNumber(false).toLongLong());
+    ui->autoitemnumSpinBox->setMinimum(ui->autoitemnumSpinBox->value());
+    ui->autoitemnumSpinBox->setMaximum(std::numeric_limits<qlonglong>::max());
 
     settings.endGroup();
 }
@@ -144,10 +144,10 @@ void CsvImportWizardPage2::initializePage()
   connect(m_assignmentModel, &QStandardItemModel::dataChanged, this, &CsvImportWizardPage2::itemChangedSlot);
 
   QList<QString> list;
-  list << "itemnum" << "barcode" << "name" << "sold" << "net" << "gross" << "tax" << "group" << "color" << "coupon" << "visible" << "stock" << "minstock";
-  QMap<QString, QVariant>::iterator i;
-  for (i = m_loadmap->begin(); i != m_loadmap->end(); ++i) {
-      list << i.value().toString();
+  list << "itemnum" << "barcode" << "name" << "sold" << "net" << "gross" << "tax" << "group" << "color" << "coupon" << "visible" << "stock" << "minstock" << "description";
+  QMap<QString, QVariant>::iterator it;
+  for (it = m_loadmap->begin(); it != m_loadmap->end(); ++it) {
+      list << it.value().toString();
   }
 
   for (int i = 0; i < m_model->columnCount(); i++) {
@@ -234,11 +234,12 @@ void CsvImportWizardPage2::importType(int importType)
       addHeaderId(tr("Sichtbar"), "visible");
       addHeaderId(tr("Lagerbestand"), "stock");
       addHeaderId(tr("Mindestbestand"), "minstock");
+      addHeaderId(tr("Beschreibung"), "description");
       break;
   }
 }
 
-void CsvImportWizardPage2::addHeaderId(QString key, QString name)
+void CsvImportWizardPage2::addHeaderId(const QString &key, const QString &name)
 {
 
     QString value = m_loadmap->value(key, name).toString();

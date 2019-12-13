@@ -31,6 +31,7 @@
 #include <QJsonObject>
 
 class QButtonGroup;
+class QrkQuickButtons;
 
 namespace Ui {
   class QRKRegister;
@@ -55,13 +56,13 @@ class QRKRegister : public QWidget
   public slots:
     void safetyDevice(bool active);
     void singlePriceChanged(QString product, QString singleprice, QString tax);
+    void impossibleTotalPrice(const QString &s, const QString &s2);
 
   private slots:
     void barcodeChangedSlot();
     void plusSlot();
     void minusSlot();
     void onButtonGroup_payNow_clicked(int payedBy);
-    void quickProductButtons(int id);
     void addProductToOrderList(int id);
     void receiptToInvoiceSlot();
     void onCancelRegisterButton_clicked();
@@ -83,7 +84,6 @@ class QRKRegister : public QWidget
 
     void updateOrderSum();
     void setCurrentReceiptNum(int id);
-    void quickGroupButtons();
     void handleAmount(QString amount);
     void initAmount();
     void resetAmount();
@@ -95,16 +95,15 @@ class QRKRegister : public QWidget
     bool finishReceipts(int, int = 0, bool = false);
 
     void initPlugins();
-    void categoryButton(bool clicked);
     void writeSettings();
     void readSettings();
     void writeHeaderColumnSettings(int, int, int);
     void readHeaderColumnSettings();
-    void upPushButton(bool clicked);
-    void downPushButton(bool clicked);
     void setButtonsHidden();
+    void columnClicked(const QModelIndex &idx);
 
     void numPadValueButtonPressed(const QString &text, REGISTER_COL column);
+    void futureTimeDedected(QDateTime futuretime);
 
     BarcodesInterface *barcodesInterface = Q_NULLPTR;
 
@@ -122,21 +121,20 @@ class QRKRegister : public QWidget
     bool m_minstockDialog;
     bool m_useInputProductNumber;
     bool m_registerHeaderMoveable;
+    bool m_optionalDescription;
 
     bool m_orderlistTaxColumnHidden = false;
     bool m_orderlistSinglePriceColumnHidden = false;
 
     bool m_barcodeInputLineEditDefault = false;
 
-    QButtonGroup *m_buttonGroupGroups;
-    QButtonGroup *m_buttonGroupProducts;
+//    QButtonGroup *m_buttonGroupGroups;
+//    QButtonGroup *m_buttonGroupProducts;
 
     int m_barcodeReaderPrefix;
     int m_decimaldigits = 2;
     int m_maximumWindowsHeight;
-    QSize m_quickButtonSize;
     QJsonObject m_orderRoot;
-
 
 };
 

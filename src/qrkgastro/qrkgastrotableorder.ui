@@ -1,0 +1,500 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>QRKGastroTableOrder</class>
+ <widget class="QWidget" name="QRKGastroTableOrder">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1133</width>
+    <height>584</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0">
+     <item>
+      <widget class="QLabel" name="infoLabel">
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>TextLabel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSplitter" name="splitter">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QSplitter::handle {
+         image: url(:src/icons/splitter.png);
+     }</string>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="handleWidth">
+        <number>24</number>
+       </property>
+       <property name="childrenCollapsible">
+        <bool>false</bool>
+       </property>
+       <widget class="QWidget" name="layoutWidget">
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <widget class="QGroupBox" name="groupBox_3">
+           <property name="title">
+            <string>Bestellung</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_3">
+            <property name="spacing">
+             <number>3</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QTreeWidget" name="orderList">
+              <property name="alternatingRowColors">
+               <bool>true</bool>
+              </property>
+              <property name="selectionMode">
+               <enum>QAbstractItemView::SingleSelection</enum>
+              </property>
+              <property name="selectionBehavior">
+               <enum>QAbstractItemView::SelectRows</enum>
+              </property>
+              <property name="textElideMode">
+               <enum>Qt::ElideMiddle</enum>
+              </property>
+              <property name="rootIsDecorated">
+               <bool>false</bool>
+              </property>
+              <property name="uniformRowHeights">
+               <bool>true</bool>
+              </property>
+              <property name="allColumnsShowFocus">
+               <bool>true</bool>
+              </property>
+              <property name="expandsOnDoubleClick">
+               <bool>false</bool>
+              </property>
+              <attribute name="headerCascadingSectionResizes">
+               <bool>false</bool>
+              </attribute>
+              <attribute name="headerDefaultSectionSize">
+               <number>52</number>
+              </attribute>
+              <attribute name="headerMinimumSectionSize">
+               <number>0</number>
+              </attribute>
+              <attribute name="headerStretchLastSection">
+               <bool>false</bool>
+              </attribute>
+              <column>
+               <property name="text">
+                <string>Anz.</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Produkt</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>T</string>
+               </property>
+              </column>
+             </widget>
+            </item>
+            <item>
+             <layout class="QGridLayout" name="gridLayout">
+              <item row="0" column="1">
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Expanding</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item row="0" column="2">
+               <widget class="QLabel" name="label">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Summe:</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="numPadLabel">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="3">
+               <widget class="QLabel" name="sumLabel">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QrkQuickButtons" name="quickButtons" native="true"/>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="1" column="6">
+        <widget class="QrkPushButton" name="minusButton">
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Minus</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/list-remove.png</normaloff>:/src/icons/list-remove.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="3">
+        <widget class="QrkPushButton" name="payNowButton">
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Jetzt Bezahlen</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/pay.png</normaloff>:/src/icons/pay.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="7">
+        <widget class="QrkPushButton" name="withButton">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Mit ...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/order-with.png</normaloff>:/src/icons/order-with.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="5">
+        <widget class="QrkPushButton" name="removeButton">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Löschen</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/eraser.png</normaloff>:/src/icons/eraser.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="7">
+        <widget class="QrkPushButton" name="withoutButton">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Ohne ...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/order-without.png</normaloff>:/src/icons/order-without.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="6">
+        <widget class="QrkPushButton" name="plusButton">
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Plus</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/list-add.png</normaloff>:/src/icons/list-add.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QrkPushButton" name="printButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Bonieren +
+Drucken</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/ok-print.png</normaloff>:/src/icons/ok-print.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>34</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="4">
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="1" column="5">
+        <widget class="QrkPushButton" name="quickProductPushButton">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Quick Artikel</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/new.png</normaloff>:/src/icons/new.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QrkPushButton" name="doneButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Bonieren</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/ok.png</normaloff>:/src/icons/ok.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QrkPushButton" name="cancelButton">
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>150</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Tischauswahl</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../qrk.qrc">
+           <normaloff>:/src/icons/table.png</normaloff>:/src/icons/table.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QrkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qrkpushbutton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QrkQuickButtons</class>
+   <extends>QWidget</extends>
+   <header>qrkquickbuttons.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../../qrk.qrc"/>
+  <include location="../../qrk.qrc"/>
+ </resources>
+ <connections/>
+</ui>

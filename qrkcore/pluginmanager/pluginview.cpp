@@ -43,6 +43,7 @@ PluginView::PluginView(QWidget *parent) :
 
     connect(ui->treeView, &QTreeView::doubleClicked, this, &PluginView::itemDoubleClicked);
     connect(ui->settingsButton, &QPushButton::clicked, this, &PluginView::settingsButtonClicked);
+    connect(ui->closeButton, &QPushButton::clicked, this, &PluginView::finished, Qt::DirectConnection);
     connect(ui->closeButton, &QPushButton::clicked, this, &PluginView::close);
 }
 
@@ -70,7 +71,7 @@ void PluginView::itemDoubleClicked(QModelIndex idx)
     QObject *object = PluginManager::instance()->getObjectByName(name);
     if (object) {
         PluginInterface *plugin = qobject_cast<PluginInterface *>(object);
-        QDialog *dialog = 0;
+        QDialog *dialog = Q_NULLPTR;
         if (plugin) {
             dialog = plugin->SettingsDialog();
         }

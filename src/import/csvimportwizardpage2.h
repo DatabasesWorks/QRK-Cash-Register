@@ -57,7 +57,7 @@ class CsvImportWizardPage2 : public QWizardPage
     void importType(int importType);
     void initializePage();
     void updateAssignmentTable();
-    void addHeaderId(QString key, QString name);
+    void addHeaderId(const QString &key, const QString &name);
     int findMaxValueInColumn(int col);
 
     QStandardItemModel *m_model;

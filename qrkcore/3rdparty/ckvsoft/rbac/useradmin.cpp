@@ -160,7 +160,7 @@ bool UserAdmin::saveUserById(int id)
         m_user = m_userprofile.take(id);
         RBAC::Instance()->saveUser(m_user, id);
         delete m_user;
-        m_user = 0;
+        m_user = Q_NULLPTR;
         return true;
     }
     return true;
@@ -587,11 +587,11 @@ void UserAdmin::userProfile()
 
     QRadioButton *maleRadioButton = new QRadioButton(tr("männlich"), widget);
     QButtonGroup *genderButtonGroup = new QButtonGroup(widget);
-    genderButtonGroup->addButton(maleRadioButton, (int)User::MALE);
+    genderButtonGroup->addButton(maleRadioButton, int(User::MALE));
     usergridLayout->addWidget(maleRadioButton, 2, 2, 1, 1);
 
     QRadioButton *femaleRadioButton = new QRadioButton(tr("weiblich"), widget);
-    genderButtonGroup->addButton(femaleRadioButton, (int)User::FEMALE);
+    genderButtonGroup->addButton(femaleRadioButton, int(User::FEMALE));
     usergridLayout->addWidget(femaleRadioButton, 2, 3, 1, 1);
 
     if (m_user->getGender() == User::MALE)
@@ -628,7 +628,7 @@ void UserAdmin::userProfile()
 void UserAdmin::avatarButtonClicked()
 {
 
-    QString filename = QFileDialog::getOpenFileName(this, tr("Avatar laden ..."), "", tr("JPEG (*.jpg *.jpeg);;PNG (*.png)"), 0, QFileDialog::DontUseNativeDialog);
+    QString filename = QFileDialog::getOpenFileName(this, tr("Avatar laden ..."), "", tr("JPEG (*.jpg *.jpeg);;PNG (*.png)"), Q_NULLPTR, QFileDialog::DontUseNativeDialog);
     if (filename.isNull())
         return;
 
@@ -742,7 +742,7 @@ void UserAdmin::genderButtomClicked(int buttonId)
     else
         m_user = new User(id, this);
 
-    m_user->setGender((User::GENDER)buttonId);
+    m_user->setGender(User::GENDER(buttonId));
     m_user->setChanged(true);
     m_userprofile.insert(id, m_user);
 
@@ -762,7 +762,7 @@ void UserAdmin::maybeSaved()
         if (!m_userprofile.begin().value()->getChanged()) {
             m_user = m_userprofile.take(m_userprofile.begin().key());
             delete m_user;
-            m_user = 0;
+            m_user = Q_NULLPTR;
             return;
         }
         QMessageBox msgBox;
@@ -785,7 +785,7 @@ void UserAdmin::maybeSaved()
         } else {
             m_user = m_userprofile.take(m_userprofile.begin().key());
             delete m_user;
-            m_user = 0;
+            m_user = Q_NULLPTR;
         }
     }
 }

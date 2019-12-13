@@ -75,7 +75,6 @@ QString ckvTemplate::process(QString tpl)
     QStringMatcher in("{{");
     QStringMatcher out("}}");
     int position = 0;
-    int next = 0;
 
     QString str;
     QString code;
@@ -84,13 +83,13 @@ QString ckvTemplate::process(QString tpl)
 
     while (position < tpl.size()) {
         if (!inside) {
-            next = in.indexIn(tpl, position);
+            int next = in.indexIn(tpl, position);
             if (next == -1) next = tpl.size();
             str += tpl.mid(position, next - position);
             position = next + 2;
             inside = true;
         } else {
-            next = out.indexIn(tpl, position);
+            int next = out.indexIn(tpl, position);
             Q_ASSERT(next != -1);
             code += tpl.mid(position, next - position);
             replace(code);
@@ -113,7 +112,7 @@ QString ckvTemplate::calculate(QString s)
 
     QPair<int, QString> a, b, op, result;
     int atback = 0;
-    while (calc.size() > 1) {
+    while (calc.size() > 2) {
         // obtain first three tokens ( hope for A B OP respectivley )
         a = calc[0];    // first operand
         b = calc[1];    // second operand
@@ -278,9 +277,9 @@ const QString Dictionary::find(const QString & name) const
         QPair<QString, QString> prop = i.next();
         // foreach (QPair<QString, QString> const &prop, properties) {
         if (list.contains(prop.first)) {
-            for (int i = 0; i < list.size(); i++) {
-                if (prop.first == list[i]) {
-                    list[i] = prop.second;
+            for (int j = 0; j < list.size(); j++) {
+                if (prop.first == list[j]) {
+                    list[j] = prop.second;
                     return list.join(" ");
                 }
             }

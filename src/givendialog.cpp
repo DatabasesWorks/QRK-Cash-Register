@@ -23,19 +23,37 @@
 #include "givendialog.h"
 #include "defines.h"
 #include "database.h"
+#include "3rdparty/ckvsoft/numerickeypad.h"
+#include "preferences/qrksettings.h"
 #include "ui_givendialog.h"
 
 #include <QDoubleValidator>
+#include <QFontDatabase>
 
 GivenDialog::GivenDialog(double &sum, QWidget *parent) :
     QDialog(parent), ui(new Ui::GivenDialog)
 {
     ui->setupUi(this);
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    /*
+    int id = QFontDatabase::addApplicationFont(":/src/font/digital.ttf");
+    QString family = QFontDatabase::applicationFontFamilies(id).at(0);
+    QFont digital(family);
+    digital.setBold(false);
+    digital.setPointSize(40);
+
+    ui->lcdNumber->setFont(digital);
+    */
+
+    m_numericKeyPad = new NumericKeypad(false, this);
+    ui->numericKeyPadLayout->addWidget(m_numericKeyPad);
     ui->mixedFrame->setHidden(true);
     ui->lcdNumber->setText(QLocale().toString(0.0,'f',2) + " " + Database::getCurrency());
 
     ui->buttonGroup->setId(ui->creditCard, PAYED_BY_CREDITCARD);
     ui->buttonGroup->setId(ui->debitCard, PAYED_BY_DEBITCARD);
+    m_numericKeyPad->setHidden(true);
 
     QDoubleValidator *doubleVal = new QDoubleValidator(0.0, 9999999.99, 2, this);
     doubleVal->setNotation(QDoubleValidator::StandardNotation);
@@ -49,12 +67,20 @@ GivenDialog::GivenDialog(double &sum, QWidget *parent) :
     palette.setColor(ui->lcdNumber->foregroundRole(), Qt::darkGreen);
     ui->lcdNumber->setPalette(palette);
 
+    QrkSettings settings;
+    m_numericKeyPad->setVisible(settings.value("virtualNumPad", false).toBool());
+
     connect (ui->givenEdit, &QLineEdit::textChanged, this, &GivenDialog::textChanged);
     connect (ui->finishButton, &QPushButton::clicked, this, &GivenDialog::accept);
     connect (ui->cancelButton, &QPushButton::clicked, this, &GivenDialog::close);
     connect (ui->mixedButton, &QPushButton::clicked, this, &GivenDialog::mixedButton);
     connect(ui->buttonGroup, static_cast<void(QButtonGroup::*)(int, bool)>(&QButtonGroup::buttonToggled), this, &GivenDialog::mixedPay);
+    connect(m_numericKeyPad, &NumericKeypad::textChanged, [=]() {
+        ui->givenEdit->setText(m_numericKeyPad->text());
+    });
+    connect(ui->numericKeyPadPushButton, &QrkPushButton::clicked, this, &GivenDialog::numPadToogle);
 
+    layout()->setSizeConstraint(QLayout::SetFixedSize);
 }
 
 GivenDialog::~GivenDialog()
@@ -179,4 +205,15 @@ double GivenDialog::getGivenValue()
 QMap<int, double> GivenDialog::getGiven()
 {
     return mixedMap;
+}
+
+void GivenDialog::numPadToogle(bool)
+{
+    bool hidden = m_numericKeyPad->isHidden();
+    if (hidden) {
+        m_numericKeyPad->setVisible(hidden);
+    } else {
+        m_numericKeyPad->setVisible(hidden);
+        emit m_numericKeyPad->clear();
+    }
 }

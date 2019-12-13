@@ -59,6 +59,8 @@
 
 class CKVSOFT_EXPORT FlowLayout : public QLayout
 {
+    Q_OBJECT
+
 public:
     explicit FlowLayout(QWidget *parent, int margin = -1, int hSpacing = -1, int vSpacing = -1);
     explicit FlowLayout(int margin = -1, int hSpacing = -1, int vSpacing = -1);
@@ -76,6 +78,7 @@ public:
     void setGeometry(const QRect &rect);
     QSize sizeHint() const;
     QLayoutItem *takeAt(int index);
+    void insertWidget(int index, QWidget *w);
 
 private:
     int doLayout(const QRect &rect, bool testOnly) const;

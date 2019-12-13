@@ -34,7 +34,6 @@
  *
  */
 
-
 #include "bcmath.h"
 
 static int bc_scale = 6;

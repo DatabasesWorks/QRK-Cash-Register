@@ -30,6 +30,7 @@
 class QRKHome;
 class QRKDocument;
 class QRKRegister;
+class QRKGastro;
 class QStackedWidget;
 class QLCDNumber;
 class QLabel;
@@ -67,7 +68,9 @@ private slots:
     void endOfDaySlot();
     void endOfMonthSlot();
     void onRegisterButton_clicked();
+    void onGRegisterButton_clicked();
     void onCancelRegisterButton_clicked();
+    void onCancelGastroButton_clicked();
     void onManagerButton_clicked();
     void finishedReceipt();
     void init();
@@ -86,6 +89,7 @@ private slots:
     void viewPlugins();
 
     void setSafetyDevice(bool active);
+    void updateRKStatus();
 
     void actionAclManager();
     void actionAbout_QRK();
@@ -93,6 +97,7 @@ private slots:
     void actionLeaveDemoMode();
     void actionResetDemoData();
     void actionResuscitationCashRegister();
+    void actionGastro();
 
     void fullScreenSlot();
     void setFullScreenMode(bool);
@@ -129,6 +134,7 @@ private:
     QRKHome *m_qrk_home;
     QRKRegister *m_qrk_register;
     QRKDocument *m_qrk_document;
+    QRKGastro *m_qrk_gastro;
     QStackedWidget *m_stackedWidget;
 
     QTimer *m_timer;

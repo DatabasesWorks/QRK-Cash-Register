@@ -92,7 +92,6 @@ protected:
     QString encryptCTR(std::string concatenatedHashValue, qlonglong turnoverCounter, std::string symmetricKey);
     QString decryptCTR(std::string concatenatedHashValue, QString encryptedTurnoverCounter, std::string symmetricKey);
 
-
 };
 
 extern bool SignatureModuleSetDamaged;

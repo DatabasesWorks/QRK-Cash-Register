@@ -22,7 +22,6 @@
 
 #include "filewatcher.h"
 #include "import/importworker.h"
-#include "singleton/spreadsignal.h"
 #include "utils/utils.h"
 
 #include <QDir>

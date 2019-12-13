@@ -272,7 +272,7 @@
  * @brief RKSignatureSmartCard::RKSignatureSmartCard
  * @param readerName
  */
-RKSignatureSmartCard::RKSignatureSmartCard(QString readerName)
+RKSignatureSmartCard::RKSignatureSmartCard(QString readerName, bool shared): m_sharedmode(shared)
 {
     // Establish the resource manager context
     long rv = SCardEstablishContext(
@@ -634,7 +634,7 @@ bool RKSignatureSmartCard::connect()
         long rv = SCardConnect(
                     m_hContext,              // Resource manager handle.
                     getReader(m_reader),            // Reader name.
-                    SCARD_SHARE_EXCLUSIVE, // Share Mode.
+                    (m_sharedmode)?SCARD_SHARE_SHARED: SCARD_SHARE_EXCLUSIVE, // Share Mode.
                     SCARD_PROTOCOL_T0 | SCARD_PROTOCOL_T1,     // Preferred protocols (T=0 or T=1).
                     &m_hCard,                // Returns the card handle.
                     &m_activeProtocol);      // Active protocol.

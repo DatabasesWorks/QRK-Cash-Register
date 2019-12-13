@@ -43,6 +43,9 @@ class QRK_EXPORT PluginView : public QDialog
         ~PluginView();
         void setCloseButtonVisible(bool visible);
 
+    signals:
+        void finished();
+
     private slots:
         void settingsButtonClicked(bool);
         void itemDoubleClicked(QModelIndex idx);

@@ -33,7 +33,7 @@ class QRK_EXPORT RKSignatureModuleFactory
 public:
     static RKSignatureModule *createInstance(QString reader, bool demomode);
 private:
-    static QString getATR(QString reader);
+    static QString getATR(QString reader,bool sharedmode);
 };
 
 #endif // RKSIGNATURFACTORY_H

@@ -25,6 +25,7 @@
 #include "3rdparty/qbcmath/bcmath.h"
 #include "utils/utils.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
+#include "preferences/qrksettings.h"
 
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -35,6 +36,7 @@
 #include <QTextDocument>
 #include <QPrinter>
 #include <QPrintDialog>
+#include <QTime>
 
 #include "ui_salesinfo.h"
 
@@ -56,6 +58,7 @@ SalesInfo::SalesInfo(SALESINFO what, QWidget *parent) :
     ui->year->setValue(ui->year->maximum());
 
     m_what = what;
+    m_timeoffset = QTime(0,0,0).secsTo(Database::getCurfewTime());
 
     connect(ui->day, &QDateEdit::dateChanged, this, &SalesInfo::setDateRange);
     connect(ui->month, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &SalesInfo::setDateRange);
@@ -64,7 +67,6 @@ SalesInfo::SalesInfo(SALESINFO what, QWidget *parent) :
     connect(ui->closePushButton, &QPushButton::clicked, this,&SalesInfo::close);
 
     ui->day->setDate(QDate::currentDate());
-
 }
 
 SalesInfo::~SalesInfo()
@@ -75,108 +77,44 @@ SalesInfo::~SalesInfo()
 void SalesInfo::setDateRange()
 {
     blockSignals(true);
-    ui->day->setTime(QTime(0,0));
+    ui->day->setTime(QTime(0,0,0));
 
     if (m_what == SALESINFO_DAY) {
         ui->day->setHidden(false);
         m_from = ui->day->date().toString(Qt::ISODate);
-        m_to = ui->day->dateTime().addDays(1).addSecs(-1).toString(Qt::ISODate);
+        m_to = ui->day->dateTime().addDays(1).addSecs(m_timeoffset -1).toString(Qt::ISODate);
     }
     else if (m_what == SALESINFO_MONTH) {
         ui->month->setHidden(false);
         int month = ui->month->currentIndex() +1;
-        QDateTime dt = QDateTime::fromString(QString("01.%1.%2 00:00").arg(month).arg(ui->year->value()), "dd.M.yyyy hh:mm");
+        QDateTime dt = QDateTime::fromString(QString("01.%1.%2 00:00").arg(month).arg(ui->year->value()), "dd.M.yyyy hh:mm").addSecs(m_timeoffset);
         m_from = dt.toString(Qt::ISODate);
         m_to = dt.addMonths(1).addSecs(-1).toString(Qt::ISODate);
     }
     else if (m_what == SALESINFO_YEAR) {
         ui->year->setHidden(false);
-        QDateTime dt = QDateTime::fromString(QString("01.01.%1 00:00").arg(ui->year->value()), "dd.MM.yyyy hh:mm");
+        QDateTime dt = QDateTime::fromString(QString("01.01.%1 00:00").arg(ui->year->value()), "dd.MM.yyyy hh:mm").addSecs(m_timeoffset);
         m_from = dt.toString(Qt::ISODate);
         m_to = dt.addYears(1).addSecs(-1).toString(Qt::ISODate);
     }
 
     if (m_what == SALESINFO_DAY)
-        ui->label->setText(tr("Umsatz am %1").arg(QDate::fromString(m_from, Qt::ISODate).toString(Qt::LocaleDate)));
+        ui->label->setText(tr("Umsatz von %1 bis %2)").arg(QDateTime::fromString(m_from, Qt::ISODate).toString(Qt::LocaleDate)).arg(QDateTime::fromString(m_to, Qt::ISODate).toString(Qt::LocaleDate)));
     else
-        ui->label->setText(tr("Umsätze von %1 bis %2").arg(QDate::fromString(m_from, Qt::ISODate).toString(Qt::LocaleDate)).arg(QDate::fromString(m_to, Qt::ISODate).toString(Qt::LocaleDate)));
+        ui->label->setText(tr("Umsätze von %1 bis %3").arg(QDateTime::fromString(m_from, Qt::ISODate).toString(Qt::LocaleDate)).arg(QDateTime::fromString(m_to, Qt::ISODate).toString(Qt::LocaleDate)));
+
     loadData();
     blockSignals(false);
 }
 
 void SalesInfo::loadData()
 {
-    QSqlDatabase dbc = Database::database();
-    QSqlQuery query(dbc);
-    /* Umsätze Zahlungsmittel */
-    query.prepare("SELECT actionTypes.actionText, receiptNum, gross, users.username from receipts LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId LEFT JOIN users ON receipts.userId=users.ID WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3 ORDER BY users.username, receipts.payedBy");
 
-    query.bindValue(":fromDate", m_from);
-    query.bindValue(":toDate", m_to);
-    query.exec();
-
-    bool ok = query.exec();
-    if (!ok) {
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
-    }
-
-    /*
-     * FIXME: We do this workaroud, while SUM and ROUND will
-     * give use the false result. SQL ROUND/SUM give xx.98 from xx.985
-     * should be xx.99
-     */
-
-    QMap<QString, double> zm;
-    QMap<QString, QMap<QString, double> > user;
-    while (query.next()) {
-        QString username = query.value("username").toString();
-        QString key = query.value("actionText").toString();
-        int id = query.value("receiptNum").toInt();
-        QBCMath total(query.value("gross").toString());
-        total.round(2);
-
-        QMap<int, double> mixed = Database::getGiven(id);
-        if (mixed.size() > 1) {
-            QString type = Database::getActionType(mixed.lastKey());
-            QBCMath secondPay(mixed.last());
-            secondPay.round(2);
-            total -= secondPay;
-            if ( zm.contains(type) ) {
-                zm[type] += secondPay.toDouble();
-            } else {
-                zm[type] = secondPay.toDouble();
-            }
-        }
-
-        if ( zm.contains(key) ) {
-            zm[key] += total.toDouble();
-        } else {
-            zm[key] = total.toDouble();
-        }
-
-        if (user.contains(username)) {
-            QMap<QString, double> zm2 = user[username];
-            QMap<QString, double>::iterator i;
-            for (i = zm.begin(); i != zm.end(); ++i) {
-                QString key = i.key();
-                if (zm2.contains(key)) {
-                    zm2[key] += i.value();
-                } else {
-                    zm2[key] = i.value();
-                }
-            }
-            user[username] = zm2;
-        } else {
-            user[username] = zm;
-        }
-        zm.clear();
-        qApp->processEvents();
-    }
-
+    int size;
+    QMap<QString, QMap<QString, double> > user = Database::getSalesPerUser(m_from, m_to, size);
     QMap<QString, QMap<QString, double> >::iterator u;
     QBCMath totalsum = 0.0;
-    QStandardItemModel *table_model = new QStandardItemModel(3, zm.size());
+    QStandardItemModel *table_model = new QStandardItemModel(3, size);
     int row = 0;
     QString username, prename;
     for (u = user.begin(); u != user.end(); ++u) {
@@ -225,6 +163,9 @@ void SalesInfo::printInfo()
 
     if(!RBAC::Instance()->hasPermission("salesinfo_print", true)) return;
 
+    QrkSettings settings;
+    settings.beginGroup("salesinfo");
+
     QTextDocument doc;
     QString html;
     QTextStream out(&html);
@@ -265,9 +206,18 @@ void SalesInfo::printInfo()
 
     doc.setHtml(html);
     QPrinter printer;
+    printer.setPrinterName(settings.value("printername", printer.printerName()).toString());
+    printer.setOutputFormat(QPrinter::OutputFormat(settings.value("printeroutputformat", printer.outputFormat()).toInt()));
+    printer.setOutputFileName(settings.value("printeroutputfilename", printer.outputFileName()).toString());
+
     QPrintDialog dlg(&printer);
     if (dlg.exec() != QDialog::Accepted)
         return;
+
+    settings.save2Settings("printername", printer.printerName());
+    settings.save2Settings("printeroutputformat", int(printer.outputFormat()));
+    settings.save2Settings("printeroutputfilename", printer.outputFileName());
+    settings.endGroup();
 
     doc.print(&printer);
 }

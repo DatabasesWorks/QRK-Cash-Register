@@ -25,7 +25,6 @@
 
 HeaderView::HeaderView(QWidget *parent) : QHeaderView(Qt::Horizontal, parent)
 {
-    connect(this, &HeaderView::sectionClicked, this, &HeaderView::clickedSection);
 }
 
 void HeaderView::mousePressEvent(QMouseEvent *event)
@@ -41,10 +40,4 @@ void HeaderView::mouseReleaseEvent(QMouseEvent *event)
         setCursor(Qt::ArrowCursor);
     }
     QHeaderView::mouseReleaseEvent(event);
-}
-
-void HeaderView::clickedSection(int s)
-{
-
-    qDebug()  << Q_FUNC_INFO << "Section " << s << " clicked";
 }

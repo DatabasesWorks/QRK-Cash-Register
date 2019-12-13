@@ -45,17 +45,17 @@ class QRK_EXPORT DocumentPrinter : public QObject
 
   private:
     QString wordWrap(QString text, int width, QFont font);
-    bool initPrinter(QPrinter &printer);
-    bool initAlternatePrinter(QPrinter &printer);
-    bool initInvoiceCompanyPrinter(QPrinter &printer);
-    void printI(QJsonObject data, QPrinter &printer);
-    void printCollectionReceipt(QJsonObject data, QPrinter &printer);
-    double getFactor(int pixel, QPrinter &printer);
+//    bool initPrinter(QPrinter &printer);
+//    bool initAlternatePrinter(QPrinter &printer);
+//    bool initInvoiceCompanyPrinter(QPrinter &printer);
+    void printI(QJsonObject data, QPrinter *printer);
+    void printCollectionReceipt(QJsonObject data);
+    double getFactor(int pixel, QPrinter *printer);
 
     bool m_noPrinter;
     QString m_pdfPrinterPath;
     bool m_printCollectionsReceipt;
-    int m_collectionsReceiptCopies;
+//    int m_collectionsReceiptCopies;
     bool m_smallPrinter;
     bool m_printQRCode;
     int m_receiptNum;

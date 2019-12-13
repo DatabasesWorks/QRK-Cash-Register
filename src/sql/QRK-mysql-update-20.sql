@@ -14,7 +14,6 @@ ALTER TABLE `products` ADD `origin` INTEGER NOT NULL DEFAULT '0' AFTER `version`
 ALTER TABLE `products` ADD `lastchange` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL AFTER `origin`;
 ALTER TABLE `products` CHANGE `group` `groupid` INT(11) NOT NULL DEFAULT '2';
 ALTER TABLE `products` DROP INDEX `group`, ADD INDEX `groupid` (`groupid`) USING BTREE;
-ALTER TABLE `products` DROP FOREIGN KEY `group`;
 ALTER TABLE `products` ADD CONSTRAINT `groupid` FOREIGN KEY (`groupid`) REFERENCES `groups` (`id`);
 ALTER TABLE `reports` ADD `type` INTEGER NOT NULL DEFAULT '0' AFTER `text`;
 

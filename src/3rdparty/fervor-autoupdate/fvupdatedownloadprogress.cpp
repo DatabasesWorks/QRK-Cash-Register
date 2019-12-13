@@ -38,7 +38,7 @@ FvUpdateDownloadProgress::~FvUpdateDownloadProgress()
 
 void FvUpdateDownloadProgress::downloadProgress ( qint64 bytesReceived, qint64 bytesTotal )
 {
-	ui.progress->setValue( ((float)bytesReceived / (float)bytesTotal) * 100 );
+    ui.progress->setValue( (float(bytesReceived) / float(bytesTotal)) * 100 );
 }
 
 void FvUpdateDownloadProgress::close()

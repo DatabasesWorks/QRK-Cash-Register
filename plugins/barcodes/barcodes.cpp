@@ -279,7 +279,7 @@ void Barcodes::stornoReceipt()
 
     // Hier wird gecheckt ob ein Tags/Monatsabschluss gemacht werden muss
     Reports rep;
-    bool ret = rep.checkEOAnyServerMode();
+    bool ret = rep.checkEOAny();
     if (! ret) {
         return; // Fehler ???
     }
@@ -328,7 +328,7 @@ void Barcodes::appendToAmount(QString digits) {
 
     m_model->item(m_index, REGISTER_COL_COUNT_STR)->setText(val);
 
-    QString valueAsString = QString::number(val.toFloat()/1000.0);
+    QString valueAsString = QString::number(val.toDouble()/1000.0);
     m_model->item(m_index, REGISTER_COL_COUNT)->setText(valueAsString);
 }
 
@@ -355,7 +355,7 @@ void Barcodes::appendToPrice(QString digits) {
 
     m_model->item(m_index, REGISTER_COL_COUNT_STR)->setText(val);
 
-    QString valueAsString = QString::number(val.toFloat()/100.0);
+    QString valueAsString = QString::number(val.toDouble()/100.0);
     m_model->item(m_index, REGISTER_COL_SINGLE)->setText(valueAsString);
 }
 
@@ -369,14 +369,14 @@ void Barcodes::appendToDiscount(QString digits) {
 
     m_model->item(m_index, REGISTER_COL_COUNT_STR)->setText(val);
 
-    QString valueAsString = QString::number(val.toFloat()/100.0);
+    QString valueAsString = QString::number(val.toDouble()/100.0);
     m_model->item(m_index, REGISTER_COL_DISCOUNT)->setText(valueAsString);
 }
 
 void Barcodes::init(int col, QString val) {
 
     QStandardItem* item = m_model->item(m_index, col);
-    if(item == 0) {
+    if(item == Q_NULLPTR) {
         item = new QStandardItem(val);
         m_model->setItem(m_index, col, item);
         emit setColumnHidden(col);
@@ -408,4 +408,10 @@ QDialog *Barcodes::SettingsDialog()
 {
     setupUi();
     return m_root;
+}
+
+bool Barcodes::isActivated()
+{
+    QrkSettings settings;
+    return settings.value("BarCodesPlugin/barcode_enabled", false).toBool();
 }

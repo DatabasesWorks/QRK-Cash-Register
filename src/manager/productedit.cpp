@@ -31,10 +31,11 @@
 #include <QSqlRelationalTableModel>
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QDateTime>
-#include <QDebug>
 
 //--------------------------------------------------------------------------------
 ProductEdit::ProductEdit(QWidget *parent, int id)
@@ -56,6 +57,13 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
         const QModelIndex idx = ui->colorComboBox->model()->index(index++, 0);
         ui->colorComboBox->model()->setData(idx, color, Qt::BackgroundColorRole);
         ui->colorComboBox->model()->setData(idx, fg_color, Qt::ForegroundRole);
+    }
+
+    QJsonArray printers = Database::getPrinters();
+    ui->printerComboBox->addItem(tr("gleich wie Gruppe"), 0);
+    foreach (const QJsonValue & value, printers) {
+        QJsonObject obj = value.toObject();
+        ui->printerComboBox->addItem(obj["name"].toString(), obj["id"].toInt());
     }
 
     QrkSettings settings;
@@ -103,10 +111,11 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
 
     m_origin = m_id;
     if ( m_id != -1 ) {
-        QSqlQuery query(QString("SELECT `name`, `groupid`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon`, `stock`, `minstock`, `version`, `origin` FROM products WHERE id=%1").arg(id), dbc);
+        QSqlQuery query(QString("SELECT `name`, `groupid`,`visible`,`net`,`gross`,`tax`, `color`, `itemnum`, `barcode`, `coupon`, `stock`, `minstock`, `version`, `origin`, `printerid`, `description` FROM products WHERE id=%1").arg(id), dbc);
         query.next();
 
         ui->name->setText(query.value("name").toString());
+        ui->description->setText(query.value("description").toString());
         m_name = query.value("name").toString();
         m_itemnum = query.value("itemnum").toString();
         m_version = query.value("version").toInt();
@@ -158,6 +167,16 @@ ProductEdit::ProductEdit(QWidget *parent, int id)
             ui->colorComboBox->setPalette(palette);
         }
         ui->colorComboBox->setCurrentIndex(i);
+
+        for (i = 0; i <= ui->printerComboBox->count(); i++) {
+            if ( query.value("printerid").toInt() == i )
+                break;
+        }
+
+        if (i > ui->printerComboBox->count())
+          i = 0;
+
+        ui->printerComboBox->setCurrentIndex(i);
 
     } else {
         ui->itemNum->setText(Database::getNextProductNumber());
@@ -341,20 +360,21 @@ bool ProductEdit::updateData(int id, QString name, QString itemnum, int version,
     double tax = QLocale().toDouble(m_taxModel->data(m_taxModel->index(ui->taxComboBox->currentIndex(), 1)).toString());
     double net = QLocale().toDouble(ui->gross->text()) / (1.0 + tax / 100.0);
     bool collectionReceipt = ui->collectionReceiptCheckBox->isChecked();
-
+    int printerId = ui->printerComboBox->currentData().toInt();
 
     if ( id == -1 )  // new entry
     {
-        query.prepare(QString("INSERT INTO products (name, groupid, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock, version, origin) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock, :version, :origin)"));
+        query.prepare(QString("INSERT INTO products (name, groupid, itemnum, barcode, visible, net, gross, tax, color, coupon, stock, minstock, version, origin, printerid, description) VALUES(:name, :group, :itemnum, :barcode, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock, :version, :origin, :printerid, :description)"));
         if (ui->itemNum->text().isEmpty())
             ui->itemNum->setText(Database::getNextProductNumber());
     } else {
-        query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, groupid=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, version=:version, origin=:origin, lastchange=:lastchange WHERE id=:id"));
+        query.prepare(QString("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, groupid=:group, visible=:visible, net=:net, gross=:gross, tax=:tax, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, version=:version, origin=:origin, lastchange=:lastchange, printerid=:printerid, description=:description WHERE id=:id"));
         query.bindValue(":lastchange", QDateTime::currentDateTime());
         query.bindValue(":id", id);
     }
 
     query.bindValue(":name", name);
+    query.bindValue(":description", ui->description->text());
     query.bindValue(":itemnum", itemnum);
     query.bindValue(":barcode", ui->barcode->text());
     query.bindValue(":group", m_groupsModel->data(m_groupsModel->index(ui->groupComboBox->currentIndex(), 0)).toInt());
@@ -368,6 +388,10 @@ bool ProductEdit::updateData(int id, QString name, QString itemnum, int version,
     query.bindValue(":minstock", QLocale().toDouble(ui->minstockLineEdit->text()));
     query.bindValue(":version", version);
     query.bindValue(":origin", m_origin);
+    if (printerId > 0)
+        query.bindValue(":printerid", printerId);
+    else
+        query.bindValue(":printerid", QVariant(QVariant::Int));
 
     bool ok = query.exec();
     if (!ok) {

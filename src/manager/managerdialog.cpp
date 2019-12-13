@@ -24,6 +24,7 @@
 #include <QPrinterInfo>
 
 #include "managerdialog.h"
+#include "manager/categorywidget.h"
 #include "manager/groupswidget.h"
 #include "manager/productswidget.h"
 #include "qrkpushbutton.h"
@@ -32,10 +33,20 @@ ManagerDialog::ManagerDialog(QWidget *parent)
   : QDialog(parent)
 {
 
+//    QVBoxLayout *verticalLayout = new QVBoxLayout(this);
+//    QSplitter *splitter = new QSplitter(this);
+//   splitter->setOrientation(Qt::Horizontal);
+
+  m_category = new CategoryWidget(this);
   m_groups = new GroupsWidget(this);
   m_products = new ProductsWidget(this);
 
+//  splitter->addWidget(m_groups);
+//  splitter->addWidget(m_products);
+
+//  verticalLayout->addWidget(splitter);
   m_tabWidget = new QTabWidget;
+  m_tabWidget->addTab(m_category, tr("Kategorien"));
   m_tabWidget->addTab(m_groups, tr("Gruppen"));
   m_tabWidget->addTab(m_products, tr("Artikel"));
 
@@ -55,6 +66,7 @@ ManagerDialog::ManagerDialog(QWidget *parent)
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(m_tabWidget);
+//  mainLayout->addLayout(verticalLayout);
   mainLayout->addLayout(buttonLayout);
   setLayout(mainLayout);
 

@@ -83,7 +83,12 @@ SOURCES = database.cpp \
     qrkmultimedia.cpp \
     import/importworker.cpp \
     utils/infoserver.cpp \
-    tableview.cpp
+    tableview.cpp \
+    qrkuserlogin.cpp \
+    qrkquickbuttons.cpp \
+    history.cpp \
+    qrkprinter.cpp \
+    verification.cpp
 
 
 HEADERS = database.h \
@@ -129,7 +134,12 @@ HEADERS = database.h \
     qrkmultimedia.h \
     import/importworker.h \
     utils/infoserver.h \
-    tableview.h
+    tableview.h \
+    qrkuserlogin.h \
+    qrkquickbuttons.h \
+    history.h \
+    qrkprinter.h \
+    verification.h
 
 FORMS = databasedefinition.ui \
     pluginmanager/pluginview.ui \

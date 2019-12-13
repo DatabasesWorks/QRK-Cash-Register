@@ -42,7 +42,7 @@ class QString;
 class QRK_EXPORT ASignSmardCard : public RKSignatureSmartCard
 {
 public:
-    ASignSmardCard(QString device_name);
+    ASignSmardCard(QString device_name, bool shared);
     ~ASignSmardCard();
 
     bool selectApplication();

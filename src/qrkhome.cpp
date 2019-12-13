@@ -31,6 +31,8 @@
 #include "utils/utils.h"
 #include "salesinfo.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
+#include "pluginmanager/pluginmanager.h"
+#include "pluginmanager/Interfaces/independentinterface.h"
 #include "qrkpushbutton.h"
 #include "ui_qrkhome.h"
 
@@ -57,6 +59,7 @@ QRKHome::QRKHome(bool servermode, QWidget *parent)
         ui->documentButton->setMinimumWidth(0);
         ui->managerButton->setMinimumWidth(0);
         ui->registerButton->setMinimumWidth(0);
+        ui->gregisterButton->setMinimumWidth(0);
         ui->taskButton->setMinimumWidth(0);
     }
 
@@ -130,6 +133,7 @@ QRKHome::QRKHome(bool servermode, QWidget *parent)
     }
 
     connect(ui->registerButton, &QPushButton::clicked, this, &QRKHome::registerButton_clicked);
+    connect(ui->gregisterButton, &QPushButton::clicked, this, &QRKHome::gregisterButton_clicked);
     connect(ui->documentButton, &QPushButton::clicked, this, &QRKHome::documentButton_clicked);
 
     connect(ui->serverModeCheckBox, &QCheckBox::clicked, this, &QRKHome::serverModeCheckBox_clicked);
@@ -189,7 +193,7 @@ void QRKHome::safetyDevice(bool active)
             importInfo(tr("Signaturerstellungseinrichtung ausgefallen!"), true);
             if (isServerMode()) {
                 serverModeCheckBox_clicked(false);
-                serverCriticalMessageBox(QObject::tr("Signaturerstellungseinrichtung"), QObject::tr("ACHTUNG! Signaturerstellungseinrichtung ausgefallen!\nKontaktieren Sie Ihren Administrator wenn dieses Problem weiterhin auftritt."));
+                emit serverCriticalMessageBox(QObject::tr("Signaturerstellungseinrichtung"), QObject::tr("ACHTUNG! Signaturerstellungseinrichtung ausgefallen!\nKontaktieren Sie Ihren Administrator wenn dieses Problem weiterhin auftritt."));
             }
         } else {
             ui->signatureDamagedLabel->setVisible(false);
@@ -208,6 +212,17 @@ void QRKHome::init()
 {
     QrkSettings settings;
     ui->userInfoFrame->setVisible(RBAC::Instance()->Login());
+
+    bool activated = false;
+    IndependentInterface *plugin = qobject_cast<IndependentInterface *>(PluginManager::instance()->getObjectByName(tr("Gastro")));
+    if (plugin) {
+        activated = plugin->isActivated();
+    }
+    delete plugin;
+    plugin = Q_NULLPTR;
+
+    ui->registerButton->setHidden(activated);
+    ui->gregisterButton->setVisible(activated);
 
     QPixmap pixmapOK;
     QPixmap pixmapNotOK;
@@ -317,6 +332,7 @@ void QRKHome::init()
 
     if (Database::isCashRegisterInAktive()) {
         ui->registerButton->setEnabled(false);
+        ui->gregisterButton->setEnabled(false);
         ui->taskButton->setEnabled(false);
         ui->serverModeCheckBox->setEnabled(false);
     }
@@ -414,6 +430,7 @@ void QRKHome::serverModeCheckBox_clicked(bool checked)
 {
     ui->importWidget->setVisible(checked);
     ui->registerButton->setEnabled(!checked);
+    ui->gregisterButton->setEnabled(!checked);
     ui->taskButton->setEnabled(!checked);
 
     QrkSettings settings;
@@ -461,7 +478,9 @@ void QRKHome::serverModeCheckBox_clicked(bool checked)
         qApp->processEvents();
 
         m_fw->removeDirectories();
+        blockSignals(true);
         ui->serverModeCheckBox->setChecked(false);
+        blockSignals(false);
     }
 }
 
@@ -473,36 +492,35 @@ void QRKHome::importInfo(QString str, bool isError)
     }
     ui->importWidget->addItem(QDateTime::currentDateTime().toString() + ": " + str);
     if (isError) {
-        int count = ui->importWidget->count();
+        count = ui->importWidget->count();
         if (str.startsWith(tr("INFO"))) {
             ui->importWidget->item(count -1)->setTextColor(Qt::darkYellow);
             qWarning() << "Function Name: " << Q_FUNC_INFO << str;
         } else {
             ui->importWidget->item(count -1)->setTextColor(Qt::red);
             qWarning() << "Function Name: " << Q_FUNC_INFO << str;
-            serverCriticalMessageBox(QObject::tr("Import"), str);
+            emit serverCriticalMessageBox(QObject::tr("Import"), str);
         }
     } else {
-        int count = ui->importWidget->count();
+        count = ui->importWidget->count();
         ui->importWidget->item(count -1)->setTextColor(Qt::darkGreen);
         qDebug() << "Function Name: " << Q_FUNC_INFO << str;
     }
 
     ui->importWidget->sortItems(Qt::DescendingOrder);
     ui->importWidget->setWordWrap( true);
-//    ui->importWidget->repaint();
 
     ui->lcdNumberDay->display(Database::getDayCounter());
     ui->lcdNumberMonth->display(Database::getMonthCounter());
     ui->lcdNumberYear->display(Database::getYearCounter());
-
 }
 
 void QRKHome::serverCriticalMessageBox(QString title, QString message)
 {
     QrkSettings settings;
     if (settings.value("serverCriticalMessageBox", true).toBool()) {
-        serverModeCheckBox_clicked(false);
+        if (ui->serverModeCheckBox->isChecked())
+            serverModeCheckBox_clicked(false);
         QMessageBox messageBox(QMessageBox::Critical,
                                title,
                                message,

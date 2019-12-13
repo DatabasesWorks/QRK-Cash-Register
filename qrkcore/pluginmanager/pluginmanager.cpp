@@ -101,11 +101,10 @@ void PluginManager::initialize(void)
     foreach (const QString &str, paths) {
         qInfo() << "Plugin search Path=" << str;
         path = QDir(str);
-        foreach(QFileInfo info, path.entryInfoList(QDir::Files | QDir::NoDotAndDotDot))
+        foreach(QFileInfo info, path.entryInfoList(QDir::Files | QDir::NoDotAndDotDot)) {
             this->scan(info.absoluteFilePath().trimmed());
-
-        foreach(QFileInfo info, path.entryInfoList(QDir::Files | QDir::NoDotAndDotDot))
             this->load(info.absoluteFilePath().trimmed());
+        }
     }
 }
 
@@ -125,11 +124,15 @@ void PluginManager::scan(const QString& path)
     QVariant name = loader->metaData().value("MetaData").toObject().value("name").toVariant();
     QList<QVariant> values = d->names.values();
 
-    if (!values.contains(name)) {
-        d->names.insert(path, loader->metaData().value("MetaData").toObject().value("name").toVariant());
-        d->versions.insert(path, loader->metaData().value("MetaData").toObject().value("version").toVariant());
-        d->author.insert(path, loader->metaData().value("MetaData").toObject().value("author").toVariant());
-        d->dependencies.insert(path, loader->metaData().value("MetaData").toObject().value("dependencies").toArray().toVariantList());
+    if(qobject_cast<PluginInterface *>(loader->instance())) {
+        if (!values.contains(name)) {
+            d->names.insert(path, loader->metaData().value("MetaData").toObject().value("name").toVariant());
+            d->versions.insert(path, loader->metaData().value("MetaData").toObject().value("version").toVariant());
+            d->author.insert(path, loader->metaData().value("MetaData").toObject().value("author").toVariant());
+            d->dependencies.insert(path, loader->metaData().value("MetaData").toObject().value("dependencies").toArray().toVariantList());
+        }
+    } else {
+        qWarning() << "can't load: " << path << " Error: " << loader->errorString();
     }
 
     delete loader;

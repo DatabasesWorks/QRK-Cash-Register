@@ -160,8 +160,8 @@ NumericKeypad::NumericKeypad( bool full, QWidget *parent )
         buttonBackspace->setFixedSize(buttonSize);
         buttonBackspace->setStyleSheet(style);
 
-        layout->addWidget( m_lineEdit, 0, 0, 1, 4 );
-        layout->addWidget( buttonBackspace, 1, 3, 1, 1 );
+ //       layout->addWidget( m_lineEdit, 0, 0, 1, 4 );
+ //       layout->addWidget( buttonBackspace, 1, 3, 1, 1 );
         connect(buttonBackspace, &QPushButton::clicked, this, &NumericKeypad::backspace);
     }
 

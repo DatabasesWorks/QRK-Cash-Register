@@ -30,7 +30,7 @@
 class QRK_EXPORT RKSmartCardInfo : public RKSignatureSmartCard
 {
 public:
-    RKSmartCardInfo(QString device_name);
+    RKSmartCardInfo(QString device_name, bool shared);
     ~RKSmartCardInfo();
 
     QByteArray getATR();

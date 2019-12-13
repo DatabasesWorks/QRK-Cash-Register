@@ -23,6 +23,7 @@
 #include "csvimportwizardpage3.h"
 #include "ui_csvimportwizardpage3.h"
 #include "database.h"
+#include "databasemanager.h"
 #include "backup.h"
 
 #include <QTableView>
@@ -31,6 +32,7 @@
 #include <QThread>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QElapsedTimer>
 #include <QDebug>
 
 CsvImportWizardPage3::CsvImportWizardPage3(QWidget *parent) :
@@ -66,14 +68,13 @@ void CsvImportWizardPage3::initializePage()
     m_visibleProduct = field("visibleproduct").toBool();
 
     m_autoitemnum = field("autoitemnum").toBool();
-    m_autominitemnum = field("autominitemnum").toInt();
+    m_autominitemnum = field("autominitemnum").toULongLong();
 
 }
 
 void CsvImportWizardPage3::setModel(QStandardItemModel *model)
 {
     m_model =  model;
-
 }
 
 void CsvImportWizardPage3::setMap(QMap<QString, QVariant> *map)
@@ -100,13 +101,19 @@ void CsvImportWizardPage3::importFinished()
     emit completeChanged();
     emit info(tr("Der Datenimport wurde abgeschlossen."));
 
+    ui->listWidget->addItems(m_infoList);
+    ui->listWidget->scrollToBottom();
+    m_infoList.clear();
 }
 
-void CsvImportWizardPage3::info(QString info)
+void CsvImportWizardPage3::info(const QString &info)
 {
-    info = QString("%1 %2").arg(QDateTime::currentDateTime().toString(Qt::ISODate)).arg(info);
-    ui->listWidget->addItem(info);
-    ui->listWidget->scrollToBottom();
+    m_infoList.append(QString("%1 %2").arg(QDateTime::currentDateTime().toString(Qt::ISODate)).arg(info));
+    if (m_infoList.size() > 50) {
+        ui->listWidget->addItems(m_infoList);
+        ui->listWidget->scrollToBottom();
+        m_infoList.clear();
+    }
 }
 
 void CsvImportWizardPage3::save(bool)
@@ -143,7 +150,7 @@ void CsvImportWizardPage3::cancel()
 
 //---- ImportData ------------------------------------------------------------------------------------------------------
 
-ImportData::ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, QMap<QString, QJsonObject> *errormap, bool ignoreExistingProduct, bool guessGroup, bool autoGroup,  bool visibleGroup, bool visibleProduct, bool updateExistingProduct, bool autoitemnum, int autominitemnum)
+ImportData::ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, QMap<QString, QJsonObject> *errormap, bool ignoreExistingProduct, bool guessGroup, bool autoGroup,  bool visibleGroup, bool visibleProduct, bool updateExistingProduct, bool autoitemnum, qulonglong autominitemnum)
 {
     m_model = model;
     m_map = map;
@@ -156,22 +163,61 @@ ImportData::ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, 
     m_visibleProduct = visibleProduct;
     m_autoitemnum = autoitemnum;
     m_autominitemnum = autominitemnum;
-
+    m_realVisible = 0;
+    m_version = 0;
+    m_origin = 0;
+    m_defaulttax = 20;
 }
 
 ImportData::~ImportData()
 {
+    DatabaseManager::removeCurrentThread("CN");
 }
 
 void ImportData::run()
 {
 
+    /*
+    update products set itemnum="" where id in (select id from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as products where itemnum IN (SELECT itemnum FROM products where itemnum != "" and groupid > 1 group by itemnum HAVING COUNT(*) > 1) group by id)
+    update products set itemnum="" where id in (select id from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as products on p1.version=products.version and p1.origin=products.origin where itemnum IN  (SELECT itemnum FROM products where itemnum != "" and groupid > 1 group by itemnum HAVING COUNT(*) > 1))
+    update products set itemnum="" where itemnum IN (SELECT itemnum FROM products where itemnum != "" and groupid > 1 group by itemnum HAVING COUNT(*) > 1)
+    select * from products where itemnum IN (SELECT itemnum FROM products where itemnum != "" and groupid > 1 group by itemnum HAVING COUNT(*) > 1) order by itemnum
+    update products set itemnum="" where itemnum in (select itemnum from ((select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin) where itemnum !='' group by itemnum having count(itemnum) > 1) order by itemnum
+    */
+
     int count = m_model->rowCount();
     // count = 100; /* for testing */
 
+    Database::fixDoubleProductNames();
+
+    QSqlDatabase dbc = Database::database();
+    QSqlQuery updateQuery(dbc);
+    QSqlQuery insertQuery(dbc);
+    QSqlQuery updateOriginQuery(dbc);
+    QSqlQuery resetItemnumQuery(dbc);
+    m_updateOriginQuery = QSqlQuery(dbc);
+    m_updateOriginQuery.prepare(QString("UPDATE products SET origin=:origin WHERE id=:id"));
+
+    updateQuery.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, sold=:sold, tax=:tax, net=:net, gross=:gross, visible=:visible, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, version=:version, origin=:origin, groupid=:group, description=:description WHERE id=:id");
+    insertQuery.prepare("INSERT INTO products (name, groupid, itemnum, barcode, sold, visible, net, gross, description, tax, color, coupon, stock, minstock, version, origin) VALUES (:name, :group, :itemnum, :barcode, :sold, :visible, :net, :gross, :description, :tax, :color, :coupon, :stock, :minstock, :version, :origin)");
+    updateOriginQuery.prepare("UPDATE products SET origin=id WHERE origin=-1");
+    resetItemnumQuery.prepare("update products set itemnum='' where itemnum in (select itemnum from ((select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin) where itemnum !='' group by itemnum having count(itemnum) > 1)");
+    bool ok = resetItemnumQuery.exec();
+    if (!ok) {
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << resetItemnumQuery.lastError().text();
+        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(resetItemnumQuery);
+    }
+
+    dbc.transaction();
+
     for (int row = 0; row < count; row++) {
-        if(QThread::currentThread()->isInterruptionRequested())
+        qApp->processEvents();
+        if(QThread::currentThread()->isInterruptionRequested()) {
+            bool ok = dbc.rollback();
+            emit info(tr("Datenimport wurde abgebrochen. Datenbank Rollback %1").arg(ok));
+            emit finished();
             return;
+        }
 
         m_origin = -1;
         m_version = 0;
@@ -179,18 +225,19 @@ void ImportData::run()
         int percent = int((float(row) / float(count)) * 100);
         emit percentChanged(percent);
 
-        QString itemnum = getItemValue(row, m_map->value(tr("Artikelnummer")).toInt());
-        QString barcode = getItemValue(row, m_map->value(tr("Barcode")).toInt());
-        QString name = getItemValue(row, m_map->value(tr("Artikelname")).toInt());
+        QString itemnum = getItemValue(row, m_map->value(tr("Artikelnummer")).toInt()).trimmed();
+        QString barcode = getItemValue(row, m_map->value(tr("Barcode")).toInt()).trimmed();
+        QString name = getItemValue(row, m_map->value(tr("Artikelname")).toInt()).trimmed();
         QString color = getItemValue(row, m_map->value(tr("Farbe")).toInt());
         QString coupon = getItemValue(row, m_map->value(tr("Extrabon")).toInt());
         double stock = getItemValue(row, m_map->value(tr("Lagerbestand")).toInt(),true).toDouble();
         double minstock = getItemValue(row, m_map->value(tr("Mindestbestand")).toInt(),true).toDouble();
         double sold = getItemValue(row, m_map->value(tr("Verkauft")).toInt(),true).toDouble();
         QString visible = getItemValue(row, m_map->value(tr("Sichtbar")).toInt());
+        QString description = getItemValue(row, m_map->value(tr("Beschreibung")).toInt()).trimmed();
 
         int type = 0;
-        if (m_ignoreExistingProduct && exists(itemnum, barcode, name, type)) {
+        if (m_ignoreExistingProduct && exists(itemnum, barcode, name, type) > 0) {
             emit info(tr("%1 ist schon vorhanden. Der Import wurde ignoriert").arg(name));
             continue;
         }
@@ -220,12 +267,13 @@ void ImportData::run()
         j["minstock"] = minstock;
         j["net"] = net;
         j["gross"] = gross;
+        j["description"] = description;
         j["sold"] = sold;
         j["tax"] = tax;
         j["row"] = row;
 
+        int existId = id;
         if (!m_updateExistingProduct && id == 0) {
-            int existId;
             if (errortype == 1) {
                 existId = Database::getProductIdByNumber(itemnum);
                 m_errormap->insert(QString("itemnum, %1").arg(existId), j);
@@ -236,10 +284,32 @@ void ImportData::run()
             continue;
         }
 
+        id = Database::getProductIdByName(name);
+        if (id < 0 && !itemnum.isEmpty()) {
+            id = Database::getProductIdByNumber(itemnum);
+        } else {
+            int i = Database::getProductIdByNumber(itemnum);
+            if ( i != id && i != -1) {
+                QString oldItemNum = itemnum;
+                itemnum = Database::getProductById(id, 0).value("itemnum").toString();
+                if (itemnum.isEmpty()) {
+                    itemnum = m_autoitemnum?Database::getNextProductNumber():"";
+                    emit info(tr("Information: Mehrfach vergebene Artikelnummer (%1) gefunden.").arg(oldItemNum));
+                    emit info(tr("Information: Artikelnummer %1 wurde auf %2 geändert").arg(oldItemNum).arg(itemnum));
+                } else {
+                    emit info(tr("Information: Mehrfach vergebene Artikelnummer (%1) gefunden").arg(oldItemNum));
+                    emit info(tr("Information: Artikelnummer %1 wurde nicht geändert.").arg(itemnum));
+                }
+                j["itemnum"] = itemnum;
+                qInfo() << "Function Name: " << Q_FUNC_INFO << "multiple product number found. Changed " << oldItemNum << " to " << itemnum;
+            }
+        }
+
         m_realVisible = m_visibleProduct;
 
         if (m_updateExistingProduct && id > 0) {
             QJsonObject currentProduct = Database::getProductById(id, 0);
+
             if (itemnum.isEmpty()) {
                 itemnum = currentProduct.value("itemnum").toString();
                 j["itemnum"] = itemnum;
@@ -247,27 +317,50 @@ void ImportData::run()
 
             if (itemnum.compare(currentProduct.value("itemnum").toString()) != 0 || name.compare(currentProduct.value("name").toString()) != 0 ) {
                 m_realVisible = 0;
-                updateData(id, currentProduct);
+                m_origin = currentProduct.value("origin").toInt();
+                m_version = currentProduct.value("version").toInt();
+                updateData(id, currentProduct, updateQuery);
                 m_realVisible = m_visibleProduct;
                 if (visible.isEmpty()) {
                     m_realVisible = visible.toInt();
                 }
-                m_origin = currentProduct.value("origin").toInt();
-                m_version = currentProduct.value("version").toInt() +1;
-                updateData(-1, j);
+                m_version++;
+                updateData(-1, j, insertQuery);
+                QString infoText = tr("Info %1 (%2) auf %3 (%4) geändert.").arg(currentProduct.value("name").toString()).arg(currentProduct.value("itemnum").toString()).arg(j.value("name").toString()).arg(j.value("itemnum").toString());
+                qDebug() << "Function Name: " << Q_FUNC_INFO << infoText;
+                emit info(infoText);
+                emit info(tr("Versionsänderung %1 (version = %2) [%3]").arg(name).arg(m_version).arg(row));
             } else {
+                m_origin = currentProduct.value("origin").toInt();
                 m_version = currentProduct.value("version").toInt();
-                updateData(-1, j);
+                updateData(id, j, updateQuery);
+                emit info(tr("Überarbeitung %1 (version = %2) [%3]").arg(name).arg(m_version).arg(row));
             }
-            emit info(tr("Update %1 (version = %2)").arg(name).arg(m_version));
         } else {
-            updateData(id, j);
+            if (id < 0) {
+                updateData(-1, j, insertQuery);
+                emit info(tr("Einfügen %1 (version = %2) [%3]").arg(name).arg(m_version).arg(row));
+            } else {
+//                updateData(id, j, updateQuery);
+                emit info(tr("Keine Überarbeitung Artikelname %1 oder Artikelnummer %2 vorhanden. [%3]").arg(name).arg(j.value("itemnum").toString().arg(row)));
+            }
         }
+    }
+
+
+    if (!dbc.commit()) {
+        bool ok = dbc.rollback();
+        emit info(tr("Error Datenbank-Commit. Rollback = %1").arg(ok));
+    } else {
+        emit info(tr("Datenbank-Commit erfolgreich"));
+    }
+    if (dbc.driverName() == "QSQLITE") {
+        QSqlQuery query(dbc);
+        query.exec("PRAGMA wal_checkpoint;");
     }
 
     emit percentChanged(100);
     emit finished();
-
 }
 
 QString ImportData::getItemValue(int row, int col, bool replace)
@@ -374,6 +467,10 @@ int ImportData::exists(QString itemnum, QString barcode, QString name, int &type
     if (name.isEmpty())
         return 0;
 
+    type = 0;
+    int existId = Database::getProductIdByName(name);
+    QString currentname;
+
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
@@ -390,14 +487,18 @@ int ImportData::exists(QString itemnum, QString barcode, QString name, int &type
 
         query.exec();
         if (query.next()) {
+            int id = query.value("id").toInt();
+            currentname = query.value("name").toString().trimmed();
             m_origin = query.value("origin").toInt();
             m_version = query.value("version").toInt();
-            if (!m_updateExistingProduct && query.value("name").toString() != name) {
-                emit info(tr("Artikelnummer %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(itemnum).arg(name).arg(query.value("name").toString()));
+            if (/* !m_updateExistingProduct && */ currentname != name) {
+                if (!m_updateExistingProduct)
+                    emit info(tr("Artikelnummer %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(itemnum).arg(name).arg(query.value("name").toString()));
                 type = 1;
                 return 0;
+            } else if (existId < 1 || existId == id) {
+                return id;
             }
-            return query.value("id").toInt();
         }
     }
     if (!barcode.isEmpty()) {
@@ -414,15 +515,18 @@ int ImportData::exists(QString itemnum, QString barcode, QString name, int &type
 
         query.exec();
         if (query.next()) {
+            int id = query.value("id").toInt();
+            currentname = query.value("name").toString().trimmed();
             m_origin = query.value("origin").toInt();
             m_version = query.value("version").toInt();
-            if (!m_updateExistingProduct && query.value("name").toString() != name) {
-                emit info(tr("Barcode %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(barcode).arg(name).arg(query.value(1).toString()));
+            if (/* !m_updateExistingProduct && */ currentname != name) {
+                if (!m_updateExistingProduct)
+                    emit info(tr("Barcode %1 (%2) ist bereits für Artikel %3 vergeben. Kein Import möglich.").arg(barcode).arg(name).arg(query.value(1).toString()));
                 type = 2;
                 return 0;
+            } else if (existId < 1 || existId == id) {
+                return id;
             }
-
-            return query.value("id").toInt();
         }
     }
 
@@ -445,33 +549,18 @@ int ImportData::exists(QString itemnum, QString barcode, QString name, int &type
     return -1;
 }
 
-bool ImportData::updateData(int id, QJsonObject data)
+bool ImportData::updateData(int id, QJsonObject data, QSqlQuery &query)
 {
-    qApp->processEvents();
-    QSqlDatabase dbc = Database::database();
-    QSqlQuery query(dbc);
-    dbc.transaction();
-
     bool ok = false;
-
-    if (m_updateExistingProduct && id > 0) {
-        ok= query.prepare("UPDATE products SET name=:name, itemnum=:itemnum, barcode=:barcode, sold=:sold, tax=:tax, net=:net, gross=:gross, visible=:visible, color=:color, coupon=:coupon, stock=:stock, minstock=:minstock, version=:version, origin=:origin, groupid=:group WHERE id=:id");
-        query.bindValue(":id", id);
-        emit info(tr("Update %1").arg(data.value("name").toString()));
-    } else {
-        ok= query.prepare("INSERT INTO products (name, groupid, itemnum, barcode, sold, visible, net, gross, tax, color, coupon, stock, minstock, version, origin) VALUES (:name, :group, :itemnum, :barcode, :sold, :visible, :net, :gross, :tax, :color, :coupon, :stock, :minstock, :version, :origin)");
-    }
-
-    if (!ok) {
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
-    }
-
     QString itemnum = data.value("itemnum").toString();
 
-    if (m_autoitemnum && itemnum.isEmpty()) {
-        int i = Database::getNextProductNumber().toInt();
-        itemnum = QString::number((m_autominitemnum < i)?i:m_autominitemnum);
+    if (id > 0) {
+        query.bindValue(":id", id);
+    } else {
+        if (m_autoitemnum && itemnum.isEmpty()) {
+            qulonglong i = Database::getNextProductNumber().toULongLong();
+            itemnum = QString::number((m_autominitemnum < i)?i:m_autominitemnum);
+        }
     }
 
     query.bindValue(":itemnum", itemnum);
@@ -526,23 +615,27 @@ bool ImportData::updateData(int id, QJsonObject data)
     }
 
     ok = query.exec();
-    id = Database::getProductIdByName(data.value("name").toString());
-
-    if (id != -1 && m_origin == -1) {
-        query.prepare(QString("UPDATE products SET origin=:origin WHERE id=:id"));
-        query.bindValue(":id", id);
-        query.bindValue(":origin", id);
-        ok = query.exec();
-    }
-
-    if (!dbc.commit())
-        dbc.rollback();
-
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
 
     if (!ok) {
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
     }
+
+    if (id < 0) {
+        id = Database::getProductIdByName(data.value("name").toString());
+        if (id != -1 && m_origin == -1) {
+            m_updateOriginQuery.bindValue(":id", id);
+            m_updateOriginQuery.bindValue(":origin", id);
+            ok = m_updateOriginQuery.exec();
+            if (!ok) {
+                qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << m_updateOriginQuery.lastError().text();
+                qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(m_updateOriginQuery);
+            }
+        }
+    }
+    //    if (!dbc.commit())
+//        dbc.rollback();
+
+
     return ok;
 }

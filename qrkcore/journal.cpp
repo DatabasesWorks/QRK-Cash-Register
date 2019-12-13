@@ -109,8 +109,13 @@ void Journal::journalInsertReceipt(QJsonObject &data)
 
   var.clear();
   var.append(QString("%1\t").arg(data.value("actionText").toString()));
-  var.append(QString("%1\t").arg(data.value("typeText").toString()));
-  var.append(QString("%1\t").arg(data.value("comment").toString()));
+  if (data.value("secondPayText").isNull()) {
+    var.append(QString("%1\t").arg(data.value("typeText").toString()));
+    var.append(QString("%1\t").arg(data.value("comment").toString()));
+  } else {
+      var.append(QString("%1/%2\t").arg(data.value("typeText").toString()).arg(data.value("secondPayText").toString()));
+      var.append(QString("davon %1 %2 mit %3, %4\t").arg(QLocale().currencySymbol()).arg(QLocale().toString(data.value("secondPayVal").toDouble(),'f',2)).arg(data.value("secondPayText").toString()).arg(data.value("comment").toString()));
+  }
   var.append(QString("%1\t").arg(data.value("totallyup").toString()));
   var.append(QString("%1\t").arg(data.value("receiptNum").toInt()));
   var.append(QString("%1\t").arg(data.value("receiptTime").toString()));
@@ -255,7 +260,8 @@ void Journal::encodeJournal(QSqlDatabase dbc)
     while (query.next())
     {
         i++;
-        progress.progress(((float)i / (float)numRows) * 100);
+        progress.progress(int((float(i) / float(numRows)) * 100));
+
         qApp->processEvents();
 
         QString text = query.value("text").toString();

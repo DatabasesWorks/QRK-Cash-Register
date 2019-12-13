@@ -83,6 +83,10 @@ public:
         return QBCMath::bcpow(value, o.value);
     }
 
+    void operator=(const QBCMath& o) {
+        value = o.value;
+    }
+
     void operator+=(const QBCMath& o) {
         value = QBCMath::bcadd(value, o.value);
     }
@@ -132,7 +136,7 @@ public:
     }
 
     long double toLongDouble() {
-        return ::strtold((char*)value.toStdString().c_str(), NULL);
+        return ::strtold(const_cast<char*>(value.toStdString().c_str()), Q_NULLPTR);
     }
 
     double toDouble() {
@@ -140,7 +144,7 @@ public:
     }
 
     float toFloat() {
-        return value.toDouble();
+        return float(value.toDouble());
     }
 
     QString toString() {

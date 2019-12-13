@@ -25,27 +25,18 @@
 
 QrkPushButton::QrkPushButton(QWidget *parent) : QPushButton(parent)
 {
-    QrkSettings settings;
-    QSize size = settings.value("ButtonSize", QSize(150, 60)).toSize();
-    QPushButton::setFixedHeight(size.height());
-    QPushButton::setMinimumWidth(size.width());
+    initialize();
 }
 
 QrkPushButton::QrkPushButton(const QIcon &icon, const QString &text, QWidget *parent) : QPushButton(icon, text, parent)
 {
-    QrkSettings settings;
-    QSize size = settings.value("ButtonSize", QSize(150, 60)).toSize();
+    initialize();
     QPushButton::setIconSize(QSize(32,32));
-    QPushButton::setFixedHeight(size.height());
-    QPushButton::setMinimumWidth(size.width());
 }
 
 QrkPushButton::QrkPushButton(const QString &text, QWidget *parent) : QPushButton(text, parent)
 {
-    QrkSettings settings;
-    QSize size = settings.value("ButtonSize", QSize(150, 60)).toSize();
-    QPushButton::setFixedHeight(size.height());
-    QPushButton::setMinimumWidth(size.width());
+    initialize();
 }
 
 void QrkPushButton::setMinimumSize(const QSize newsize)
@@ -54,4 +45,12 @@ void QrkPushButton::setMinimumSize(const QSize newsize)
     QSize size = settings.value("ButtonSize", QSize(150, 60)).toSize();
     size.setWidth(newsize.width());
     QPushButton::setMinimumSize(size);
+}
+
+void QrkPushButton::initialize()
+{
+    QrkSettings settings;
+    QSize size = settings.value("ButtonSize", QSize(150, 60)).toSize();
+    QPushButton::setFixedHeight(size.height());
+    QPushButton::setMinimumWidth(size.width());
 }

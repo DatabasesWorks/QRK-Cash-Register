@@ -39,6 +39,11 @@ enum NULL_RECEIPT
   YEAR_RECEIPT
 };
 
+enum CUSTOMDATAROLE
+{
+  CUSTOMDATA = Qt::DisplayRole +20
+};
+
 /*  5,'Startbeleg'
     6,'Kontrollbeleg'
     7,'Sammelbeleg'
@@ -63,10 +68,11 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     void plus();
     void setGiven(QMap<int, double> given);
     void setGiven(int, double);
+    void setR2B(bool);
 
     bool setReceiptServerMode(QJsonObject obj);
     bool setR2BServerMode(QJsonObject obj);
-    bool createNullReceipt(int title);
+    bool createNullReceipt(int title, QString additional_text = "");
     bool createStartReceipt();
     bool finishReceipts(int, int = 0, bool = false);
     bool createOrder(bool storno = false);
@@ -74,6 +80,7 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
 
     int createReceipts();
     int getReceiptNum();
+    void setUseDiscount(bool use);
 
   signals:
     void setButtonGroupEnabled(bool);
@@ -81,6 +88,8 @@ class QRK_EXPORT ReceiptItemModel : public QStandardItemModel
     void finishedPlus();
     void not_a_number(QString);
     void singlePriceChanged(QString product, QString singleprice, QString tax);
+    void futureTimeDedected(QDateTime futurtime);
+    void impossibleTotalPrice(const QString &s, const QString &s2);
 
 private slots:
     void itemChangedSlot(const QModelIndex&, const QModelIndex&);
@@ -91,7 +100,6 @@ private:
     void initPlugins();
     int getFreeProductNumber(int number, int currentRow);
     QString getFreeProductNumber(QString number, int currentRow);
-
 
     WsdlInterface *wsdlInterface = Q_NULLPTR;
 
@@ -107,6 +115,7 @@ private:
     bool m_totallyup;
     bool m_changeProduct = false;
     bool m_changeProductNumber = false;
+    bool m_useDiscount = false;
 
     int m_currentReceipt;
     QMap<int, double> m_given;

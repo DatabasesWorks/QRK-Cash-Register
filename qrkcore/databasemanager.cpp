@@ -40,12 +40,12 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
     QThread *thread = QThread::currentThread();
 
     if (!thread->objectName().isEmpty()) {
-        QString objectname = QString::number((long long)QThread::currentThread(), 16);
+        QString objectname = QString("%1_%2").arg(connectionName).arg(QString::number(qint64(QThread::currentThread()), 16));
 
         // if we have a connection for this thread, return it
         QMap<QString, QMap<QString, QSqlDatabase> >::Iterator it_thread = s_instances.find(objectname);
         if (it_thread != s_instances.end()) {
-            QMap<QString, QSqlDatabase>::iterator it_conn = it_thread.value().find(connectionName);
+            QMap<QString, QSqlDatabase>::iterator it_conn = it_thread.value().find(objectname);
             if (it_conn != it_thread.value().end()) {
                 QSqlDatabase connection = it_conn.value();
                 // qDebug() << "Function Name: " << Q_FUNC_INFO << " found SQL connection instances Thread: " << thread << " Name: " << connectionName;
@@ -56,7 +56,7 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
         }
     }
 
-    QString objectname = QString::number((long long)QThread::currentThread(), 16);
+    QString objectname = QString("%1_%2").arg(connectionName).arg(QString::number(qint64(QThread::currentThread()), 16));
 
     thread->setObjectName(objectname);
     // otherwise, create a new connection for this thread
@@ -69,7 +69,7 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
 
     QJsonObject connectionDefinition = Database::getConnectionDefinition();
     QString dbtype = connectionDefinition.value("dbtype").toString();
-    QSqlDatabase connection = QSqlDatabase::addDatabase(dbtype, QString("%1_%2").arg(connectionName).arg(objectname));
+    QSqlDatabase connection = QSqlDatabase::addDatabase(dbtype, objectname);
 
     if (dbtype == "QMYSQL") {
         connection.setHostName(connectionDefinition.value("databasehost").toString());
@@ -91,8 +91,8 @@ QSqlDatabase DatabaseManager::database(const QString& connectionName)
 
     enableForeignKey(connection);
 
-    s_instances[objectname][connectionName] = connection;
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " connection instances used: " << s_instances.size();
+    s_instances[objectname][connection.connectionName()] = connection;
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " connection instances  used: " << s_instances.size();
 
     return connection;
 }
@@ -102,22 +102,28 @@ void DatabaseManager::clear()
     s_instances.clear();
 }
 
-void DatabaseManager::removeCurrentThread(QString connectionName)
+void DatabaseManager::removeCurrentThread(const QString connectionName)
 {
-    QString objectname = QString::number((long long)QThread::currentThread(), 16);
+
+    QString objectname = QString("%1_%2").arg(connectionName).arg(QString::number(qint64(QThread::currentThread()), 16));
 
     if (s_instances.contains(objectname)) {
         QMap<QString, QSqlDatabase> map = s_instances.value(objectname);
-        QSqlDatabase connection = map.value(connectionName);
-        connection.close();
-        if (!connection.isOpen()) {
-            s_instances.remove(objectname);
+        QString currentConnectionName = "";
 
-            qDebug() << "Function Name: " << Q_FUNC_INFO << " remove connection instance: " << objectname;
+        {
+            QSqlDatabase connection = map.value(objectname);
+            currentConnectionName = connection.connectionName();
+            connection.close();
+            map.remove(currentConnectionName);
+            s_instances.remove(objectname);
         }
+
+        QSqlDatabase::removeDatabase(currentConnectionName);
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " remove connection instance: " << objectname;
     }
 
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " connection instances used: " << s_instances.size();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " connection instances  used: " << s_instances.size();
 }
 
 void DatabaseManager::enableForeignKey(QSqlDatabase dbc)

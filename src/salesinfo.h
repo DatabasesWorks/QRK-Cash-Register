@@ -57,6 +57,8 @@ private:
     SALESINFO m_what;
     QString m_from;
     QString m_to;
+    qint64 m_timeoffset = 0;
+
 };
 
 class SalesDelegate : public QStyledItemDelegate

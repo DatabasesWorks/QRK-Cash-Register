@@ -24,12 +24,13 @@
 #define USER_H
 
 #include "crypto.h"
+#include "3rdparty/ckvsoft/globals_ckvsoft.h"
 
 #include <QObject>
 #include <QMap>
 #include <QVariant>
 
-class User : public QObject
+class CKVSOFT_EXPORT User : public QObject
 {
         Q_OBJECT
 
@@ -49,13 +50,13 @@ class User : public QObject
         QMap<QString, QMap<QString, QVariant> > getPermissions();
         QMap<QString, bool> getRoles();
 
-        void setUserName(QString username);
-        void setDisplayName(QString displayname);
+        void setUserName(const QString &username);
+        void setDisplayName(const QString &displayname);
         void setGender(GENDER gender);
-        void setAvatar(QString avatar);
+        void setAvatar(const QString &avatar);
         void setPassword();
-        void setPassword(QString password);
-        void setNewPassword(QString password1, QString password2);
+        void setPassword(const QString &password);
+        void setNewPassword(const QString &password1, const QString &password2);
         void getNewPassword(QString &password1, QString &password2);
         bool checkNewPassword();
         void insertPermissionsMap(QString key, QMap<QString, QVariant> value);

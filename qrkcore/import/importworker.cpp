@@ -60,8 +60,19 @@ ImportWorker::ImportWorker(QWidget *parent)
 
 ImportWorker::~ImportWorker()
 {
-    qDebug() << "Function Name: " << Q_FUNC_INFO << " Destructor from Worker thread: " << QThread::currentThread();
-    disconnect(this, &ImportWorker::not_a_number, Q_NULLPTR, Q_NULLPTR);
+    {
+        // QSqlDatabase dbc = Database::database();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " Destructor from Worker thread: " << QThread::currentThread();
+        disconnect(this, &ImportWorker::not_a_number, Q_NULLPTR, Q_NULLPTR);
+        /*
+        if (dbc.driverName() == "QSQLITE") {
+            QSqlQuery query(dbc);
+            query.exec("PRAGMA wal_checkpoint;");
+            query.next();
+            qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
+        }
+        */
+    }
     DatabaseManager::removeCurrentThread("CN");
 }
 
@@ -75,7 +86,7 @@ void ImportWorker::process()
     while (!m_isStopped && !m_queue->isEmpty()) {
         qDebug() << "Function Name: " << Q_FUNC_INFO << " From Worker thread: " << QThread::currentThread();
 
-        if (checkEOAnyServerMode()) {
+        if (checkEOAny()) {
             QString filename = m_queue->first();
             loadJSonFile(filename);
             QThread::msleep(200);
@@ -117,8 +128,7 @@ bool ImportWorker::loadJSonFile(QString filename)
     for (int i = 0; i < 3; i++) {
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             break;
-        }
-        if (i == 3) {
+        } else if (i == 3) {
             Spread::Instance()->setImportInfo(tr("Import Fehler -> Datei %1 kann nicht geöffnet werden.").arg(filename), true);
             return false;
         }
@@ -268,6 +278,8 @@ bool ImportWorker::importR2B(QJsonObject data)
 
     QSqlDatabase dbc = Database::database();
     ok = dbc.transaction();
+    m_transaction++;
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " transaction start: " << m_transaction;;
     if (!ok) {
         emit database_error(QString("Transaction failed(%1), %2 %3").arg(ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
         return ok;
@@ -277,7 +289,7 @@ bool ImportWorker::importR2B(QJsonObject data)
         QJsonObject obj = value.toObject();
         ok = obj.contains("gross") && obj.contains("receiptNum") && obj.contains("payedBy");
         if (ok) {
-            ok = false;
+//            ok = false;
             newOrder();
             if (! setR2BServerMode(obj)) {
                 QString info = tr("Import Fehler -> Rechnungsnummer: %1 aus Importdatei %2 wird schon verwendet!").arg(obj.value("receiptNum").toString()).arg(data.value("filename").toString());
@@ -288,6 +300,8 @@ bool ImportWorker::importR2B(QJsonObject data)
                 if (createOrder()) {
                     if (finishReceipts(obj.value("payedBy").toString().toInt())) {
                         ok = dbc.commit();
+                        qDebug() << "Function Name: " << Q_FUNC_INFO << " transaction commit: " << m_transaction;
+                        m_transaction--;
                     } else {ok = false;}
                 } else {ok = false;}
             }
@@ -300,15 +314,11 @@ bool ImportWorker::importR2B(QJsonObject data)
 
     if (!ok) {
         bool sql_ok = dbc.rollback();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " transaction rollback: " << m_transaction;
+        m_transaction--;
         emit database_error(QString("Rollback = %1,%2 %3").arg(sql_ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
     }
 
-    if (dbc.driverName() == "QSQLITE") {
-        QSqlQuery query(dbc);
-        query.exec("PRAGMA wal_checkpoint;");
-        query.next();
-        qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
-    }
     return ok;
 }
 
@@ -319,6 +329,8 @@ bool ImportWorker::importReceipt(QJsonObject data)
 
     QSqlDatabase dbc = Database::database();
     ok = dbc.transaction();
+    m_transaction++;
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " transaction start: " << m_transaction;
     if (!ok) {
         emit database_error(QString("Transaction failed(%1), %2 %3").arg(ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
         return ok;
@@ -339,6 +351,8 @@ bool ImportWorker::importReceipt(QJsonObject data)
                 if (createOrder()) {
                     if (finishReceipts(obj.value("payedBy").toString().toInt())) {
                         ok = dbc.commit();
+                        qDebug() << "Function Name: " << Q_FUNC_INFO << " transaction commit: " << m_transaction;
+                        m_transaction--;
                     } else {ok = false;}
                 } else {ok = false;}
             }
@@ -350,14 +364,9 @@ bool ImportWorker::importReceipt(QJsonObject data)
     }
     if (!ok) {
         bool sql_ok = dbc.rollback();
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " transaction rollback: " << m_transaction;
+        m_transaction--;
         emit database_error(QString("Rollback = %1,%2 %3").arg(sql_ok).arg(dbc.lastError().text()).arg(dbc.lastError().nativeErrorCode()));
-    }
-
-    if (dbc.driverName() == "QSQLITE") {
-        QSqlQuery query(dbc);
-        query.exec("PRAGMA wal_checkpoint;");
-        query.next();
-        qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
     }
 
     return ok;

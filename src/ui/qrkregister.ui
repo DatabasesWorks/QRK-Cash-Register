@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>952</width>
-    <height>542</height>
+    <width>928</width>
+    <height>519</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_6">
+  <layout class="QVBoxLayout" name="verticalLayout_7">
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,1,0,0">
      <item>
@@ -641,7 +641,7 @@
           </widget>
          </item>
          <item>
-          <widget class="TableView" name="orderList">
+          <widget class="QTableView" name="orderList">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
              <horstretch>0</horstretch>
@@ -675,18 +675,6 @@
            <property name="textElideMode">
             <enum>Qt::ElideMiddle</enum>
            </property>
-           <property name="cornerButtonEnabled">
-            <bool>false</bool>
-           </property>
-           <attribute name="horizontalHeaderHighlightSections">
-            <bool>false</bool>
-           </attribute>
-           <attribute name="verticalHeaderVisible">
-            <bool>false</bool>
-           </attribute>
-           <attribute name="verticalHeaderHighlightSections">
-            <bool>false</bool>
-           </attribute>
           </widget>
          </item>
          <item>
@@ -856,62 +844,7 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="layoutWidget2">
-        <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,1">
-         <item>
-          <widget class="QScrollArea" name="scrollArea">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="sizeAdjustPolicy">
-            <enum>QAbstractScrollArea::AdjustToContentsOnFirstShow</enum>
-           </property>
-           <property name="widgetResizable">
-            <bool>true</bool>
-           </property>
-           <widget class="QWidget" name="scrollAreaWidgetContents">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>0</y>
-              <width>197</width>
-              <height>153</height>
-             </rect>
-            </property>
-           </widget>
-          </widget>
-         </item>
-         <item>
-          <widget class="QScrollArea" name="scrollAreaProducts">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="sizeAdjustPolicy">
-            <enum>QAbstractScrollArea::AdjustToContents</enum>
-           </property>
-           <property name="widgetResizable">
-            <bool>true</bool>
-           </property>
-           <widget class="QWidget" name="scrollAreaWidgetContents_2">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>0</y>
-              <width>197</width>
-              <height>153</height>
-             </rect>
-            </property>
-           </widget>
-          </widget>
-         </item>
-        </layout>
-       </widget>
+       <widget class="QrkQuickButtons" name="QuickButtons" native="true"/>
       </widget>
      </item>
      <item>
@@ -976,7 +909,7 @@ verlassen</string>
         </widget>
        </item>
        <item row="3" column="10">
-        <widget class="QrkPushButton" name="catregoriePushButton">
+        <widget class="QrkPushButton" name="categoriePushButton">
          <property name="enabled">
           <bool>false</bool>
          </property>
@@ -1078,19 +1011,6 @@ verlassen</string>
           <string notr="true">buttonGroup</string>
          </attribute>
         </widget>
-       </item>
-       <item row="3" column="1">
-        <spacer name="horizontalSpacer_4">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>13</width>
-           <height>57</height>
-          </size>
-         </property>
-        </spacer>
        </item>
        <item row="3" column="5">
         <widget class="QrkPushButton" name="cashReceipt">
@@ -1249,6 +1169,19 @@ zu Rechnung #</string>
          </property>
         </widget>
        </item>
+       <item row="3" column="1">
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>13</width>
+           <height>57</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
       </layout>
      </item>
      <item>
@@ -1275,9 +1208,10 @@ zu Rechnung #</string>
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>TableView</class>
-   <extends>QTableView</extends>
-   <header>tableview.h</header>
+   <class>QrkQuickButtons</class>
+   <extends>QWidget</extends>
+   <header>qrkquickbuttons.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources>

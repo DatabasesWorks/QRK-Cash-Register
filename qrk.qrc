@@ -115,5 +115,14 @@
         <file>src/txt/gpl-3.0.txt</file>
         <file>src/sql/QRK-mysql-update-20.sql</file>
         <file>src/sql/QRK-sqlite-update-20.sql</file>
+        <file>src/sql/QRK-mysql-update-21.sql</file>
+        <file>src/sql/QRK-sqlite-update-21.sql</file>
+        <file>src/font/digital.ttf</file>
+        <file>src/icons/textfield.png</file>
+        <file>src/keys/pubkey.txt</file>
+        <file>src/icons/restaurant-utensils-crossed.png</file>
+        <file>src/icons/sleeping-bed.png</file>
+        <file>src/sql/QRK-mysql-update-22.sql</file>
+        <file>src/sql/QRK-sqlite-update-22.sql</file>
     </qresource>
 </RCC>

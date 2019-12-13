@@ -36,6 +36,9 @@ public:
     QrkPushButton(const QIcon &icon, const QString &text, QWidget *parent = Q_NULLPTR);
 
     void setMinimumSize(const QSize);
+
+private:
+    void initialize();
 };
 
 #endif // QRKPUSHBUTTON_H

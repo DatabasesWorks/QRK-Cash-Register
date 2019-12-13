@@ -81,7 +81,7 @@ void CsvImportWizardPage4::setWidgetData()
         iter.next();
         QStringList list = iter.key().split(",");
         QJsonObject j = iter.value();
-        QJsonObject original = Database::getProductByName(Database::getProductNameById(list.at(1).toInt()));
+        QJsonObject original = Database::getProductByName(Database::getProductNameById(list.at(1).trimmed().toInt()), 0);
         QTreeWidgetItem *top_item = new QTreeWidgetItem;
         top_item->setFlags(top_item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable);
         top_item->setCheckState(0, Qt::Checked);

@@ -20,6 +20,47 @@
 #
 # -- 21
 
+  VERSION 1.14.4 Build 191213
+  * FIX Netto Anzeige in der Kassa. Wenn Netto mit , (comma) eingegeben wurde hat die Anzeige 0,00 angezeigt
+
+  VERSION 1.14.3 Build 191212
+  + Im Tages/Monatsabschluss werden jetzt die Ümsätze auch pro Benutzer ausgewrtet.
+  * FIX Rabatt Anzeige in der Kassa. Wenn der Rabatt mit , (comma) eingegeben wurde hat die Anzeige 0,00 % angezeigt
+  * FIX Der Jahresbeleg wurde als Monatsbeleg in der Dokumenteübersicht angezeigt
+
+  VERSION 1.14.2 Build 191113
+  * FIX Mischbezahlung wurde im Journal nicht berücksichtigt
+  * FIX Mischbezahlung im Servermode war nicht vorhanden
+
+  VERSION 1.14.1 Build 191009
+  * FIX Tages/Monatsbeleg kann nicht erstellt werden wenn zuvor nur ein Startbeleg vorhanden ist.
+
+  VERSION 1.14 Build 191003
+  + Kategorien
+  + Sortierreihenfolge Kategorien, Warengruppen und Artikel mit DragDrop änderbar.
+  + Druckerauswahl für Kategorien,Gruppen und Artikel
+  + Warengruppenname bei Artikelabrechnung.
+  + Die Abschlüsse können zu einen späteren Zeitpunkt ausgeführt werden. Einstellbar von 00:00 bis 08:00
+  + Eigener Bereich für die Warengruppen im Kassamodus. Konfigurierbar in den Einstellungen -> Kassa -> Erweitert
+  + RK SharedMode
+  + Optionale Artikel Beschreibung
+  + Optionaler Artikel Beschreibungstext im Kassenmodus für Bondruck. (Hat vorrang gegenüber Artikelbeschreibung)
+  * Plugins ein/ausschaltbar
+  * Druckereinstellungsmöglichkeiten verändert
+  * CSV Import beschleunigt
+  * FIX CSV Import (neuer Artikel statt Update)
+  * FIX Doppelte Artikel auf Rechnung
+  * FIX Tagesabschluss nach Kontrollbeleg war nicht möglich.
+  * FIX Crash bei Preisänderung im Kassenmodus wenn die Barcodeeingabe als Standard gesetzt ist.
+  * FIX Löschen von Benutzern funktioniert nicht. (Windows)
+  * FIX Leere Eingabe bei KassenID nicht mehr möglich
+
+  VERSION 1.12.1 Build 190620
+  * SalesDialog Druckereinstellungen werden gespeichert.
+  * Shopname wurden am BON in manchen Fällen als EUR ausgegeben.
+  * Artikel Version wurde nicht übernommen
+  * Alphanumerische Artikelnummern wurden überschrieben
+
   VERSION 1.12 Build 190619
   + Mischzahlung. Nur mit BAR verknüpfbar (BAR/Bankomat oder BAR/Kreditkarte) Bei aktivierten Gegebendialog besteht die Möglichkeit einen
     Teil in BAR und den Restbetrag mit Bankomat oder Kreditkarte zu bezahlen. Restgelt gibt es in diesen Fall keines.

@@ -25,6 +25,7 @@
 
 #include <QDialog>
 
+class CategoryWidget;
 class GroupsWidget;
 class ProductsWidget;
 class QTabWidget;
@@ -42,6 +43,7 @@ class ManagerDialog : public QDialog
     void accept();
 
   private:
+    CategoryWidget *m_category;
     GroupsWidget *m_groups;
     ProductsWidget *m_products;
     QTabWidget *m_tabWidget;

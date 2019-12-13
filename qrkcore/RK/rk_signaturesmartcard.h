@@ -33,7 +33,7 @@
 class QRK_EXPORT RKSignatureSmartCard :public RKSignatureModule {
 
 public:
-    RKSignatureSmartCard(QString readerName);
+    RKSignatureSmartCard(QString readerName, bool shared);
     ~RKSignatureSmartCard();
 
     static void getReaders(QStringList *list);
@@ -53,6 +53,7 @@ protected:
     SCARDCONTEXT m_hContext;
     DWORD        m_activeProtocol;
     QString      m_reader;
+    bool m_sharedmode = false;
 
     bool connect();
     bool disconnect();

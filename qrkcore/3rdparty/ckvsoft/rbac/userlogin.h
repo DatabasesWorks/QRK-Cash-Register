@@ -35,7 +35,7 @@ class CKVSOFT_EXPORT UserLogin : public base_login
 
     private slots:
         void OnQuit();
-        void OnLogin();
+        virtual void OnLogin();
 
     private:
         void reject();

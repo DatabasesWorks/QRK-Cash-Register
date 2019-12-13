@@ -25,8 +25,11 @@
 #include "utils/utils.h"
 #include <ui_groupedit.h>
 
+#include <QSqlRelationalTableModel>
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <QDebug>
 
 //--------------------------------------------------------------------------------
@@ -38,9 +41,15 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
 
   const QStringList colorNames = QColor::colorNames();
   int index = 0;
-  ui->colorComboBox->addItem(tr("Standard Farbe"));
+  ui->colorComboBox->addItem(tr("gleich wie Kategorie"));
   const QModelIndex idx = ui->colorComboBox->model()->index(index++, 0);
   ui->colorComboBox->model()->setData(idx, "", Qt::BackgroundColorRole);
+
+  QSqlDatabase dbc = Database::database();
+  m_categoriesModel = new QSqlRelationalTableModel(this, dbc);
+  m_categoriesModel->setQuery("SELECT id, name FROM categories", dbc);
+  ui->categoriesComboBox->setModel(m_categoriesModel);
+  ui->categoriesComboBox->setModelColumn(1);  // show name
 
   foreach (const QString &colorName, colorNames) {
       const QColor color(colorName);
@@ -52,17 +61,29 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
       ui->colorComboBox->model()->setData(idx, fg_color, Qt::ForegroundRole);
   }
 
-  if ( m_id != -1 )
-  {
-    QSqlDatabase dbc = Database::database();
+  QJsonArray printers = Database::getPrinters();
+  ui->printerComboBox->addItem(tr("gleich wie Kategorie"), 0);
+  foreach (const QJsonValue & value, printers) {
+      QJsonObject obj = value.toObject();
+      ui->printerComboBox->addItem(obj["name"].toString(), obj["id"].toInt());
+  }
 
-    QSqlQuery query(QString("SELECT name,visible,color FROM groups WHERE id=%1").arg(id), dbc);
+
+  if ( m_id != -1 ) {
+
+    QSqlQuery query(QString("SELECT name,visible,color,printerid,categoryId FROM groups WHERE id=%1").arg(id), dbc);
     query.next();
 
     ui->name->setText(query.value(0).toString());
     ui->visibleCheckBox->setChecked(query.value(1).toBool());
 
     int i;
+    for (i = 0; i < m_categoriesModel->rowCount(); i++)
+        if ( query.value("categoryId").toInt() == m_categoriesModel->data(m_categoriesModel->index(i, 0), Qt::DisplayRole).toInt() )
+            break;
+
+    ui->categoriesComboBox->setCurrentIndex(i);
+
     for (i = 0; i <= ui->colorComboBox->count(); i++) {
         QString color = ui->colorComboBox->model()->index(i, 0).data(Qt::BackgroundColorRole).toString();
         if ( query.value(2).toString() == color )
@@ -82,6 +103,16 @@ GroupEdit::GroupEdit(QWidget *parent, int id)
         //    palette.setColor(QPalette::ButtonText, Qt::white);
         ui->colorComboBox->setPalette(palette);
     }
+
+    for (i = 0; i <= ui->printerComboBox->count(); i++) {
+        if ( query.value("printerid").toInt() == i )
+            break;
+    }
+
+    if (i > ui->printerComboBox->count())
+      i = 0;
+
+    ui->printerComboBox->setCurrentIndex(i);
 
   }
 
@@ -118,17 +149,24 @@ void GroupEdit::accept()
 
   if ( m_id == -1 )  // new entry
   {
-    query.prepare(QString("INSERT INTO groups (name, visible, color) VALUES(:name, :visible, :color)"));
+    query.prepare(QString("INSERT INTO groups (name, visible, color, printerid, categoryId) VALUES(:name, :visible, :color, :printerid, :categoryId)"));
   }
   else
   {
-    query.prepare(QString("UPDATE groups SET name=:name, visible=:visible, color=:color WHERE id=:id"));
+    query.prepare(QString("UPDATE groups SET name=:name, visible=:visible, color=:color, printerid=:printerid, categoryId=:categoryId WHERE id=:id"));
     query.bindValue(":id", m_id);
   }
 
+  int printerid = ui->printerComboBox->currentData().toInt();
   query.bindValue(":name", ui->name->text());
   query.bindValue(":visible", ui->visibleCheckBox->isChecked());
   query.bindValue(":color", color);
+  if (printerid > 0)
+    query.bindValue(":printerid", printerid);
+  else
+    query.bindValue(":printerid", QVariant(QVariant::Int));
+
+  query.bindValue(":categoryId", m_categoriesModel->data(m_categoriesModel->index(ui->categoriesComboBox->currentIndex(), 0)).toInt());
 
   bool ok = query.exec();
   if (!ok) {

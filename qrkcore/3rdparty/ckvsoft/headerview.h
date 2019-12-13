@@ -37,7 +37,5 @@ public:
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
 
-public slots:
-    void clickedSection(int s);
 };
 #endif // HEADERVIEW_H

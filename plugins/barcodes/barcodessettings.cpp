@@ -64,7 +64,10 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
     m_barcode_amount_250 = new QLineEdit(this);
     m_barcode_amount_500 = new QLineEdit(this);
 
-    QGroupBox *actionGroup = new QGroupBox();
+    m_actionGroup = new QGroupBox();
+    m_actionGroup->setCheckable(true);
+    m_actionGroup->setChecked(false);
+    m_actionGroup->setTitle(tr("Barcode Plugin verwenden"));
     QFormLayout *actionLayout = new QFormLayout();
     actionLayout->addRow(tr("BON Abschluss:"), m_barcode_finishReceipt);
     actionLayout->addRow(tr("Letzten Artikel entfernen:"), m_barcode_removeLastPosition);
@@ -77,9 +80,10 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
     actionLayout->addRow(tr("Wert 000:"), m_barcode_amount_000);
     actionLayout->addRow(tr("Wert 250:"), m_barcode_amount_250);
     actionLayout->addRow(tr("Wert 500:"), m_barcode_amount_500);
-    actionGroup->setLayout(actionLayout);
+    m_actionGroup->setLayout(actionLayout);
 
-    QGroupBox *amountGroup = new QGroupBox();
+    m_amountGroup = new QGroupBox();
+    m_amountGroup->setEnabled(m_actionGroup->isChecked());
     QFormLayout *amountLayout = new QFormLayout;
     amountLayout->setAlignment(Qt::AlignLeft);
     amountLayout->addRow(tr("Wert   0:"), m_barcode_amount_0);
@@ -93,7 +97,7 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
     amountLayout->addRow(tr("Wert   8:"), m_barcode_amount_8);
     amountLayout->addRow(tr("Wert   9:"), m_barcode_amount_9);
 
-    amountGroup->setLayout(amountLayout);
+    m_amountGroup->setLayout(amountLayout);
 
     QrkPushButton *cancelButton = new QrkPushButton;
     cancelButton->setMinimumHeight(60);
@@ -130,13 +134,14 @@ BarcodesSettings::BarcodesSettings(QWidget *parent)
     buttonLayout->addWidget(cancelButton);
 
     QGridLayout *mainLayout = new QGridLayout;
-    mainLayout->addWidget(actionGroup, 0,0);
-    mainLayout->addWidget(amountGroup, 0,1);
+    mainLayout->addWidget(m_actionGroup, 0,0);
+    mainLayout->addWidget(m_amountGroup, 0,1);
     mainLayout->addLayout(buttonLayout, 1, 0, 1, 2, Qt::AlignRight);
 
     connect(printBarcodesButton, &QPushButton::clicked, this, &BarcodesSettings::printBarcodes);
     connect(saveButton, &QPushButton::clicked, this, &BarcodesSettings::save);
     connect(cancelButton, &QPushButton::clicked, this, &BarcodesSettings::cancelClicked);
+    connect(m_actionGroup, &QGroupBox::toggled, this, &BarcodesSettings::actionGroupChanged);
 
     setLayout(mainLayout);
 
@@ -147,6 +152,8 @@ void BarcodesSettings::init()
 {
     QrkSettings settings;
     settings.beginGroup("BarCodesPlugin");
+
+    m_actionGroup->setChecked(settings.value("barcode_enabled", false).toBool());
 
     m_barcode_finishReceipt->setText(settings.value("barcodeFinishReceipt", "100009000001").toString());
     m_barcode_removeLastPosition->setText(settings.value("barcodeRemoveLastPosition", "100009000002").toString());
@@ -178,6 +185,7 @@ void BarcodesSettings::save()
     QrkSettings settings;
     settings.beginGroup("BarCodesPlugin");
 
+    settings.save2Settings("barcode_enabled", m_actionGroup->isChecked());
     settings.save2Settings("barcodeFinishReceipt", m_barcode_finishReceipt->text());
     settings.save2Settings("barcodeRemoveLastPosition", m_barcode_removeLastPosition->text());
     settings.save2Settings("barcodeEndOfDay", m_barcode_endOfDay->text());
@@ -290,4 +298,9 @@ void BarcodesSettings::printBarcodes()
     doc.print(&printer);
 
     emit save();
+}
+
+void BarcodesSettings::actionGroupChanged(bool checked)
+{
+    m_amountGroup->setEnabled(checked);
 }

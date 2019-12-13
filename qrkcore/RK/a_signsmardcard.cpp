@@ -36,8 +36,8 @@
  * @brief ASignSmardCard::ASignSmardCard
  * @param device_name
  */
-ASignSmardCard::ASignSmardCard(QString device_name)
-    : RKSignatureSmartCard(device_name)
+ASignSmardCard::ASignSmardCard(QString device_name, bool shared)
+    : RKSignatureSmartCard(device_name, shared)
 {
 }
 

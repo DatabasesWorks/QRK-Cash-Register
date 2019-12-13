@@ -23,6 +23,7 @@
 #ifndef TABDIALOG_H
 #define TABDIALOG_H
 
+#include "3rdparty/ckvsoft/widget.h"
 #include <QDialog>
 #include <QListWidgetItem>
 #include "RK/rk_signaturemodule.h"
@@ -43,22 +44,43 @@ class QListWidget;
 class ASignSmartCard;
 class Journal;
 class QStackedWidget;
+class QTimeEdit;
+class RelationalTableModel;
+class QTableView;
 
-class Widget: public QWidget
+class ReceiptLayoutTab : public Widget
 {
-        Q_OBJECT
-    public:
-        explicit Widget(QWidget *parent = Q_NULLPTR):QWidget(parent){}
+    Q_OBJECT
 
-        void disableWidgets()
-        {
-            QList<QWidget *> widgets = this->findChildren<QWidget *>();
+public:
+    explicit ReceiptLayoutTab(QWidget *parent = Q_NULLPTR);
+    bool useProductCategories();
+    bool getHideProductCategories();
+    bool getHideProductGroup();
+    QSize getStretchFactor();
+    int getLayoutDirection();
+    QSize getQuickButtonSize();
+    QSize getButtonSize();
+    QSize getNumpadButtonSize();
 
-            foreach(QWidget* widget, widgets)
-            {
-                widget->setEnabled(false);
-            }
-        }
+private:
+    void useProductCategoriesChanged(bool checked);
+
+    QCheckBox *m_useProductCategoriesCheck;
+    QCheckBox *m_showProductCategoriesCheck;
+    QCheckBox *m_showProductGroupCheck;
+
+    QSpinBox *m_stretchProductGroup_0_SpinBox;
+    QSpinBox *m_stretchProductGroup_1_SpinBox;
+    QComboBox *m_stretchProductGroupComboBox;
+
+    QSpinBox *m_quickButtonWidth;
+    QSpinBox *m_quickButtonHeight;
+    QSpinBox *m_fixedButtonHeight;
+    QSpinBox *m_minimumButtonWidth;
+    QSpinBox *m_fixedNumpadButtonHeight;
+    QSpinBox *m_fixedNumpadButtonWidth;
+
 };
 
 class ReceiptMainTab : public Widget
@@ -72,9 +94,6 @@ public:
     bool getMaximumItemSold();
     int getDecimalDigits();
     bool getDecimalQuantity();
-    QSize getQuickButtonSize();
-    QSize getButtonSize();
-    QSize getNumpadButtonSize();
     bool hideDebitcardButton();
     bool hideCreditcardButton();
     bool hideR2BButton();
@@ -82,6 +101,7 @@ public:
     bool useVirtualNumPad();
     bool useInputProductNumber();
     bool getRegisterHeaderMovable();
+    bool getOptionalDescriptionButton();
 
 signals:
     void maximumSoldItemChanged(bool enabled);
@@ -92,6 +112,7 @@ private:
     QCheckBox *m_useMaximumItemSoldCheck;
     QCheckBox *m_useDecimalQuantityCheck;
     QSpinBox *m_decimalRoundSpin;
+    QCheckBox *m_optionalDescriptionButtonCheck;
     QCheckBox *m_hideDebitcardCheck;
     QCheckBox *m_hideCreditcardCheck;
     QCheckBox *m_hideR2BButtonCheck;
@@ -101,12 +122,21 @@ private:
 
     QComboBox *m_defaultTaxComboBox;
 
-    QSpinBox *m_quickButtonWidth;
-    QSpinBox *m_quickButtonHeight;
-    QSpinBox *m_fixedButtonHeight;
-    QSpinBox *m_minimumButtonWidth;
-    QSpinBox *m_fixedNumpadButtonHeight;
-    QSpinBox *m_fixedNumpadButtonWidth;
+};
+
+class ReportTab : public Widget
+{
+    Q_OBJECT
+
+public:
+    explicit ReportTab(QWidget *parent = Q_NULLPTR);
+    QTime getCurfewTime();
+    bool getProductGroup();
+
+private:
+    void curfewChanged(QTime time);
+    QTimeEdit *m_curfewTimeEdit;
+    QCheckBox *m_useProductGroupCheck;
 
 };
 
@@ -147,7 +177,6 @@ public:
     bool getStockDialog();
     bool getSalesWidget();
     bool getReceiptPrintedDialog();
-    bool getProductGroup();
     bool getGroupSeparator();
     int getFirstProductnumber();
     bool isFontsGroup();
@@ -169,7 +198,6 @@ private slots:
     void groupSeparatorChanged(bool checked);
 
 private:
-    QCheckBox *m_useProductGroupCheck;
     QCheckBox *m_usePriceChangedCheck;
     QCheckBox *m_useGivenDialogCheck;
     QCheckBox *m_salesWidgetCheck;
@@ -235,7 +263,7 @@ public:
     int getKeepMaxBackups();
 
 public slots:
-    void masterTaxChanged(QString tax);
+    void masterTaxChanged(const QString &tax);
 
 private slots:
     void backupDirectoryButton_clicked();
@@ -255,55 +283,92 @@ private:
 
 };
 
+class PrinterDefinitionTab : public Widget
+{
+    Q_OBJECT
+
+public:
+    explicit PrinterDefinitionTab(QWidget *parent = Q_NULLPTR);
+
+private:
+    RelationalTableModel *m_model = Q_NULLPTR;
+    QTableView *m_tableView = Q_NULLPTR;
+
+    void addNew();
+    void remove();
+    void edit();
+};
+
+class PrinterConfigTab : public Widget
+{
+    Q_OBJECT
+
+public:
+    explicit PrinterConfigTab(const QStringList &availablePrinters, QWidget *parent = Q_NULLPTR);
+
+private:
+    RelationalTableModel *m_model = Q_NULLPTR;
+    QTableView *m_tableView = Q_NULLPTR;
+
+    void addNew();
+    void remove();
+    void edit();
+
+    const QStringList m_availablePrinters;
+};
+
 class PrinterTab : public Widget
 {
     Q_OBJECT
 
 public:
-    explicit PrinterTab(QStringList availablePrinters, QWidget *parent = Q_NULLPTR);
+    explicit PrinterTab(QWidget *parent = Q_NULLPTR);
 
-    bool getReportPrinterPDF();
-    QString getReportPrinter();
-    QString getPaperFormat();
-    QString getInvoiceCompanyPrinter();
-    QString getInvoiceCompanyPaperFormat();
-    int getInvoiceCompanyMarginLeft();
-    int getInvoiceCompanyMarginRight();
-    int getInvoiceCompanyMarginTop();
-    int getInvoiceCompanyMarginBottom();
-
-private slots:
-    void reportPrinterCheck_toggled(bool);
+    int getReportPrinter();
+    int getInvoiceCompanyPrinter();
+    int getReceiptPrinter();
+    int getCollectionPrinter();
 
 private:
 
-    QCheckBox *m_reportPrinterCheck;
     QComboBox *m_reportPrinterCombo;
-    QComboBox *m_paperFormatCombo;
     QComboBox *m_invoiceCompanyPrinterCombo;
-    QComboBox *m_invoiceCompanyPaperFormatCombo;
-    QSpinBox *m_invoiceCompanyMarginLeftSpin;
-    QSpinBox *m_invoiceCompanyMarginRightSpin;
-    QSpinBox *m_invoiceCompanyMarginTopSpin;
-    QSpinBox *m_invoiceCompanyMarginBottomSpin;
+    QComboBox *m_receiptPrinterCombo;
+    QComboBox *m_collectionPrinterCombo;
+
 };
 
-class ReceiptPrinterTab : public Widget
+class CollectionReceiptTab : public Widget
 {
     Q_OBJECT
 
 public:
-    explicit ReceiptPrinterTab(QStringList availablePrinters, QWidget *parent = Q_NULLPTR);
+    explicit CollectionReceiptTab(QWidget *parent = Q_NULLPTR);
 
-    QString getReceiptPrinter();
-    bool getUseReportPrinter();
-    int getNumberCopies();
-    int getpaperWidth();
-    int getpaperHeight();
-    int getmarginLeft();
-    int getmarginRight();
-    int getmarginTop();
-    int getmarginBottom();
+    bool getPrintCollectionReceipt();
+    QString getCollectionReceiptText();
+
+private:
+
+    QCheckBox *m_printCollectionReceiptCheck;
+    QLineEdit *m_collectionReceiptTextEdit;
+
+};
+
+class ReceiptTab : public Widget
+{
+    Q_OBJECT
+
+public:
+    explicit ReceiptTab(QWidget *parent = Q_NULLPTR);
+
+    QString getReceiptPrinterHeading();
+    bool getPrintCompanyNameBold();
+    bool getIsLogoRight();
+    bool getPrintQRCode();
+    bool getPrintQRCodeLeft();
+    QString getLogo();
+    bool getUseLogo();
 
     int getfeedProdukt();
     int getfeedCompanyHeader();
@@ -315,19 +380,20 @@ public:
     int getfeedHeaderText();
     int getfeedQRCode();
 
+private slots:
+    void logoButton_clicked();
+    void useLogoCheck_toggled(bool);
+
 private:
-//    QComboBox *m_paperFormatCombo;
-    QComboBox *m_receiptPrinterCombo;
-    QCheckBox *m_useReportPrinterCheck;
-    QSpinBox *m_fontSizeSpin;
-    QSpinBox *m_grossFontSpin;
-    QSpinBox *m_numberCopiesSpin;
-    QSpinBox *m_paperWidthSpin;
-    QSpinBox *m_paperHeightSpin;
-    QSpinBox *m_marginLeftSpin;
-    QSpinBox *m_marginRightSpin;
-    QSpinBox *m_marginTopSpin;
-    QSpinBox *m_marginBottomSpin;
+    QLineEdit *m_logoEdit;
+    QCheckBox *m_useLogo;
+    QPushButton *m_logoButton;
+
+    QComboBox *m_receiptPrinterHeading;
+    QCheckBox *m_printCompanyNameBoldCheck;
+    QCheckBox *m_useLogoRightCheck;
+    QCheckBox *m_printQRCodeCheck;
+    QCheckBox *m_printQRCodeLeftCheck;
 
     QSpinBox *m_feedProduktSpin;
     QSpinBox *m_feedCompanyHeaderSpin;
@@ -339,47 +405,6 @@ private:
     QSpinBox *m_feedHeaderTextSpin;
     QSpinBox *m_feedQRCodeSpin;
 
-};
-
-class ReceiptTab : public Widget
-{
-    Q_OBJECT
-
-public:
-    explicit ReceiptTab(QStringList availablePrinters, QWidget *parent = Q_NULLPTR);
-
-    QString getReceiptPrinterHeading();
-    bool getPrintCompanyNameBold();
-    QString getCollectionPrinter();
-    QString getCollectionPrinterPaperFormat();
-    bool getPrintCollectionReceipt();
-    QString getCollectionReceiptText();
-    int getCollectionReceiptCopies();
-    bool getIsLogoRight();
-    bool getPrintQRCode();
-    bool getPrintQRCodeLeft();
-    QString getLogo();
-    bool getUseLogo();
-
-private slots:
-    void logoButton_clicked();
-    void useLogoCheck_toggled(bool);
-
-private:
-    QLineEdit *m_logoEdit;
-    QCheckBox *m_useLogo;
-    QPushButton *m_logoButton;
-
-    QComboBox *m_collectionPrinterCombo;
-    QComboBox *m_collectionPrinterPaperFormatCombo;
-    QComboBox *m_receiptPrinterHeading;
-    QCheckBox *m_printCompanyNameBoldCheck;
-    QCheckBox *m_printCollectionReceiptCheck;
-    QLineEdit *m_collectionReceiptTextEdit;
-    QSpinBox  *m_collectionReceiptCopiesSpin;
-    QCheckBox *m_useLogoRightCheck;
-    QCheckBox *m_printQRCodeCheck;
-    QCheckBox *m_printQRCodeLeftCheck;
 };
 
 class ReceiptEnhancedTab : public Widget
@@ -462,6 +487,7 @@ private slots:
     void activateButton_clicked(bool);
 
 private:
+    bool sharedMode();
 
     QComboBox *m_scardReaderComboBox;
     QComboBox *m_providerComboBox;
@@ -472,6 +498,7 @@ private:
     QGroupBox *m_onlineGroup;
     QListWidget *m_infoWidget;
 
+    QCheckBox *m_sharedconnection;
     QrkPushButton *m_scardActivateButton;
 
     RKSignatureModule *m_rkSignature;
@@ -485,7 +512,7 @@ public:
     explicit SettingsDialog(QWidget *parent = Q_NULLPTR);
 
 private slots:
-    void masterTaxChanged(QString);
+    void masterTaxChanged(const QString &tax);
     void accept();
 
 private:
@@ -494,9 +521,14 @@ private:
 
     GeneralTab *m_general;
     MasterDataTab *m_master;
+    PrinterDefinitionTab *m_printerDefinition;
+    PrinterConfigTab *m_printerConfig;
+    CollectionReceiptTab *m_collectiopnReceiptTab;
+
     PrinterTab *m_printer;
-    ReceiptPrinterTab *m_receiptprinter;
     ReceiptMainTab *m_receiptmain;
+    ReportTab *m_report;
+    ReceiptLayoutTab *m_receiptlayout;
     ReceiptTab *m_receipt;
     BarcodeTab *m_barcode;
     ReceiptEnhancedTab *m_receiptenhanced;

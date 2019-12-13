@@ -40,6 +40,7 @@ CONFIG += c++11
 # depend on your compiler). Please consult the documentation of the
 # deprecated API in order to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
+DEFINES += QT_MESSAGELOGCONTEXT
 
 # You can also make your code fail to compile if you use deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -49,6 +50,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 TARGET = qrk
 DESTDIR = ../bin
 
+INCLUDEPATH += $$PWD/qrkgastro
 INCLUDEPATH += $$SRC_DIR/qrkcore
 DEPENDPATH += $$SRC_DIR/qrkcore
 
@@ -87,7 +89,13 @@ SOURCES += main.cpp \
     export/exportproducts.cpp \
     export/checkablelist/checkablelistdialog.cpp \
     export/checkablelist/checkablelistmodel.cpp \
-    import/csvimportwizardpage4.cpp
+    import/csvimportwizardpage4.cpp \
+    manager/categoryedit.cpp \
+    manager/categorywidget.cpp \
+    preferences/relationaltablemodel.cpp \
+    preferences/printerdefinitionedit.cpp \
+    preferences/printersettingedit.cpp \
+    preferences/printerdelegate.cpp
 
 HEADERS  += \
     qsortfiltersqlquerymodel.h \
@@ -125,7 +133,13 @@ HEADERS  += \
     export/checkablelist/checkablelistdialog.h \
     export/checkablelist/checkablelistmodel.h \
     import/csvimportwizardpage4.h \
-    preferences/customtabstyle.h
+    preferences/customtabstyle.h \
+    manager/categoryedit.h \
+    manager/categorywidget.h \
+    preferences/relationaltablemodel.h \
+    preferences/printerdefinitionedit.h \
+    preferences/printersettingedit.h \
+    preferences/printerdelegate.h
 
 FORMS += \
     ui/qrk.ui \
@@ -147,7 +161,11 @@ FORMS += \
     ui/foninfo.ui \
     ui/salesinfo.ui \
     ui/barcodefinder.ui \
-    import/csvimportwizardpage4.ui
+    import/csvimportwizardpage4.ui \
+    manager/categorywidget.ui \
+    manager/categoryedit.ui \
+    preferences/printerdefinitionedit.ui \
+    preferences/printersettingedit.ui
 
 RESOURCES += \
     ../qrk.qrc
@@ -156,6 +174,10 @@ TRANSLATIONS += tr/QRK_en.ts \
     tr/QRK_de.ts \
     tr/QRK_en_US.ts
 
+
+!include("qrkgastro/qrkgastro.pri") {
+    error("Unable to include qrkgastro.")
+}
 
 win32:CONFIG(release, debug|release): LIBS += -L../qrkcore/release -lQrkCore
 else:win32:CONFIG(debug, debug|release): LIBS += -L../qrkcore/debug -lQrkCore

@@ -42,6 +42,7 @@ public:
     bool process(ReceiptItemModel *model, int index, QString barcode);
     QDialog *SettingsDialog();
     QString getPluginName(){return tr("Barcodes");}
+    bool isActivated();
 
 private:
     void setupUi();

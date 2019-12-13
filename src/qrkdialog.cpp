@@ -51,7 +51,7 @@ void QRKDialog::unregisterMandatoryField(QLineEdit* le)
     if (!le || !m_mandatoryFields.contains(le))
         return;
 
-    QObject::disconnect(le, 0, 0, 0);
+    QObject::disconnect(le, Q_NULLPTR, Q_NULLPTR, Q_NULLPTR);
 
     m_mandatoryFields.removeAll(le);
 }
@@ -64,7 +64,7 @@ void QRKDialog::checkLineEdits()
     {
         QLineEdit* le = *iter;
 
-        if (le == NULL)
+        if (le == Q_NULLPTR)
             continue;
 
         if (le->text().isEmpty() || !le->hasAcceptableInput())

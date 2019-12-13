@@ -20,40 +20,36 @@
  *
 */
 
-#ifndef IMPORT_H
-#define IMPORT_H
+#ifndef CATEGORYWIDGET_H_
+#define CATEGORYWIDGET_H_
 
-#include "reports.h"
+#include <QWidget>
 
-class ImportWorker : public Reports
+class QSqlTableModel;
+class QSortFilterProxyModel;
+
+namespace Ui {
+  class CategoryWidget;
+}
+
+class CategoryWidget : public QWidget
 {
-    Q_OBJECT
+  Q_OBJECT
 
-public:
-    ImportWorker(QQueue<QString> &queue, QWidget *parent = 0);
-    ~ImportWorker();
+  public:
+    CategoryWidget(QWidget *parent);
+    ~CategoryWidget();
 
-signals:
-    void finished();
-    void apport(bool);
+  private slots:
+    void filterGroup(const QString &filter);
+    void plusSlot();
+    void minusSlot();
+    void editSlot();
 
-public slots:
-    void process();
-    void stopProcess();
-    void number_error(QString);
-    void database_error(QString);
-
-private:
-    bool loadJSonFile(QString filename);
-    bool importR2B(QJsonObject data);
-    bool importReceipt(QJsonObject data);
-    bool importAny(QJsonObject data);
-    bool importTagged(QJsonObject data);
-    bool fileMover(QString filename, QString ext);
-
-    QQueue<QString> *m_queue;
-    bool m_isStopped;
-
+  private:
+    Ui::CategoryWidget *ui;
+    QSqlTableModel *m_model;
+    QSortFilterProxyModel *m_proxyModel;
 };
 
-#endif // IMPORT_H
+#endif

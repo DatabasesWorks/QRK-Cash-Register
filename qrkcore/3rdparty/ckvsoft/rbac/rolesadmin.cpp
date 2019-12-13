@@ -280,7 +280,7 @@ void RolesAdmin::manageRolePermissions()
         QButtonGroup *buttonGroupRoles;
         buttonGroupRoles = new QButtonGroup(widget);
 
-        int id = value.value("ID").toInt();
+        id = value.value("ID").toInt();
 
         QLabel *roleLabel = new QLabel(widget);
         roleLabel->setWordWrap(true);

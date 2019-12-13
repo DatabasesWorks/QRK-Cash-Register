@@ -46,28 +46,28 @@ class QRKDocument : public QWidget
     void cancelDocumentButton();
     void documentButton_clicked();
 
-  public slots:
-
   private slots:
     void onCancellationButton_clicked();
     void onPrintcopyButton_clicked(bool = false);
     void onInvoiceCompanyButton_clicked();
     void sortChanged();
-    void cancelDocumentButton_clicked();
-
+    void toogleButton_clicked();
 
   protected slots:
     void onDocumentSelectionChanged(const QItemSelection &, const QItemSelection &);
+    void cancelDocumentButton_clicked();
+
 
   private:
     Ui::QRKDocument *ui;
-    QSqlQueryModel *m_documentContentModel;
-    QSortFilterSqlQueryModel *m_documentListModel;
+    QSqlQueryModel *m_documentContentModel = Q_NULLPTR;
+    QSortFilterSqlQueryModel *m_documentListModel = Q_NULLPTR;
 
     int m_currentReceipt;
     bool m_receiptPrintDialog;
     bool m_servermode;
     bool m_hiddeproductnumber;
+    bool m_report_by_productgroup = false;
 };
 
 #endif // QRKDOCUMENT_H

@@ -57,7 +57,7 @@
      <x>0</x>
      <y>0</y>
      <width>1024</width>
-     <height>25</height>
+     <height>32</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuDatei">
@@ -233,7 +233,7 @@
   </action>
   <action name="exportProducts_CSV">
    <property name="text">
-    <string>Artikel als Csv</string>
+    <string>Artikel als &amp;Csv</string>
    </property>
   </action>
  </widget>

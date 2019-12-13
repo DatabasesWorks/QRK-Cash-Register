@@ -47,6 +47,7 @@ class QRKHome : public QWidget
 
   signals:
     void registerButton_clicked();
+    void gregisterButton_clicked();
     void documentButton_clicked();
     void productmanagerButton_clicked();
     void usermanagerButton_clicked();

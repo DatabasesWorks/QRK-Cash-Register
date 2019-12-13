@@ -57,6 +57,7 @@ private:
 
     QQueue<QString> *m_queue;
     bool m_isStopped;
+    int m_transaction = 0;
 
 };
 

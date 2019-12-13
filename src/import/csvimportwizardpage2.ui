@@ -190,7 +190,11 @@
                </widget>
               </item>
               <item>
-               <widget class="QSpinBox" name="autoitemnumSpinBox"/>
+               <widget class="QLongLongSpinBox" name="autoitemnumSpinBox">
+                <property name="maximum">
+                 <number>999999999</number>
+                </property>
+               </widget>
               </item>
              </layout>
             </item>
@@ -261,6 +265,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QLongLongSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>3rdparty/ckvsoft/qlonglongspinbox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
  <buttongroups>

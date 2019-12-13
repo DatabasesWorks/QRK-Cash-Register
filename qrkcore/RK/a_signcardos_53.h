@@ -41,7 +41,7 @@ class QRK_EXPORT ASignCARDOS_53 : public ASignSmardCard
 {
 
 public:
-    ASignCARDOS_53(QString device_name);
+    ASignCARDOS_53(QString device_name, bool shared);
     ~ASignCARDOS_53();
 
     QString signReceipt(QString data);

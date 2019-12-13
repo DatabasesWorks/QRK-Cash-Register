@@ -77,6 +77,12 @@ void FlowLayout::addItem(QLayoutItem *item)
     itemList.append(item);
 }
 
+void FlowLayout::insertWidget(int index, QWidget *w)
+{
+    QLayout::addChildWidget(w);
+    this->itemList.insert(index, new QWidgetItem(w));
+}
+
 int FlowLayout::horizontalSpacing() const
 {
     if (m_hSpace >= 0)
@@ -108,12 +114,12 @@ QLayoutItem *FlowLayout::takeAt(int index)
     if (index >= 0 && index < itemList.size())
         return itemList.takeAt(index);
     else
-        return 0;
+        return Q_NULLPTR;
 }
 
 Qt::Orientations FlowLayout::expandingDirections() const
 {
-    return 0;
+    return Q_NULLPTR;
 }
 
 bool FlowLayout::hasHeightForWidth() const
@@ -168,11 +174,11 @@ int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
 
         if (spaceX == -1)
             spaceX = wid->style()->layoutSpacing(
-                         QSizePolicy::PushButton, QSizePolicy::PushButton, Qt::Horizontal);
+                        QSizePolicy::PushButton, QSizePolicy::PushButton, Qt::Horizontal);
         int spaceY = verticalSpacing();
         if (spaceY == -1)
             spaceY = wid->style()->layoutSpacing(
-                         QSizePolicy::PushButton, QSizePolicy::PushButton, Qt::Vertical);
+                        QSizePolicy::PushButton, QSizePolicy::PushButton, Qt::Vertical);
 
         int nextX = x + item->sizeHint().width() + spaceX;
         if (nextX - spaceX > effectiveRect.right() && lineHeight > 0) {
@@ -199,7 +205,7 @@ int FlowLayout::smartSpacing(QStyle::PixelMetric pm) const
         return -1;
     } else if (parent->isWidgetType()) {
         QWidget *pw = static_cast<QWidget *>(parent);
-        return pw->style()->pixelMetric(pm, 0, pw);
+        return pw->style()->pixelMetric(pm, Q_NULLPTR, pw);
     } else {
         return static_cast<QLayout *>(parent)->spacing();
     }

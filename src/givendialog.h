@@ -26,6 +26,8 @@
 #include <QDialog>
 #include <QMap>
 
+class NumericKeypad;
+
 namespace Ui {
 class GivenDialog;
 }
@@ -44,9 +46,11 @@ private slots:
     void textChanged(QString);
     void mixedButton();
     void mixedPay(int id, bool checked);
+    void numPadToogle(bool);
 
 private:
     Ui::GivenDialog *ui;
+    NumericKeypad *m_numericKeyPad = Q_NULLPTR;
     double getGivenValue();
     void resetGiven();
     void setLCDPalette(QColor color);

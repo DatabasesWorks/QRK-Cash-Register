@@ -29,12 +29,13 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QSqlError>
 #include <QDateTime>
 #include <QDebug>
 
-Acl::Acl(QObject *parent) : QObject(parent)
+Acl::Acl(QObject *parent) : QObject(parent), m_timeout(QDateTime::currentDateTime())
 {
-    m_timeout = QDateTime::currentDateTime();
+
     m_timer = new QTimer (this);
     connect (m_timer, &QTimer::timeout, this, &Acl::resetTempUserId);
     m_timer->start(1000);
@@ -171,7 +172,7 @@ QMap<QString, QMap<QString, QVariant> > Acl::getRolePerms(QStringList roleid)
         //query.bindValue(":roleids", join);
     } else if (roleid.count() == 1) {
         query.prepare("SELECT * FROM role_perms WHERE roleID = :roleid ORDER BY ID ASC");
-        query.bindValue(":roleid", (roleid.count() > 0) ? roleid[0] : "-1");
+        query.bindValue(":roleid", roleid[0]);
     }
 
     query.exec();
@@ -480,14 +481,16 @@ bool Acl::userHasRole(int id)
 
 bool Acl::hasPermission(QString permKey, bool allowtempuser)
 {
+
+    permKey = permKey.toLower();
+    if (!existPermission(permKey))
+        insertPermission(permKey);
+
     if (m_userId == 0 || m_masteradmin)
         return true;
 
 
     bool access = false;
-    permKey = permKey.toLower();
-    if (!existPermission(permKey))
-        insertPermission(permKey);
 
     if (m_perms.contains(permKey))
         access = m_perms.value(permKey).value("value").toBool();
@@ -531,15 +534,16 @@ bool Acl::insertPermission(QString perm)
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
-    query.prepare("INSERT INTO `permissions` (ID,permKey,permName) VALUES (,:perm,:autoperm)");
+    query.prepare("INSERT INTO `permissions` (permKey,permName) VALUES (:perm,:autoperm)");
     query.bindValue(":perm", perm);
     query.bindValue(":autoperm", "added by QRK: " + perm);
-    query.exec();
-    if (query.next()) {
-        return true;
+    bool ok = query.exec();
+    if (!ok) {
+        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
+        qDebug() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
     }
 
-    return false;
+    return ok;
 }
 
 void Acl::saveUser(User *user, int &id)
@@ -634,24 +638,33 @@ void Acl::deleteUser(QString &name, int id)
     QSqlQuery query(dbc);
 
     bool ok;
-    query.prepare("DELETE FROM users WHERE ID = :id AND username = :name LIMIT 1");
+    query.prepare("DELETE FROM users WHERE ID = :id AND username = :name");
     query.bindValue(":id", id);
     query.bindValue(":name", name);
     ok = query.exec();
-    if (!ok)
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " DELETE FROM users: " << ok;
+    if (!ok) {
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " DELETE FROM users: " << ok;
+        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
+        qDebug() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
+    }
 
     query.prepare("DELETE FROM user_roles WHERE userID = :id");
     query.bindValue(":id", id);
     ok = query.exec();
-    if (!ok)
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " DELETE FROM user_roles: " << ok;
+    if (!ok) {
+        qDebug() << "Function Name: " << Q_FUNC_INFO << " DELETE FROM user_roles: " << ok;
+        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
+        qDebug() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
+    }
 
     query.prepare("DELETE FROM user_perms WHERE userID = :id");
     query.bindValue(":id", id);
     query.exec();
-    if (!ok)
+    if (!ok) {
         qWarning() << "Function Name: " << Q_FUNC_INFO << " DELETE FROM user_perms: " << ok;
+        qDebug() << "Function Name: " << Q_FUNC_INFO << Database::getLastExecutedQuery(query);
+        qDebug() << "Function Name: " << Q_FUNC_INFO << query.lastError().text();
+    }
 }
 
 void Acl::saveRole(QString &name, int &id, QMap<QString, QMap<QString, QVariant> > &rolePerms)
@@ -708,7 +721,7 @@ void Acl::deleteRole(QString &name, int id)
     QSqlQuery query(dbc);
 
     bool ok;
-    query.prepare("DELETE FROM roles WHERE ID = :id AND roleName = :name LIMIT 1");
+    query.prepare("DELETE FROM roles WHERE ID=:id AND roleName=:name");
     query.bindValue(":id", id);
     query.bindValue(":name", name);
     ok = query.exec();

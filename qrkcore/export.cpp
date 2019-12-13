@@ -97,7 +97,8 @@ QJsonArray Export::getReceipts(int from, int to)
 
     while (query.next()) {
         i++;
-        Spread::Instance()->setProgressBarValue(((float)i / (float)count) * 100);
+        Spread::Instance()->setProgressBarValue(int((float(i) / float(count)) * 100));
+
         receipts.append(query.value(0).toString());
     }
 

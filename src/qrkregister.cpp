@@ -32,10 +32,12 @@
 #include "pluginmanager/pluginmanager.h"
 #include "qrkprogress.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
-#include "3rdparty/ckvsoft/flowlayout.h"
 #include "3rdparty/ckvsoft/headerview.h"
+#include "3rdparty/ckvsoft/drag/dragflowwidget.h"
+#include "3rdparty/ckvsoft/buttoncolumndelegate.h"
 #include "barcodefinder.h"
 #include "qrkmultimedia.h"
+#include "3rdparty/ckvsoft/texteditdialog.h"
 #include "ui_qrkregister.h"
 
 #include <QSqlQuery>
@@ -60,8 +62,7 @@ QRKRegister::QRKRegister(QWidget *parent)
     ui->setupUi(this);
     ui->numericKeyPad->setHidden(true);
 
-    if ( QApplication::desktop()->width() < 1200 )
-    {
+    if ( QApplication::desktop()->width() < 1200 ) {
         ui->cancelRegisterButton->setMinimumWidth(0);
         ui->cashReceipt->setMinimumWidth(0);
         ui->creditcardReceipt->setMinimumWidth(0);
@@ -71,7 +72,7 @@ QRKRegister::QRKRegister(QWidget *parent)
         ui->receiptToInvoice->setMinimumWidth(0);
         ui->checkReceiptButton->setMinimumWidth(0);
         ui->receiptToInvoice->setMinimumWidth(0);
-        ui->catregoriePushButton->setMinimumWidth(0);
+        ui->categoriePushButton->setMinimumWidth(0);
     }
 
     ui->checkReceiptButton->setToolTip(tr("Erstellt einen NULL (Kontroll) Beleg für den Prüfer vom BMF"));
@@ -103,6 +104,7 @@ QRKRegister::QRKRegister(QWidget *parent)
     connect(ui->buttonGroup, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &QRKRegister::onButtonGroup_payNow_clicked);
 
     m_orderListModel = new ReceiptItemModel(this);
+    connect(m_orderListModel, &ReceiptItemModel::futureTimeDedected,this, &QRKRegister::futureTimeDedected);
 
     connect(ui->barcodeLineEdit, &QLineEdit::editingFinished, this, &QRKRegister::barcodeChangedSlot);
 
@@ -110,14 +112,10 @@ QRKRegister::QRKRegister(QWidget *parent)
     connect(m_orderListModel, &ReceiptItemModel::finishedItemChanged, this, &QRKRegister::finishedItemChanged);
     connect(m_orderListModel, &ReceiptItemModel::finishedPlus, this, &QRKRegister::finishedPlus);
     connect(m_orderListModel, &ReceiptItemModel::singlePriceChanged, this, &QRKRegister::singlePriceChanged, Qt::DirectConnection);
+    connect(m_orderListModel, &ReceiptItemModel::impossibleTotalPrice, this, &QRKRegister::impossibleTotalPrice, Qt::DirectConnection);
 
-    ui->scrollAreaProducts->setHidden(true);
     ui->splitter->setCollapsible(0, false);
     ui->splitter->setSizes(QList<int>({0, 0}));
-
-    connect(ui->catregoriePushButton, &QPushButton::clicked, this, &QRKRegister::categoryButton);
-    connect(ui->upPushButton, &QPushButton::clicked, this, &QRKRegister::upPushButton);
-    connect(ui->downPushButton, &QPushButton::clicked, this, &QRKRegister::downPushButton);
 
     connect(ui->splitter, &QSplitter::splitterMoved, this, &QRKRegister::splitterMoved);
     connect(ui->numericKeyPad, &NumericKeypad::valueButtonPressed, this, &QRKRegister::numPadValueButtonPressed);
@@ -130,13 +128,17 @@ QRKRegister::QRKRegister(QWidget *parent)
     ui->orderList->setHorizontalHeader(new HeaderView(this));
 
     connect(ui->orderList->horizontalHeader(), &QHeaderView::sectionMoved, this, &QRKRegister::writeHeaderColumnSettings);
+    connect(ui->orderList, &QTableView::clicked, this, &QRKRegister::columnClicked);
+
+    connect(ui->upPushButton, &QPushButton::clicked, ui->QuickButtons, &QrkQuickButtons::upPushButton);
+    connect(ui->downPushButton, &QPushButton::clicked, ui->QuickButtons, &QrkQuickButtons::downPushButton);
+    connect(ui->QuickButtons, &QrkQuickButtons::addProductToOrderList, this, &QRKRegister::addProductToOrderList, Qt::QueuedConnection);
+    connect(ui->categoriePushButton, &QPushButton::clicked, ui->QuickButtons, &QrkQuickButtons::backToMiddleButton);
+    connect(ui->QuickButtons, &QrkQuickButtons::showCategoriePushButton, ui->categoriePushButton, &QPushButton::setVisible);
+    connect(ui->QuickButtons, &QrkQuickButtons::enableCategoriePushButton, ui->categoriePushButton, &QPushButton::setEnabled);
 
     ui->orderList->installEventFilter(this);
-//    ui->orderList->horizontalHeader()->setSectionsClickable(true);
-//    ui->orderList->horizontalHeader()->setSectionsMovable(true);
-//    ui->orderList->horizontalHeader()->installEventFilter(this);
-//    connect(ui->orderList->horizontalHeader(), &QHeaderView::entered, this, SLOT(changeCursor(QModelIndex)));
-    // ui->orderList->horizontalHeader()->viewport()->setCursor(Qt::DragMoveCursor);
+
     readSettings();
 
 }
@@ -168,8 +170,17 @@ bool QRKRegister::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::KeyPress) {
         QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
-        if (keyEvent->key() == Qt::Key_Return && m_barcodeInputLineEditDefault)
-            ui->barcodeLineEdit->setFocus();
+
+        if (keyEvent->key() == Qt::Key_Return && m_barcodeInputLineEditDefault) {
+            QTableView *v = static_cast<QTableView *>(obj);
+            bool canSetFocus = true;
+            if (v) {
+                int col = v->currentIndex().column();
+                canSetFocus = (col != REGISTER_COL_SINGLE) && (col != REGISTER_COL_TOTAL);
+            }
+           if (canSetFocus)
+               ui->barcodeLineEdit->setFocus();
+        }
 
         if(keyEvent->key() == m_barcodeReaderPrefix) {
             ui->barcodeLineEdit->setFocus();
@@ -208,6 +219,7 @@ void QRKRegister::init()
     ui->orderList->setModel(m_orderListModel);
 
     m_useDiscount = settings.value("useDiscount", false).toBool();
+    m_orderListModel->setUseDiscount(m_useDiscount);
     ui->numericKeyPad->discountButtonSetEnabled(m_useDiscount);
     ui->numericKeyPad->setVisible(settings.value("virtualNumPad", false).toBool());
 
@@ -221,6 +233,7 @@ void QRKRegister::init()
     m_minstockDialog = settings.value("useMinstockDialog", false).toBool();
     m_useInputProductNumber = settings.value("useInputProductNumber", false).toBool();
     m_registerHeaderMoveable = settings.value("saveRegisterHeaderGeo", false).toBool();
+    m_optionalDescription = settings.value("optionalDescription", false).toBool();
     ui->orderList->horizontalHeader()->setSectionsMovable(m_registerHeaderMoveable);
 
     settings.beginGroup("BarcodeReader");
@@ -234,11 +247,8 @@ void QRKRegister::init()
     else
         ui->checkReceiptButton->setVisible(false);
 
-    m_quickButtonSize = settings.value("quickButtonSize", QSize(150, 80)).toSize();
-
     readSettings();
-
-    quickGroupButtons();
+    emit ui->QuickButtons->refresh();
 
 }
 
@@ -253,64 +263,6 @@ void QRKRegister::safetyDevice(bool active)
     }
 }
 
-void QRKRegister::quickGroupButtons()
-{
-
-    m_buttonGroupGroups = new QButtonGroup(this);
-
-    QSqlDatabase dbc = Database::database();
-    QSqlQuery query(dbc);
-
-    bool ok = query.prepare("SELECT id, name, color FROM groups WHERE visible=1");
-
-    if (!ok) {
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
-    }
-
-    query.exec();
-
-    QWidget *widget = new QWidget(this);
-    widget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-    FlowLayout *flowLayout = new FlowLayout(widget);
-
-    while (query.next()) {
-
-        QString pbText = query.value(1).toString();
-        QrkPushButton *pb = new QrkPushButton(ui->scrollArea);
-        pb->setFixedSize(m_quickButtonSize);
-        pb->setText(Utils::wordWrap(pbText, pb->width() - 8, pb->font()));
-
-        QString backgroundColor = (query.value(2).toString() == "")? "#808080":query.value(2).toString();
-        QString best_contrast = Utils::color_best_contrast(backgroundColor);
-
-        pb->setStyleSheet(
-                    "QPushButton {"
-                    "margin: 3px;"
-                    "border-color: black;"
-                    "border-style: outset;"
-                    "border-radius: 3px;"
-                    "border-width: 1px;"
-                    "color: " + best_contrast + ";"
-                                                "background-color: " + backgroundColor + ";" // qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 " + backgroundColor + ", stop: 1 #0d5ca6);"
-                    "}"
-                    "QPushButton:pressed {"
-                    "background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 " + backgroundColor + ");"
-                                                                                                                                  "}"
-                    );
-
-        qApp->processEvents();
-        m_buttonGroupGroups->addButton(pb,query.value(0).toInt());
-        flowLayout->addWidget(pb);
-
-    }
-
-    flowLayout->setAlignment(Qt::AlignTop);
-    widget->setLayout(flowLayout);
-    ui->scrollArea->setWidget(widget);
-    connect(m_buttonGroupGroups, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &QRKRegister::quickProductButtons);
-
-}
 
 void QRKRegister::numPadValueButtonPressed(const QString &text, REGISTER_COL column)
 {
@@ -359,121 +311,6 @@ void QRKRegister::barcodeFinderButton_clicked(bool)
 
 }
 
-void QRKRegister::categoryButton(bool clicked)
-{
-    Q_UNUSED(clicked);
-    ui->catregoriePushButton->setEnabled(false);
-    ui->scrollAreaProducts->setHidden(true);
-    ui->scrollArea->setHidden(false);
-}
-
-void QRKRegister::quickProductButtons(int id)
-{
-
-    ui->catregoriePushButton->setEnabled(true);
-    ui->scrollArea->setHidden(true);
-    ui->scrollAreaProducts->setHidden(false);
-    m_buttonGroupProducts = new QButtonGroup(this);
-
-    QSqlDatabase dbc = Database::database();
-    QSqlQuery query(dbc);
-
-    bool ok = query.prepare(QString("SELECT color FROM groups WHERE id=%1").arg(id));
-    query.exec();
-    QString bordercolor = "#808080";
-    if (query.next())
-        bordercolor = (query.value("color").toString() == "")?bordercolor: query.value(0).toString();
-
-    ok = query.prepare(QString("SELECT id, name, gross, color FROM products WHERE groupid=%1 AND visible=1 ORDER by name").arg(id));
-
-    if (!ok) {
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
-        qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
-    }
-
-    query.exec();
-
-    QWidget *widget = new QWidget(this);
-    widget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-    FlowLayout *flowLayout = new FlowLayout(widget);
-
-    /*
-    int rows = ui->scrollAreaProducts->height() / 150;
-
-    int h = 1.0*(ui->scrollAreaProducts->height() - flowLayout->verticalSpacing() *(rows+1.6))/rows;
-    int wCorrected = h*rows + flowLayout->verticalSpacing()*(rows+2);
-    ui->scrollAreaProducts->setFixedHeight(wCorrected);
-*/
-
-    // backward button
-    QrkPushButton *pb = new QrkPushButton();
-    pb->setIcon(QIcon(":src/icons/backward.png"));
-    pb->setIconSize(m_quickButtonSize / 2);
-    pb->setFixedSize(m_quickButtonSize);
-
-    pb->setStyleSheet(
-                "QPushButton {"
-                "margin: 1px;"
-                "border-color: " + bordercolor + ";"
-                                                 "border-style: outset;"
-                                                 "border-radius: 3px;"
-                                                 "border-width: 1px;"
-                                                 "background-color: " + bordercolor + ";" // qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 " + backgroundColor + ", stop: 1 #0d5ca6);"
-                "}"
-                );
-
-    connect(pb,&QPushButton::clicked,this,&QRKRegister::categoryButton);
-
-    flowLayout->addWidget(pb);
-
-    while (query.next())
-    {
-
-        QrkPushButton *pb = new QrkPushButton();
-        //        pb->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-
-        pb->setFixedSize(m_quickButtonSize);
-
-        QString pbText = Utils::wordWrap(query.value("name").toString(), pb->width() - 8, pb->font());
-        pbText = QString("%1\n %2 %3")
-                .arg(pbText)
-                .arg(QLocale().toString(query.value("gross").toDouble(),'f',2))
-                .arg(Database::getShortCurrency());
-
-        pb->setText(pbText);
-        //        pb->setMinimumSize(pb->sizeHint());
-
-        QString backgroundcolor = (query.value("color").toString() == "")?bordercolor: query.value(3).toString();
-
-        QString best_contrast = Utils::color_best_contrast(backgroundcolor);
-
-        pb->setStyleSheet(
-                    "QPushButton {"
-                    "margin: 3px;"
-                    "border-color: " + bordercolor + ";"
-                                                     "border-style: outset;"
-                                                     "border-radius: 3px;"
-                                                     "border-width: 1px;"
-                                                     "color: " + best_contrast + ";"
-                                                                                 "background-color: " + backgroundcolor + ";" // qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 " + backgroundColor + ", stop: 1 #0d5ca6);"
-                    "}"
-                    "QPushButton:pressed {"
-                    "background-color: " + bordercolor +";" // qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 " + backgroundColor + ");"
-                    "}"
-                    );
-
-        m_buttonGroupProducts->addButton(pb,query.value("id").toInt());
-
-        flowLayout->addWidget(pb);
-    }
-
-    flowLayout->setAlignment(Qt::AlignTop);
-    widget->setLayout(flowLayout);
-    ui->scrollAreaProducts->setWidget(widget);
-    connect(m_buttonGroupProducts, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &QRKRegister::addProductToOrderList, Qt::QueuedConnection);
-
-}
-
 void QRKRegister::addProductToOrderList(int id)
 {
     setFocus();
@@ -510,7 +347,7 @@ void QRKRegister::addProductToOrderList(int id)
                     count += 1;
                 count.round(m_decimaldigits);
                 m_orderListModel->item(row, REGISTER_COL_COUNT)->setText( count.toString() );
-//                QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
+                //                QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
                 QModelIndex idx = m_orderListModel->index(row, ui->orderList->horizontalHeader()->logicalIndex(0));
 
                 if (!m_barcodeInputLineEditDefault) {
@@ -547,7 +384,7 @@ void QRKRegister::addProductToOrderList(int id)
         m_orderListModel->item(rc -1, REGISTER_COL_SINGLE)->setText( query.value("gross").toString() );
 
         if (!m_barcodeInputLineEditDefault) {
-//            QModelIndex idx = m_orderListModel->index(rc -1, REGISTER_COL_COUNT);
+            //            QModelIndex idx = m_orderListModel->index(rc -1, REGISTER_COL_COUNT);
             QModelIndex idx = m_orderListModel->index(rc - 1, ui->orderList->horizontalHeader()->logicalIndex(0));
             ui->orderList->selectionModel()->setCurrentIndex(idx, QItemSelectionModel::NoUpdate);
         } else {
@@ -685,9 +522,8 @@ void QRKRegister::newOrder()
                     retourMoneyText = tr("Rückgeld: %1 %2").arg(retourMoney.toLocale()).arg(Database::getCurrency());
                     if (secondPay == 0.0) givenText = tr("Gegeben: %1 %2").arg(given.toLocale()).arg(Database::getCurrency());
                 }
-                QString secondText = "";
                 if (secondPay > 0.0) {
-                    secondText = tr("%1: %2 %3").arg(givenMap.lastKey() == PAYED_BY_DEBITCARD?tr("Bankomat"):tr("Kreditkarte")).arg(secondPay.toLocale()).arg(Database::getCurrency());
+                    QString secondText = tr("%1: %2 %3").arg(givenMap.lastKey() == PAYED_BY_DEBITCARD?tr("Bankomat"):tr("Kreditkarte")).arg(secondPay.toLocale()).arg(Database::getCurrency());
                     payedByText = tr("Mischzahlung %1 %2\t%3 %4").arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()).arg(givenText).arg(secondText);
                 } else {
                     payedByText = tr("%1 %2 %3\t%4 %5").arg(taxName).arg(QLocale().toString(gross, 'f', 2)).arg(Database::getCurrency()).arg(givenText).arg(retourMoneyText);
@@ -719,6 +555,7 @@ void QRKRegister::newOrder()
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_SINGLE, new QrkDelegate (QrkDelegate::NUMBERFORMAT_DOUBLE, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_DISCOUNT, new QrkDelegate (QrkDelegate::DISCOUNT, this));
     ui->orderList->setItemDelegateForColumn(REGISTER_COL_TOTAL, new QrkDelegate (QrkDelegate::NUMBERFORMAT_DOUBLE, this));
+    ui->orderList->setItemDelegateForColumn(REGISTER_COL_DESCBUTTON, new ButtonColumnDelegate(":src/icons/textfield.png", this));
 
     readHeaderColumnSettings();
 
@@ -726,6 +563,7 @@ void QRKRegister::newOrder()
     ui->orderList->setColumnHidden(REGISTER_COL_NET, !m_useInputNetPrice);
     ui->orderList->setColumnHidden(REGISTER_COL_DISCOUNT, !m_useDiscount);
     ui->orderList->setColumnHidden(REGISTER_COL_PRODUCTNUMBER, !m_useInputProductNumber);
+    ui->orderList->setColumnHidden(REGISTER_COL_DESCBUTTON, !m_optionalDescription);
     ui->orderList->setColumnHidden(REGISTER_COL_SAVE, true); /* TODO: Make usable and add code to Settings */
 
     ui->orderList->setColumnHidden(REGISTER_COL_TAX, m_orderlistTaxColumnHidden);
@@ -846,7 +684,7 @@ void QRKRegister::finishedPlus()
 
     ui->plusButton->setEnabled(true);
 
-//    QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
+    //    QModelIndex idx = m_orderListModel->index(row, REGISTER_COL_COUNT);
     QModelIndex idx = m_orderListModel->index(row, ui->orderList->horizontalHeader()->logicalIndex(0));
 
     if (!m_barcodeInputLineEditDefault) {
@@ -907,11 +745,11 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
 
     setButtonGroupEnabled(false);
 
-    QDate date;
-    date = QDate::currentDate();
+    QDateTime dateTime;
+    dateTime = QDateTime::currentDateTime();
 
     Reports rep;
-    bool ret = rep.checkEOAny(date);
+    bool ret = rep.checkEOAny(dateTime);
     if (!ret) {
         setButtonGroupEnabled(true);
         return;
@@ -958,6 +796,7 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
     bool sql_ok = true;
     if ( m_currentReceipt ) {
         if ( m_orderListModel->createOrder() ) {
+            m_orderListModel->setR2B(m_isR2B);
             if ( finishReceipts(payedBy) ){
                 emit finishedReceipt();
             } else {
@@ -986,10 +825,10 @@ void QRKRegister::onButtonGroup_payNow_clicked(int payedBy)
         QStringList stockList = Database::getStockInfoList();
         if (m_minstockDialog && stockList.count() > 0) {
             QMessageBox messageBox(QMessageBox::Information,
-                                          tr("Lagerbestand"),
-                                          tr("Mindestbestand wurde erreicht oder unterschritten!"),
-                                          QMessageBox::Yes | QMessageBox::Default
-                                          );
+                                   tr("Lagerbestand"),
+                                   tr("Mindestbestand wurde erreicht oder unterschritten!"),
+                                   QMessageBox::Yes | QMessageBox::Default
+                                   );
 
             messageBox.setDefaultButton(QMessageBox::Yes);
             messageBox.setButtonText(QMessageBox::Yes, tr("OK"));
@@ -1080,9 +919,12 @@ void QRKRegister::setCurrentReceiptNum(int id)
 
 void QRKRegister::onCancelRegisterButton_clicked()
 {
+
     emit sendDatagram("cancelregister", "");
+    emit ui->QuickButtons->backToMiddleButton(true);
 
     writeSettings();
+
 
     if (m_orderListModel->rowCount() > 0 ) {
         if (m_orderListModel->item(0, REGISTER_COL_PRODUCT)->text() == "") {
@@ -1129,11 +971,16 @@ void QRKRegister::initPlugins()
     if (!barcodesInterface) {
         barcodesInterface = qobject_cast<BarcodesInterface *>(PluginManager::instance()->getObjectByName("BarCodes"));
         if (barcodesInterface) {
-            connect(barcodesInterface, &BarcodesInterface::minusSlot, this, &QRKRegister::minusSlot, Qt::DirectConnection);
-            connect(barcodesInterface, &BarcodesInterface::setColumnHidden, this, &QRKRegister::setColumnHidden, Qt::DirectConnection);
-            connect(barcodesInterface, &BarcodesInterface::finishedReceipt, this, &QRKRegister::finishedReceipt, Qt::DirectConnection);
+            if (barcodesInterface->isActivated()) {
+                connect(barcodesInterface, &BarcodesInterface::minusSlot, this, &QRKRegister::minusSlot, Qt::DirectConnection);
+                connect(barcodesInterface, &BarcodesInterface::setColumnHidden, this, &QRKRegister::setColumnHidden, Qt::DirectConnection);
+                connect(barcodesInterface, &BarcodesInterface::finishedReceipt, this, &QRKRegister::finishedReceipt, Qt::DirectConnection);
+            } else {
+                delete barcodesInterface;
+                barcodesInterface = Q_NULLPTR;
+            }
         }
-    }
+    }    
 }
 
 void QRKRegister::writeSettings()
@@ -1170,12 +1017,12 @@ void QRKRegister::readSettings()
     settings.beginGroup("Register");
     ui->splitter->restoreGeometry(settings.value("splitterGeometry").toByteArray());
     ui->splitter->restoreState(settings.value("splitterState").toByteArray());
+
     m_orderlistTaxColumnHidden = settings.value("TaxColumnHidden", false).toBool();
     m_orderlistSinglePriceColumnHidden = settings.value("SinglePriceColumnHidden", false).toBool();
 
     ui->orderList->horizontalHeader()->restoreGeometry(settings.value("HorizontalHeaderColumnGeo").toByteArray());
     ui->orderList->horizontalHeader()->restoreState(settings.value("HorizontalHeaderColumnSta").toByteArray());
-
     settings.endGroup();
 
     setButtonsHidden();
@@ -1217,57 +1064,62 @@ void QRKRegister::splitterMoved(int pos, int)
 void QRKRegister::setButtonsHidden()
 {
     if (ui->splitter->sizes().at(1) == 0){
-        ui->catregoriePushButton->setHidden(true);
+        ui->categoriePushButton->setHidden(true);
         ui->upPushButton->setHidden(true);
         ui->downPushButton->setHidden(true);
     } else {
-        ui->catregoriePushButton->setHidden(false);
+        ui->categoriePushButton->setHidden(false);
         ui->upPushButton->setHidden(false);
         ui->downPushButton->setHidden(false);
     }
 }
 
-void QRKRegister::upPushButton(bool clicked)
+void QRKRegister::columnClicked(const QModelIndex &idx)
 {
-    Q_UNUSED(clicked);
-    int value = (ui->scrollArea->isHidden())? ui->scrollAreaProducts->verticalScrollBar()->value():ui->scrollArea->verticalScrollBar()->value();
-    int pagestep = (ui->scrollArea->isHidden())? ui->scrollAreaProducts->verticalScrollBar()->pageStep(): ui->scrollArea->verticalScrollBar()->pageStep();
-    if (ui->scrollArea->isHidden())
-        ui->scrollAreaProducts->verticalScrollBar()->setValue(value - pagestep);
-    else
-        ui->scrollArea->verticalScrollBar()->setValue(value - pagestep);
-}
-
-void QRKRegister::downPushButton(bool clicked)
-{
-    Q_UNUSED(clicked);
-    int value = (ui->scrollArea->isHidden())? ui->scrollAreaProducts->verticalScrollBar()->value():ui->scrollArea->verticalScrollBar()->value();
-    int pagestep = (ui->scrollArea->isHidden())? ui->scrollAreaProducts->verticalScrollBar()->pageStep(): ui->scrollArea->verticalScrollBar()->pageStep();
-    if (ui->scrollArea->isHidden())
-        ui->scrollAreaProducts->verticalScrollBar()->setValue(value + pagestep);
-    else
-        ui->scrollArea->verticalScrollBar()->setValue(value + pagestep);
+    if (idx.column() == REGISTER_COL_DESCBUTTON) {
+        qDebug() << idx;
+        QString data = m_orderListModel->data(idx, CUSTOMDATAROLE::CUSTOMDATA).toString();
+        TextEditDialog ted(this);
+        ted.setText(data);
+        if (ted.exec() == QDialog::Accepted) {
+            data = ted.getText();
+            m_orderListModel->setData(idx, data, CUSTOMDATAROLE::CUSTOMDATA);
+        }
+        if (m_barcodeInputLineEditDefault)
+            ui->barcodeLineEdit->setFocus();
+    }
 }
 
 void QRKRegister::singlePriceChanged(QString product, QString singleprice, QString tax)
 {
-    if (!m_usePriceChangedDialog)
+    if (!m_usePriceChangedDialog) {
+        if (m_barcodeInputLineEditDefault)
+            ui->barcodeLineEdit->setFocus();
         return;
+    }
 
-    if (!Database::exists(product))
-            return;
+    if (!Database::exists(product)) {
+        if (m_barcodeInputLineEditDefault)
+            ui->barcodeLineEdit->setFocus();
+        return;
+    }
 
     QJsonObject data = Database::getProductByName(product);
-    if (data.isEmpty())
+    if (data.isEmpty()) {
+        if (m_barcodeInputLineEditDefault)
+            ui->barcodeLineEdit->setFocus();
         return;
-
+    }
 
     QBCMath oldTax = data["tax"].toDouble();
     oldTax.round(2);
     QBCMath newTax(tax);
     newTax.round(2);
-    if (newTax.toString().compare(oldTax.toString()) != 0)
+    if (newTax.toString().compare(oldTax.toString()) != 0) {
+        if (m_barcodeInputLineEditDefault)
+            ui->barcodeLineEdit->setFocus();
         return;
+    }
 
     QBCMath oldGross = data["gross"].toDouble();
     oldGross.round(2);
@@ -1292,4 +1144,43 @@ void QRKRegister::singlePriceChanged(QString product, QString singleprice, QStri
             Database::updateProductPrice(newGross.toDouble(), product);
         }
     }
+
+    if (m_barcodeInputLineEditDefault)
+        ui->barcodeLineEdit->setFocus();
+
+}
+
+void QRKRegister::impossibleTotalPrice(const QString &s, const QString &s2)
+{
+    QrkTimedMessageBox messageBox(10,
+                                  QMessageBox::Information,
+                                  tr("Preisänderung"),
+                                  tr("Dieser Preis (%1 %2) musste leider gerundet werden (%3 %4) da der Einzelpreis aufgrund der angegebenen Steuer nicht anders rundbar ist.").arg(s).arg(Database::getShortCurrency()).arg(s2).arg(Database::getShortCurrency()),
+                                  QMessageBox::Yes
+                                  );
+
+    messageBox.setButtonText(QMessageBox::Yes, tr("Ok"));
+
+    messageBox.exec();
+
+    if (m_barcodeInputLineEditDefault)
+        ui->barcodeLineEdit->setFocus();
+}
+
+void QRKRegister::futureTimeDedected(QDateTime futuretime)
+{
+    QrkTimedMessageBox messageBox(20,
+                                  QMessageBox::Information,
+                                  tr("Datum/Uhrzeit"),
+                                  tr("Datum Zeitfehler. Es gibt schon einen Bon mit Datum (%1) in der Zukunft. Überprüfen Sie bitte das Datum und die Uhrzeit des Computers.").arg(QLocale().toString(futuretime)),
+                                  QMessageBox::Yes | QMessageBox::Default
+                                  );
+
+    messageBox.setDefaultButton(QMessageBox::Yes);
+    messageBox.setButtonText(QMessageBox::Yes, tr("OK"));
+    messageBox.exec();
+
+    if (m_barcodeInputLineEditDefault)
+        ui->barcodeLineEdit->setFocus();
+
 }

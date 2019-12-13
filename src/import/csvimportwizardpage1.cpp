@@ -142,7 +142,7 @@ void CsvImportWizardPage1::setModel(QStandardItemModel *model)
 
 }
 
-void CsvImportWizardPage1::codecChanged(QString codec)
+void CsvImportWizardPage1::codecChanged(const QString &codec)
 {
     m_codec = codec;
     if (m_isFileLoaded) {
@@ -236,7 +236,7 @@ void CsvImportWizardPage1::fileLoadClicked(bool)
     QrkSettings settings;
     QString lastUsedFileName = settings.value("csvimportpath", QDir::homePath()).toString();
 
-    QString file = QFileDialog::getOpenFileName(this, tr("Datei laden"), lastUsedFileName, "Import (*.csv)", 0, QFileDialog::DontUseNativeDialog);
+    QString file = QFileDialog::getOpenFileName(this, tr("Datei laden"), lastUsedFileName, "Import (*.csv)", Q_NULLPTR, QFileDialog::DontUseNativeDialog);
 
     if (!file.isEmpty()) {
         settings.save2Settings("csvimportpath", lastUsedFileName);
@@ -246,13 +246,13 @@ void CsvImportWizardPage1::fileLoadClicked(bool)
     }
 }
 
-void CsvImportWizardPage1::csvPathTextChanged(QString text)
+void CsvImportWizardPage1::csvPathTextChanged(const QString &text)
 {
     m_isFileLoaded = false;
     loadCsvFile(text);
 }
 
-void CsvImportWizardPage1::textDelimiterChanged(QString textDelemiter)
+void CsvImportWizardPage1::textDelimiterChanged(const QString &textDelemiter)
 {
     m_textDelimiter = textDelemiter;
     m_isFileLoaded = false;
@@ -265,7 +265,7 @@ void CsvImportWizardPage1::loadCsvFile()
         loadCsvFile(ui->filePathEdit->text());
 }
 
-void CsvImportWizardPage1::loadCsvFile(QString text)
+void CsvImportWizardPage1::loadCsvFile(const QString &text)
 {
     if (QFile::exists(text)) {
         m_isFileLoaded = false;
@@ -291,8 +291,8 @@ void CsvImportWizardPage1::loadCsvFile(QString text)
 void CsvImportWizardPage1::fileLoadFinished()
 {
     m_isFileLoaded = true;
-    m_load = 0;
-    m_thread = 0;
+    m_load = Q_NULLPTR;
+    m_thread = Q_NULLPTR;
     m_timer->stop();
     ui->tableView->resizeColumnsToContents();
 }
@@ -316,7 +316,7 @@ void CsvImportWizardPage1::addItem(int lineindex, int j, QString value)
 
 //---- LoadCsvFile ------------------------------------------------------------------------------------------------------
 
-LoadCsvFile::LoadCsvFile(QString filename, QString delimiter, QString textDelimiter, bool firstRowIsHeader, int fromLine, int toLine, const QString codec)
+LoadCsvFile::LoadCsvFile(const QString &filename, const QString &delimiter, const QString &textDelimiter, bool firstRowIsHeader, int fromLine, int toLine, const QString &codec)
     : m_filename(filename)
     , m_delimiter(delimiter)
     , m_textDelimiter(textDelimiter)
@@ -359,9 +359,9 @@ void LoadCsvFile::run()
             QString fileLine = in.readLine();
 
             currsize += fileLine.size() + 2;
-            int percent = ((float)currsize / (float)fi.size()) * 100;
-            if (percent < ((float)lineindex / (float)m_toLine) * 100)
-                percent = ((float)lineindex / (float)m_toLine) * 100;
+            int percent = int((float(currsize) / float(fi.size())) * 100);
+            if (percent < int((float(lineindex) / float(m_toLine)) * 100))
+                percent = int((float(lineindex) / float(m_toLine)) * 100);
 
             emit percentChanged(percent);
 

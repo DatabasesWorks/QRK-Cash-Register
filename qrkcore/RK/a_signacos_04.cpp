@@ -34,8 +34,8 @@
  * @brief ASignACOS_04::ASignACOS_04
  * @param device_name
  */
-ASignACOS_04::ASignACOS_04(QString device_name)
-    : ASignSmardCard(device_name)
+ASignACOS_04::ASignACOS_04(QString device_name, bool shared)
+    : ASignSmardCard(device_name, shared)
 {
     m_CIN = "";
     m_DF_SIG_Selected = false;

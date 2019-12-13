@@ -60,11 +60,13 @@ Reports::~Reports()
  * @param checkDate
  * @return
  */
-QMap<int, QDate> Reports::getEOFMap(QDate checkDate)
+
+QMap<int, QDateTime> Reports::getEOFMap(QDateTime checkDateTime)
 {
-    QDate last = Database::getLastReceiptDate();
-    QMap<int, QDate> map;
-    QDate lastEOD = getLastEOD();
+    QDateTime last = Database::getLastReceiptDateTime();
+
+    QMap<int, QDateTime> map;
+    QDateTime lastEOD = getLastEODateTime();
     int type = getReportType();
 
     if (type == PAYED_BY_REPORT_EOM || type == PAYED_BY_MONTH_RECEIPT){
@@ -72,39 +74,71 @@ QMap<int, QDate> Reports::getEOFMap(QDate checkDate)
         last = lastEOD;
     }
 
-    if (type == -1)
-        return QMap<int, QDate>();
+    if (type == PAYED_BY::FIRST_VALUE)
+        return QMap<int, QDateTime>();
 
     // Tagesabschluss von Heute schon gemacht?
-    if (lastEOD.isValid() && lastEOD == checkDate) {
-        map.insert(PAYED_BY_REPORT_EOD, QDate());
+    if (type == PAYED_BY_REPORT_EOD && lastEOD.isValid() && lastEOD.secsTo(checkDateTime) <  0) {
+        map.insert(PAYED_BY_REPORT_EOD, QDateTime());
         return map;
     }
 
-    if (last.isValid() && !(type ==  PAYED_BY_REPORT_EOD) && !(type == PAYED_BY_REPORT_EOM)&& checkDate != last)
+    qint64 diff = getDiffTime(last);
+
+    if (last.isValid() && type !=  PAYED_BY_REPORT_EOD && type != PAYED_BY_REPORT_EOM && last.addSecs(diff).secsTo(checkDateTime) > 0)
         map.insert(PAYED_BY_REPORT_EOD, last);
 
-    QString lastMonth = last.toString("yyyyMM");
-    QString checkMonth = checkDate.toString("yyyyMM");
+    diff -= 1;
+    diff = diff - QTime(0,0,0).secsTo(Database::getCurfewTime());
+
+    QString lastMonth = last.addSecs(diff).toString("yyyyMM");
+    QString checkMonth = checkDateTime.addSecs(getDiffTime(checkDateTime)).toString("yyyyMM");
 
     // Monatsabschluss von diesen Monat schon gemacht?
     if (type == PAYED_BY_REPORT_EOM && lastMonth == checkMonth) {
-        map.insert(PAYED_BY_REPORT_EOM, QDate());
+        map.insert(PAYED_BY_REPORT_EOM, QDateTime());
         return map;
     }
-    if (lastEOD.isValid() && lastEOD > checkDate) {
-        map.insert(PAYED_BY_REPORT_EOM, QDate());
+    if (lastEOD.isValid() && lastEOD.date() > checkDateTime.date()) {
+        map.insert(PAYED_BY_REPORT_EOM, QDateTime());
         return map;
     }
 
-    if (last.isValid() && !(lastMonth == checkMonth) && !(type ==  PAYED_BY_REPORT_EOM) && checkDate != last)
+    if (last.isValid() && lastMonth != checkMonth && type !=  PAYED_BY_REPORT_EOM && last.addSecs(diff).secsTo(checkDateTime) > 0 /* && checkDateTime.date() != last.date()*/ )
         map.insert(PAYED_BY_REPORT_EOM, last);
 
     lastMonth = last.addMonths(1).toString("yyyyMM");
-    if ((lastMonth < checkMonth) && (type ==  PAYED_BY_REPORT_EOM) && checkDate != last)
+    if ((lastMonth < checkMonth) && (type ==  PAYED_BY_REPORT_EOM) && checkDateTime.date() != last.date())
         map.insert(PAYED_BY_REPORT_EOM, last.addMonths(1));
 
     return map;
+}
+
+bool Reports::mustDoEOAny(QDateTime check)
+{
+    QMap<int, QDateTime> map = getEOFMap(check);
+    if (map.isEmpty())
+        return false;
+
+    qint64 diff = 0;
+    if (map.contains(PAYED_BY_REPORT_EOD)) {
+        QDateTime datetime = map.value(PAYED_BY_REPORT_EOD);
+        if (datetime.isValid()) {
+            diff = datetime.secsTo(check);
+            if (diff > 86400)
+                return !checkEOAny();
+        }
+    }
+    if (map.contains(PAYED_BY_REPORT_EOM)) {
+        QDateTime datetime = map.value(PAYED_BY_REPORT_EOM);
+        if (datetime.isValid()) {
+            diff = datetime.secsTo(check);
+            if (diff > 86400)
+                return !checkEOAny();
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -112,32 +146,32 @@ QMap<int, QDate> Reports::getEOFMap(QDate checkDate)
  * @param checkDate
  * @return
  */
-bool Reports::checkEOAny(QDate checkDate, bool checkDay)
+bool Reports::checkEOAny(QDateTime check, bool checkDay)
 {
     bool ret = true;
-    QMap<int, QDate> map = getEOFMap(checkDate);
+    QMap<int, QDateTime> map = getEOFMap(check);
     if (map.isEmpty())
         return true;
 
     if (map.contains(PAYED_BY_REPORT_EOD) && checkDay) {
-        QDate date = map.value(PAYED_BY_REPORT_EOD);
-        if (!date.isValid()) {
+        QDateTime datetime = map.value(PAYED_BY_REPORT_EOD);
+        if (!datetime.isValid()) {
             if (!m_servermode)
-                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOD, QDate::currentDate(), tr("Tagesabschluss wurde bereits erstellt."));
+                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOD, getLastEODateTime(), tr("Ein aktueller Tagesabschluss ist bereits vorhanden."));
             return false;
         }
     }
 
     if (map.contains(PAYED_BY_REPORT_EOM)) {
-        QDate date = map.value(PAYED_BY_REPORT_EOM);
-        if (!date.isValid()) {
+        QDateTime datetime = map.value(PAYED_BY_REPORT_EOM);
+        if (!datetime.isValid()) {
             if (!m_servermode)
-                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), tr("Monatsabschluss %1 wurde bereits erstellt.").arg( QLocale().monthName(QDate::currentDate().month())));
+                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, getLastEODateTime(), tr("Monatsabschluss %1 wurde bereits erstellt.").arg( QLocale().monthName(check.addSecs(-getDiffTime(check)).date().month())));
             return false;
         }
     }
 
-    QMapIterator<int, QDate> i(map);
+    QMapIterator<int, QDateTime> i(map);
     while (ret && i.hasNext()) {
         i.next();
 
@@ -153,17 +187,10 @@ bool Reports::checkEOAny(QDate checkDate, bool checkDay)
                     Spread::Instance()->setImportInfo(tr("Tagesabschluss vom %1 konnte nicht erstellt werden.").arg(i.value().toString()));
             } else if (i.key() == PAYED_BY_REPORT_EOM) {
                 ret = endOfMonth();
-                if (m_servermode && ret)
-                    Spread::Instance()->setImportInfo(tr("Monatsabschluss vom %1 wurde erstellt.").arg(i.value().toString()));
-                else if (m_servermode) {
-                    Spread::Instance()->setImportInfo(tr("Monatsabschluss vom %1 konnte nicht erstellt werden.").arg(i.value().toString()), true);
-                    if (RKSignatureModule::isSignatureModuleSetDamaged())
-                        Spread::Instance()->setImportInfo(tr("Ein Signaturpflichtiger Beleg konnte nicht erstellt werden. Signatureinheit ausgefallen."), true);
-                }
-                else if (!ret && RKSignatureModule::isSignatureModuleSetDamaged()) {
+                if (!m_servermode && !ret && RKSignatureModule::isSignatureModuleSetDamaged()) {
                     Spread::Instance()->setProgressBarValue(-1);
                     QString text = tr("Ein Signaturpflichtiger Beleg konnte nicht erstellt werden. Signatureinheit ausgefallen.");
-                    checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
+                    checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDateTime::currentDateTime(), text);
                 }
             }
         }
@@ -172,10 +199,10 @@ bool Reports::checkEOAny(QDate checkDate, bool checkDay)
     return ret;
 }
 
-bool Reports::checkEOAnyServerMode()
-{
-    return checkEOAny();
-}
+//bool Reports::checkEOAnyServerMode()
+//{
+//    return checkEOAny();
+//}
 
 /**
  * @brief Reports::checkEOAnyMessageBoxYesNo
@@ -184,15 +211,19 @@ bool Reports::checkEOAnyServerMode()
  * @param text
  * @return
  */
-bool Reports::checkEOAnyMessageBoxYesNo(int type, QDate date, QString text)
+bool Reports::checkEOAnyMessageBoxYesNo(int type, QDateTime datetime, QString text)
 {
     QString infoText;
+
+    qint64 diff = getDiffTime(datetime) -1;
+    diff = diff - QTime(0,0,0).secsTo(Database::getCurfewTime());
+
     if (type == PAYED_BY_REPORT_EOD) {
         infoText = tr("Tagesabschluss");
-        if (text.isEmpty()) text = tr("Tagesabschluss vom %1 muß erstellt werden.").arg(date.toString());
+        if (text.isEmpty()) text = tr("Tagesabschluss vom %1 muß erstellt werden.").arg(datetime.addSecs(diff).date().toString());
     } else {
         infoText = tr("Monatsabschluss");
-        if (text.isEmpty()) text = tr("Monatsabschluss für %1 muß erstellt werden.").arg(date.toString("MMMM yyyy"));
+        if (text.isEmpty()) text = tr("Monatsabschluss für %1 muß erstellt werden.").arg(datetime.date().toString("MMMM yyyy"));
     }
 
     QMessageBox msgBox;
@@ -218,7 +249,7 @@ bool Reports::checkEOAnyMessageBoxYesNo(int type, QDate date, QString text)
  * @param date
  * @param text
  */
-void Reports::checkEOAnyMessageBoxInfo(int type, QDate date, QString text)
+void Reports::checkEOAnyMessageBoxInfo(int type, QDateTime datetime, QString text)
 {
     QString infoText;
     if (type == PAYED_BY_REPORT_EOD) {
@@ -231,12 +262,12 @@ void Reports::checkEOAnyMessageBoxInfo(int type, QDate date, QString text)
     msgBox.setWindowTitle(infoText);
     msgBox.setIcon(QMessageBox::Information);
     msgBox.setText(text);
-    msgBox.setInformativeText(tr("Erstellungsdatum %1").arg(date.toString()));
+
+    msgBox.setInformativeText(tr("Erstellungsdatum %1").arg(datetime.date().toString()));
     msgBox.setStandardButtons(QMessageBox::Yes);
     msgBox.setButtonText(QMessageBox::Yes, tr("OK"));
     msgBox.exec();
 }
-
 bool Reports::endOfDay() {
     return endOfDay(true);
 }
@@ -247,18 +278,22 @@ bool Reports::endOfDay() {
  */
 bool Reports::endOfDay(bool ask)
 {
-    QDate date = Database::getLastReceiptDate();
+//    QDateTime datetime = getOffsetEODTime(Database::getLastReceiptDateTime());
+    QDateTime datetime = Database::getLastReceiptDateTime();
+    qint64 diff = getDiffTime(datetime) -1;
+    diff = diff - QTime(0,0,0).secsTo(Database::getCurfewTime());
 
-    bool create = canCreateEOD(date);
+    bool create = canCreateEOD(datetime.addSecs(diff));
     if (create) {
         if (m_servermode)
-            return doEndOfDay(date);
+            return doEndOfDay(datetime);
 
         QString text;
         bool ok = true;
-        if (ask && date == QDate::currentDate()) {
+//        if (ask && datetime.addSecs(diff).date() == QDateTime::currentDateTime().addSecs(diff).date()) {
+        if (ask && datetime.addSecs(getDiffTime(datetime) -1).date() == QDateTime::currentDateTime().addSecs(getDiffTime(QDateTime::currentDateTime()) -1).date()) {
             text = tr("Nach dem Erstellen des Tagesabschlusses ist eine Bonierung für den heutigen Tag nicht mehr möglich.");
-            ok = checkEOAnyMessageBoxYesNo(PAYED_BY_REPORT_EOD, date, text);
+            ok = checkEOAnyMessageBoxYesNo(PAYED_BY_REPORT_EOD, datetime, text);
         }
 
         if (ok) {
@@ -268,11 +303,11 @@ bool Reports::endOfDay(bool ask)
             progress.show();
             qApp->processEvents();
 
-            return doEndOfDay(date);
+            return doEndOfDay(datetime);
         }
     } else {
         if (!m_servermode)
-            checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOD, date, tr("Tagesabschluss wurde bereits erstellt."));
+            checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOD, datetime, tr("Ein aktueller Tagesabschluss ist bereits vorhanden."));
     }
 
     return false;
@@ -283,17 +318,29 @@ bool Reports::endOfDay(bool ask)
  * @param date
  * @return
  */
-bool Reports::doEndOfDay(QDate date)
+bool Reports::doEndOfDay(QDateTime datetime)
 {
-    QSqlDatabase dbc = Database::database();
+
+    {
+        QSqlDatabase dbc = Database::database();
+        if (dbc.driverName() == "QSQLITE") {
+            QSqlQuery query(dbc);
+            query.exec("PRAGMA wal_checkpoint;");
+            query.next();
+            qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
+        }
+    }
 
     Spread::Instance()->setProgressBarValue(1);
     Backup::create();
+
+    Database::updateGlobals("curfewTemp", Q_NULLPTR, Q_NULLPTR);
+    QSqlDatabase dbc = Database::database();
     dbc.transaction();
     m_currentReceipt = createReceipts();
     bool ret = finishReceipts(PAYED_BY_REPORT_EOD, 0, true);
     if (ret) {
-        if (createEOD(m_currentReceipt, date)) {
+        if (createEOD(m_currentReceipt, datetime)) {
             dbc.commit();
             printDocument(m_currentReceipt, tr("Tagesabschluss"));
         } else {
@@ -314,47 +361,56 @@ bool Reports::doEndOfDay(QDate date)
  */
 bool Reports::endOfMonth()
 {
-    QDate rDate = Database::getLastReceiptDate();
+
+    QDateTime rDateTime = Database::getLastReceiptDateTime();
+    // QDate rDate = rDateTime.date(); // Database::getLastReceiptDate();
     int type = getReportType();
 
     if (type == PAYED_BY_REPORT_EOD) {
-        rDate = getLastEOD();
+        rDateTime = getLastEODateTime().addDays(-1);
     }
 
     if (type == PAYED_BY_REPORT_EOM || type == PAYED_BY_MONTH_RECEIPT) {
-        rDate = getLastEOD().addMonths(1);
+        rDateTime = getLastEODateTime().addMonths(1);
     }
 
-    int receiptMonth = (rDate.year() * 100) + rDate.month();
-    int currMonth = (QDate::currentDate().year() * 100) + QDate::currentDate().month();
+    int receiptMonth = (rDateTime.date().year() * 100) + rDateTime.date().month();
+    QDate curr = QDateTime::currentDateTime().date();
+    int currMonth = (curr.year() * 100) + curr.month();
 
-    bool ok = (rDate.isValid() && receiptMonth <= currMonth);
+    bool ok = (rDateTime.isValid() && receiptMonth <= currMonth);
 
     if (ok) {
         QDateTime checkdate = QDateTime::currentDateTime();
 
-        if (QDate::currentDate().year() == rDate.year()) {
+        if (checkdate.date().year() == rDateTime.date().year()) {
             checkdate.setDate(QDate::fromString(QString("%1-%2-1")
-                                                .arg(rDate.year())
-                                                .arg(rDate.month())
+                                                .arg(rDateTime.date().year())
+                                                .arg(rDateTime.date().month())
                                                 , "yyyy-M-d")
                               .addMonths(1).addDays(-1));
         } else {
             checkdate.setDate(QDate::fromString(QString("%1-12-31")
                                                 .arg(QDate::currentDate().year()),"yyyy-M-d")
                               .addYears(-1));
+
+            if (rDateTime.date().month() != checkdate.date().month()) {
+                QString stringDate= QString("%1-%2-%3").arg(curr.addYears(-1).year()).arg(rDateTime.date().month()).arg(rDateTime.date().daysInMonth());
+
+                checkdate.setDate(QDate::fromString(stringDate,"yyyy-M-d"));
+            }
         }
         checkdate.setTime(QTime::fromString("23:59:59"));
 
-        bool canCreateEom = canCreateEOM(rDate);
+        bool canCreateEom = canCreateEOM(rDateTime);
 
         if (!(type == PAYED_BY_REPORT_EOM) && !(type == PAYED_BY_MONTH_RECEIPT)) {
-            bool canCreateEod = canCreateEOD(rDate);
+            bool canCreateEod = canCreateEOD(rDateTime);
 
-            if (QDateTime(rDate) <= checkdate && canCreateEod) {
+            if (rDateTime.date() <= checkdate.date() && canCreateEod) {
                 bool doJob = true;
                 if (!m_servermode)
-                    doJob = checkEOAnyMessageBoxYesNo(PAYED_BY_REPORT_EOD, rDate,tr("Der Tagesabschlusses für %1 muß zuerst erstellt werden.").arg(rDate.toString()));
+                    doJob = checkEOAnyMessageBoxYesNo(PAYED_BY_REPORT_EOD, rDateTime,tr("Der Tagesabschlusses für %1 muß zuerst erstellt werden.").arg(rDateTime.toString()));
 
                 if (doJob) {
                     if (! endOfDay())
@@ -368,15 +424,20 @@ bool Reports::endOfMonth()
         if (canCreateEom) {
             ok = true;
             if (m_servermode) {
-                if (doEndOfMonth(checkdate.date())) {
-                    rDate = rDate.addMonths(1);
-                    receiptMonth = (rDate.year() * 100) + rDate.month();
-                    if (rDate.isValid() && receiptMonth < currMonth)
+                if (doEndOfMonth(checkdate)) {
+                    rDateTime = rDateTime.addMonths(1);
+                    receiptMonth = (rDateTime.date().year() * 100) + rDateTime.date().month();
+                    if (rDateTime.isValid() && receiptMonth < currMonth)
                         ok = checkEOAny();
                 } else {
                     ok = false;
                 }
                 return ok;
+            }
+
+            if (receiptMonth == currMonth) {
+                QString text = tr("Nach dem Erstellen des Monatsabschlusses ist eine Bonierung für diesen Monat nicht mehr möglich.");
+                ok = checkEOAnyMessageBoxYesNo(PAYED_BY_REPORT_EOM, rDateTime, text);
             }
 
             QRKProgress progress;
@@ -385,28 +446,26 @@ bool Reports::endOfMonth()
             progress.show();
             qApp->processEvents();
 
-            if (receiptMonth == currMonth) {
-                QString text = tr("Nach dem Erstellen des Monatsabschlusses ist eine Bonierung für diesen Monat nicht mehr möglich.");
-                ok = checkEOAnyMessageBoxYesNo(PAYED_BY_REPORT_EOM, rDate, text);
-            }
             if (ok) {
-                if (doEndOfMonth(checkdate.date())){
-                    rDate = rDate.addMonths(1);
-                    receiptMonth = (rDate.year() * 100) + rDate.month();
-                    if (rDate.isValid() && receiptMonth < currMonth)
+                if (doEndOfMonth(checkdate)){
+                    rDateTime = rDateTime.addMonths(1);
+                    receiptMonth = (rDateTime.date().year() * 100) + rDateTime.date().month();
+                    if (rDateTime.isValid() && receiptMonth < currMonth)
                         ok = checkEOAny();
                 } else {
                     ok = false;
                     QString text = tr("Monatsabschluss '%1' konnte nicht erstellt werden.").arg(QLocale().monthName(checkdate.date().month()));
-                    checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
+                    checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDateTime::currentDateTime(), text);
                 }
             }
         }
     } else {
-        QDate next = QDate::currentDate();
+        QDate next = QDateTime::currentDateTime().date();
         next.setDate(next.year(), next.addMonths(1).month(), 1);
-        QString text = tr("Der Monatsabschluss für %1 wurde schon gemacht. Der nächste Abschluss kann erst ab %2 gemacht werden.").arg(QLocale().monthName(QDate::currentDate().month())).arg(next.toString());
-        checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
+        if (!m_servermode) {
+            QString text = tr("Der Monatsabschluss für %1 wurde schon gemacht. Der nächste Abschluss kann erst ab %2 gemacht werden.").arg(QLocale().monthName(QDate::currentDate().month())).arg(next.toString());
+            checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDateTime::currentDateTime(), text);
+        }
     }
 
     return ok;
@@ -417,35 +476,53 @@ bool Reports::endOfMonth()
  * @param date
  * @return
  */
-bool Reports::doEndOfMonth(QDate date)
+bool Reports::doEndOfMonth(QDateTime datetime)
 {
-    QSqlDatabase dbc = Database::database();
+    {
+        QSqlDatabase dbc = Database::database();
+        if (dbc.driverName() == "QSQLITE") {
+            QSqlQuery query(dbc);
+            query.exec("PRAGMA wal_checkpoint;");
+            query.next();
+            qDebug() << "Function Name: " << Q_FUNC_INFO << "WAL Checkpoint: (busy:" << query.value(0).toString() << ") log: " << query.value(1).toString() << " checkpointed: " << query.value(2).toString();
+        }
+    }
 
     Spread::Instance()->setProgressBarValue(1);
     bool ret = false;
     Backup::create();
     clear();
+
+    Database::updateGlobals("curfewTemp", Q_NULLPTR, Q_NULLPTR);
+
+    QSqlDatabase dbc = Database::database();
     dbc.transaction();
     m_currentReceipt =  createReceipts();
     ret = finishReceipts(PAYED_BY_REPORT_EOM, 0, true);
     if (ret) {
-        if (createEOM(m_currentReceipt, date)) {
-            if (nullReceipt(date)) {
+        if (createEOM(m_currentReceipt, datetime)) {
+            if (nullReceipt(datetime.date())) {
                 dbc.commit();
                 printDocument(m_currentReceipt, tr("Monatsabschluss"));
+                if (m_servermode)
+                    Spread::Instance()->setImportInfo(tr("Monatsabschluss vom %1 wurde erstellt.").arg(datetime.toString()));
             } else {
                 dbc.rollback();
+                if (m_servermode) {
+                    if (RKSignatureModule::isSignatureModuleSetDamaged())
+                        Spread::Instance()->setImportInfo(tr("Ein Signaturpflichtiger Beleg konnte nicht erstellt werden. Signatureinheit ausgefallen."), true);
+                }
                 return false;
             }
         } else {
-            dbc.rollback();
-            return false;
+            ret = false;
         }
-    } else {
-        dbc.rollback();
-        return false;
     }
-
+    if (!ret) {
+        dbc.rollback();
+        if (m_servermode)
+            Spread::Instance()->setImportInfo(tr("Monatsabschluss vom %1 konnte nicht erstellt werden.").arg(datetime.toString()), true);
+    }
 
     return ret;
 }
@@ -455,15 +532,15 @@ bool Reports::nullReceipt(QDate date)
     bool ret = true;
     if (RKSignatureModule::isDEPactive()) {
         if ((date.year() < QDate::currentDate().year() && date.month() == 12) || date.month() == 12) {
-            ret = createNullReceipt(YEAR_RECEIPT);
+            ret = createNullReceipt(YEAR_RECEIPT, date.toString("yyyy"));
             if (!ret) {}
             if (RKSignatureModule::isSignatureModuleSetDamaged()) {
                 QString text = (tr("Ein Signaturpflichtiger Beleg konnte nicht erstellt werden. Signatureinheit ausgefallen."));
                 if (!m_servermode)
-                    checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
+                    checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDateTime::currentDateTime(), text);
             }
         } else {
-            ret = createNullReceipt(MONTH_RECEIPT);
+            ret = createNullReceipt(MONTH_RECEIPT, date.toString("MMM yyyy"));
         }
 
         if (!ret)
@@ -475,9 +552,9 @@ bool Reports::nullReceipt(QDate date)
         if (!exp && counter < 1) {
             QString text = tr("Das automatische DEP-7 Backup konnte nicht durchgeführt werden.\nStellen Sie sicher das Ihr externes Medium zu Verfügung steht und sichern Sie das DEP-7 manuell.");
             if (m_servermode)
-                Spread::Instance()->setImportInfo(text, true);
+                Spread::Instance()->setImportInfo("INFO: " + text, true);
             else
-                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDate::currentDate(), text);
+                checkEOAnyMessageBoxInfo(PAYED_BY_REPORT_EOM, QDateTime::currentDateTime(), text);
         }
     }
 
@@ -489,15 +566,14 @@ bool Reports::nullReceipt(QDate date)
  * @param id
  * @param date
  */
-bool Reports::createEOD(int id, QDate date)
+bool Reports::createEOD(int id, QDateTime datetime)
 {
     QDateTime from;
     QDateTime to;
 
     // ---------- DAY -----------------------------
-    from.setDate(QDate::fromString(date.toString()));
-    to.setDate(QDate::fromString(date.toString()));
-    to.setTime(QTime::fromString("23:59:59"));
+    from = datetime.addSecs(getDiffTime(datetime, true)+1).addDays(-1);
+    to = datetime.addSecs(getDiffTime(datetime));
 
     QStringList eod;
     eod.append(createStat(id, "Tagesumsatz", from, to));
@@ -505,9 +581,9 @@ bool Reports::createEOD(int id, QDate date)
     QString line = QString("Tagesbeleg\tTagesbeleg\t\t%1\t%2\t0,0\t0,0\t0,0\t0,0\t0,0\t%3")
             .arg(id)
             .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
-            .arg(QLocale().toString(Utils::getYearlyTotal(date.year()),'f', 2));
+            .arg(QLocale().toString(Utils::getYearlyTotal(from.date().year()),'f', 2));
 
-    bool ret = insert(eod, id, to);
+    bool ret = insert(eod, id, from, to);
 
     Journal journal;
     journal.journalInsertLine("Beleg", line);
@@ -522,29 +598,33 @@ bool Reports::createEOD(int id, QDate date)
  * @param id
  * @param date
  */
-bool Reports::createEOM(int id, QDate date)
+bool Reports::createEOM(int id, QDateTime datetime)
 {
 
     QDateTime from;
     QDateTime to;
 
     // ---------- MONTH -----------------------------
-    from.setDate(QDate::fromString(QString("%1-%2-01").arg(date.year()).arg(date.month()),"yyyy-M-d"));
-    to.setDate(QDate::fromString(date.toString()));
-    to.setTime(QTime::fromString("23:59:59"));
+    from.setDate(QDate::fromString(QString("%1-%2-01").arg(datetime.date().year()).arg(datetime.date().month()),"yyyy-M-d"));
+    from = from.addSecs(getDiffTime(from, true));
+    to = datetime;
+    to = to.addSecs(getDiffTime(datetime));
 
     QStringList eod;
     eod.append(createStat(id, "Monatsumsatz", from, to));
 
     // ----------- YEAR ---------------------------
+    {
+        QString fromString = QString("%1-01-01").arg(datetime.date().year());
+        QDateTime from;
+        from.setDate(QDate::fromString(fromString, "yyyy-MM-dd"));
+        to = datetime;
+        to.setTime(QTime::fromString("23:59:59"));
+        to = to.addSecs(getDiffTime(to));
 
-    QString fromString = QString("%1-01-01").arg(date.year());
-    from.setDate(QDate::fromString(fromString, "yyyy-MM-dd"));
-    to.setDate(QDate::fromString(date.toString()));
-    to.setTime(QTime::fromString("23:59:59"));
-
-    if (date.month() == 12) {
-        eod.append(createYearStat(id, date));
+        if (datetime.date().month() == 12) {
+            eod.append(createYearStat(id, datetime.date()));
+        }
     }
 
     // ----------------------------------------------
@@ -552,9 +632,9 @@ bool Reports::createEOM(int id, QDate date)
     QString line = QString("Monatsbeleg\tMonatsbeleg\t\t%1\t%2\t0,0\t0,0\t0,0\t0,0\t0,0\t%3")
             .arg(id)
             .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
-            .arg(QLocale().toString(Utils::getYearlyTotal(date.year()), 'f', 2));
+            .arg(QLocale().toString(Utils::getYearlyTotal(datetime.date().year()), 'f', 2));
 
-    bool ret = insert(eod, id, to);
+    bool ret = insert(eod, id, from, to);
 
     Journal journal;
     journal.journalInsertLine("Beleg", line);
@@ -564,15 +644,11 @@ bool Reports::createEOM(int id, QDate date)
     return ret;
 }
 
-/**
- * @brief Reports::getLastEOD
- * @return
- */
-QDate Reports::getLastEOD()
+QDateTime Reports::getLastEODateTime()
 {
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
-    query.prepare("SELECT max(timestamp) AS timestamp FROM reports");
+    query.prepare("SELECT max(timestamp) AS timestamp, curfew FROM reports");
     bool ok = query.exec();
     if (!ok) {
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
@@ -580,10 +656,17 @@ QDate Reports::getLastEOD()
     }
 
     if (query.last()) {
-        return query.value("timestamp").toDate();
+        QDateTime dateTime = query.value("timestamp").toDateTime();
+        QTime curfew = QTime::fromString(query.value("curfew").toString(), "hh:mm");
+        qint64 diff = dateTime.time().secsTo(curfew.addSecs(-1));
+        if (diff != 0)
+            dateTime = dateTime.addSecs(diff);
+
+        diff = QTime(0,0,0).secsTo(curfew);
+        return dateTime.addSecs(-diff); // getOffsetEODTime(dateTime);
     }
 
-    return QDate();
+    return QDateTime();
 }
 
 /**
@@ -591,20 +674,26 @@ QDate Reports::getLastEOD()
 * @param date
 * @return
 */
-bool Reports::canCreateEOD(QDate date)
+bool Reports::canCreateEOD(QDateTime datetime)
 {
-    QDateTime f;
-    QDateTime t;
-    f.setDate(QDate::fromString(date.toString()));
-    t.setDate(QDate::fromString(date.toString()));
-    f.setTime(QTime::fromString("00:00:00"));
-    t.setTime(QTime::fromString("23:59:59"));
+    int type = getReportType();
+//    if (type != PAYED_BY_CONTROL_RECEIPT && type >= PAYED_BY_REPORT_EOD)
+    if (type == PAYED_BY_REPORT_EOD || type == PAYED_BY_REPORT_EOM || type >= PAYED_BY_MONTH_RECEIPT)
+        return false;
+
+    QDateTime f = datetime;
+    QDateTime t = QDateTime::currentDateTime();
+//    f.setDate(QDate::fromString(date.toString()));
+//    t.setDate(QDate::fromString(date.toString()));
+    f = f.addSecs(1);
 
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     query.prepare("SELECT reports.timestamp FROM reports, receipts where reports.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy > 2 AND reports.receiptNum=receipts.receiptNum ORDER BY receipts.timestamp DESC LIMIT 1");
     query.bindValue(":fromDate", f.toString(Qt::ISODate));
     query.bindValue(":toDate", t.toString(Qt::ISODate));
+
+    qWarning() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
 
     bool ok = query.exec();
     if (!ok) {
@@ -613,7 +702,7 @@ bool Reports::canCreateEOD(QDate date)
     }
 
     if (query.last()) {
-        date = query.value("timestamp").toDate();
+//        datetime = query.value("timestamp").toDateTime();
         return false;
     }
 
@@ -625,14 +714,13 @@ bool Reports::canCreateEOD(QDate date)
  * @param date
  * @return
  */
-bool Reports::canCreateEOM(QDate date)
+bool Reports::canCreateEOM(QDateTime datetime)
 {
-    QDateTime f;
-    QDateTime t;
-    f.setDate(QDate::fromString(date.toString()));
-    t.setDate(QDate::fromString(date.toString()));
-    f.setTime(QTime::fromString("00:00:00"));
-    t.setTime(QTime::fromString("23:59:59"));
+    QDateTime f = datetime;
+    QDateTime t = QDateTime::currentDateTime();
+//    f.setDate(QDate::fromString(date.toString()));
+//    t.setDate(QDate::fromString(date.toString()));
+    f = f.addSecs(1);
 
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
@@ -647,7 +735,7 @@ bool Reports::canCreateEOM(QDate date)
     }
 
     if (query.last()) {
-        date = query.value("timestamp").toDate();
+//        datetime = query.value("timestamp").toDateTime();
         return false;
     }
 
@@ -671,10 +759,10 @@ int Reports::getReportType()
 
     if (query.last()) {
         if (query.value("payedBy").isNull())
-            return -1;
+            return PAYED_BY::FIRST_VALUE;
         return query.value("payedBy").toInt();
     }
-    return -1;
+    return PAYED_BY::FIRST_VALUE;
 }
 
 /**
@@ -689,17 +777,19 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 {
     QrkSettings settings;
 
-    if (to.toString("yyyyMMdd") == QDate::currentDate().toString("yyyyMMdd"))
-        to.setTime(QTime::currentTime());
+//    if (to.toString("yyyyMMdd") == QDate::currentDate().toString("yyyyMMdd"))
+//        to.setTime(QTime::currentTime());
 
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
     /* Anzahl verkaufter Artikel oder Leistungen */
 //    query.prepare("SELECT sum(ROUND(orders.count,2)) as count FROM orders WHERE receiptId IN (SELECT id FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy <= 2)");
-    query.prepare("SELECT sum(orders.count) as count FROM orders WHERE receiptId IN (SELECT id FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy <= 2)");
+    query.prepare("SELECT sum(orders.count) as count FROM orders WHERE receiptId IN (SELECT id FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy BETWEEN 0 AND 2)");
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
+//      query.bindValue(":toDate", QDateTime::currentDateTime().toString(Qt::ISODate));
+
     bool ok = query.exec();
     if (!ok) {
         qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
@@ -717,7 +807,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     stat.append(QString("Anzahl verkaufter Artikel oder Leistungen: %1").arg(sumProducts.toLocale()));
 
     /* Anzahl Zahlungen */
-    query.prepare("SELECT count(id) as count_id FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy <= 2 AND storno < 2");
+    query.prepare("SELECT count(id) as count_id FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy BETWEEN 0 AND 2 AND storno < 2");
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
     ok = query.exec();
@@ -748,7 +838,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 
 
     /* Umsätze Zahlungsmittel */
-    query.prepare("SELECT actionTypes.actionText, receiptNum, gross from receipts LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3 ORDER BY receipts.payedBy");
+    query.prepare("SELECT actionTypes.actionText, receiptNum, gross from receipts LEFT JOIN actionTypes on receipts.payedBy=actionTypes.actionId WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy BETWEEN 0 AND 2 ORDER BY receipts.payedBy");
 //    query.prepare(Database::getSalesPerPaymentSQLQueryString());
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
@@ -811,57 +901,13 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
     stat.append("-");
 
     /*
-    QMap<QString, QMap<double, double> > zm;
-    QMap<double, double> map;
-    while (query.next())
-    {
-        QString key = query.value("actionText").toString();
-        QBCMath tax(query.value("tax").toString());
-        tax.round(2);
-        QBCMath total(query.value("total").toString());
-        total.round(2);
-        if ( zm.contains(key) ) {
-            map[tax.toDouble()] += total.toDouble();
-            zm[key] = map;
-        } else {
-            map.clear();
-            map[tax.toDouble()] = total.toDouble();
-            zm[key] = map;
-        }
-    }
-
-    QMap<QString, QMap<double, double> >::iterator i;
-    for (i = zm.begin(); i != zm.end(); ++i) {
-        QString key = i.key();
-        stat.append(key);
-
-        QMap<double, double> tax = i.value();
-        QMap<double, double>::iterator j;
-        QBCMath total(0.0);
-        for (j = tax.begin(); j != tax.end(); ++j) {
-            QBCMath k(j.key());
-            QBCMath v(j.value());
-            v.round(2);
-            stat.append(QString("%1%: %2")
-                         .arg(Utils::getTaxString(k))
-                         .arg(v.toLocale()));
-            total += v.toString();
-        }
-        total.round(2);
-        stat.append("-");
-        stat.append(QString("Summe %1: %2").arg(key, total.toLocale()));
-        stat.append("-");
-    }
-    */
-
-    /*
      * FIXME: We do this workaroud, while SUM and ROUND will
      * give use the false result. SQL ROUND/SUM give xx.98 from xx.985
      * should be xx.99
      */
 
     /* Umsätze Steuern */
-    query.prepare("SELECT orders.tax, receipts.receiptNum, (orders.count * orders.gross) - (orders.count * orders.gross * orders.discount) / 100 as total from receipts LEFT JOIN orders on orders.receiptId=receipts.receiptNum WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy < 3 ORDER BY orders.tax");
+    query.prepare("SELECT orders.tax, receipts.receiptNum, (orders.count * orders.gross) - (orders.count * orders.gross * orders.discount) / 100 as total from receipts LEFT JOIN orders on orders.receiptId=receipts.receiptNum WHERE receipts.timestamp between :fromDate AND :toDate AND receipts.payedBy BETWEEN 0 AND 2 ORDER BY orders.tax");
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
 
@@ -887,6 +933,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
         qApp->processEvents();
     }
 
+    totalsum = 0.0;
     QMap<double, double>::iterator j;
     for (j = map.begin(); j != map.end(); ++j) {
         QBCMath k(j.key());
@@ -896,11 +943,44 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
         stat.append(QString("%1%: %2")
                     .arg(Utils::getTaxString(k))
                     .arg(v.toLocale()));
+        totalsum += v;
     }
+    totalsum.round(2);
+    stat.append("-");
+    stat.append(QString("Summe: %1").arg(totalsum.toLocale()));
+    stat.append("-");
+
+    /* stats per users */
+    stat.append(tr("Umsätze nach Benutzer"));
+    int size;
+    QMap<QString, QMap<QString, double> > user = Database::getSalesPerUser(from.toString(Qt::ISODate), to.toString(Qt::ISODate), size);
+    QMap<QString, QMap<QString, double> >::iterator u;
+    totalsum = 0.0;
+    QString username, prename;
+    for (u = user.begin(); u != user.end(); ++u) {
+        username = u.key();
+        if (username.isEmpty())
+            username = tr("n/a");
+        QMap<QString, double> zm2 = u.value();
+        QMap<QString, double>::iterator i;
+        for (i = zm2.begin(); i != zm2.end(); ++i) {
+            QString key = i.key();
+            QBCMath total(i.value());
+            total.round(2);
+            stat.append(QString("%1: %2: %3").arg(username == prename?"\u00A0":username, key, total.toLocale()));
+            totalsum += total;
+            prename = username;
+        }
+        totalsum.round(2);
+    }
+
+    totalsum.round(2);
+    stat.append("-");
+    stat.append(QString("Summe: %1").arg(totalsum.toLocale()));
     stat.append("-");
 
     /* Summe */
-    query.prepare("SELECT sum(gross) as total FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy < 3");
+    query.prepare("SELECT sum(gross) as total FROM receipts WHERE timestamp BETWEEN :fromDate AND :toDate AND payedBy BETWEEN 0 AND 2");
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
     ok = query.exec();
@@ -911,24 +991,24 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 
     query.next();
 
-    QBCMath gross(query.value("total").toDouble());
-    gross.round(2);
-    QString sales = gross.toLocale();
+    QBCMath totalgross(query.value("total").toDouble());
+    totalgross.round(2);
+    QString sales = totalgross.toLocale();
 
     if (type == "Jahresumsatz") {
         m_yearsales = sales;
     } else {
-        QJsonObject data;
-        data["receiptNum"] = id;
-        data["receiptTime"] = to.toString(Qt::ISODate);
+        //        qint64 diff = QTime(0,0,0).secsTo(query.value("curfew").toTime());
+        qint64 diff = QTime(0,0,0).secsTo(Database::getCurfewTime());
 
         query.prepare("UPDATE receipts SET gross=:gross, timestamp=:timestamp, infodate=:infodate WHERE receiptNum=:receiptNum");
-        query.bindValue(":gross", gross.toDouble());
+        query.bindValue(":gross", totalgross.toDouble());
         query.bindValue(":timestamp", QDateTime::currentDateTime().toString(Qt::ISODate));
-        query.bindValue(":infodate", to.toString(Qt::ISODate));
+
+        query.bindValue(":infodate", to.addSecs(-diff).toString(Qt::ISODate));
         query.bindValue(":receiptNum", id);
 
-        bool ok = query.exec();
+        ok = query.exec();
 
         if (!ok) {
             qWarning() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
@@ -995,9 +1075,9 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 
     // Artikelabrechnung
     if (Database::isAnyValueFunctionAvailable())
-        query.prepare("SELECT sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, ANY_VALUE(orders.tax) as tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY tax, products.name ASC");
+        query.prepare("SELECT groups.name as groupname, sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, ANY_VALUE(orders.tax) as tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id LEFT JOIN groups ON products.groupid=groups.id LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY groups.name, tax, products.name ASC");
     else
-        query.prepare("SELECT sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, orders.tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY orders.tax, products.name ASC");
+        query.prepare("SELECT groups.name as groupname, sum(orders.count) AS count, products.name, orders.gross, SUM((orders.count * orders.gross) - ((orders.count * orders.gross / 100) * orders.discount)) as total, orders.tax, orders.discount FROM orders LEFT JOIN products ON orders.product=products.id  LEFT JOIN groups ON products.groupid=groups.id LEFT JOIN receipts ON receipts.receiptNum=orders.receiptId WHERE receipts.timestamp BETWEEN :fromDate AND :toDate AND receipts.payedBy < 3 GROUP BY products.name, orders.gross, orders.discount ORDER BY groups.name, orders.tax, products.name ASC");
 
     query.bindValue(":fromDate", from.toString(Qt::ISODate));
     query.bindValue(":toDate", to.toString(Qt::ISODate));
@@ -1010,7 +1090,12 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
 
     stat.append("=P");
     stat.append(tr("Verkaufte Artikel oder Leistungen (Gruppiert) Gesamt %1").arg(sumProducts.toLocale()));
+    QString groupname = "";
     while (query.next()) {
+        if (groupname.compare(query.value("groupname").toString()) != 0) {
+            groupname = query.value("groupname").toString();
+            stat.append(groupname);
+        }
         QString name;
         if (query.value("discount").toDouble() != 0.0) {
             QBCMath discount(query.value("discount").toDouble());
@@ -1048,7 +1133,7 @@ QStringList Reports::createStat(int id, QString type, QDateTime from, QDateTime 
  * @param list
  * @param id
  */
-bool Reports::insert(QStringList list, int id, QDateTime to)
+bool Reports::insert(QStringList list, int id, QDateTime from, QDateTime to)
 {
 
     QSqlDatabase dbc = Database::database();
@@ -1067,11 +1152,13 @@ bool Reports::insert(QStringList list, int id, QDateTime to)
         if (line.startsWith(tr("=P"))) { type = 2; continue; }
 
         journal.journalInsertLine("Textposition", line);
-        query.prepare("INSERT INTO reports (receiptNum, timestamp, text, type) VALUES(:receiptNum, :timestamp, :text, :type)");
+        query.prepare("INSERT INTO reports (receiptNum, timestamp, text, type, curfew, timestampfrom) VALUES(:receiptNum, :timestamp, :text, :type, :curfew, :from)");
         query.bindValue(":receiptNum", id);
         query.bindValue(":timestamp", to.toString(Qt::ISODate));
+        query.bindValue(":from", from.toString(Qt::ISODate));
         query.bindValue(":text", line);
         query.bindValue(":type", type);
+        query.bindValue(":curfew", Database::getCurfewTime().toString("hh:mm"));
 
         ret = query.exec();
         if (!ret) {
@@ -1080,7 +1167,7 @@ bool Reports::insert(QStringList list, int id, QDateTime to)
             break;
         }
 
-        Spread::Instance()->setProgressBarValue(((float)i++ / (float)count) * 100 );
+        Spread::Instance()->setProgressBarValue(int((float(i++) / float(count)) * 100));
         qApp->processEvents();
     }
     return ret;
@@ -1101,11 +1188,14 @@ QStringList Reports::createYearStat(int id, QDate date)
     QStringList eoy;
     QString fromString = QString("%1-01-01").arg(date.year());
     from.setDate(QDate::fromString(fromString, "yyyy-MM-dd"));
+    from.setTime(QTime(0,0,0));
+    from = from.addSecs(getDiffTime(from));
     to.setDate(QDate::fromString(date.toString()));
     to.setTime(QTime::fromString("23:59:59"));
+    to = to.addSecs(getDiffTime(to));
 
     eoy.append("=A");
-    eoy.append(QString("Jahressummen %1:").arg(date.year()));
+    eoy.append(QString("Jahressummen %1 (%2 - %3) :").arg(date.year()).arg(QLocale().toString(from, "dd.MM.yyyy hh&#058;mm")).arg(QLocale().toString(to, "dd.MM.yyyy hh&#058;mm")));
     eoy.append("-");
 
     eoy.append(createStat(id, "Jahresumsatz", from, to));
@@ -1119,16 +1209,16 @@ QStringList Reports::createYearStat(int id, QDate date)
  * @param test
  * @return
  */
-QString Reports::getReport(int id, bool test)
+QString Reports::getReport(int id, bool report_by_productgroup, bool test)
 {
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
     QrkSettings settings;
 
-    query.prepare("SELECT receipts.payedBy, reports.timestamp FROM receipts JOIN reports ON receipts.receiptNum=reports.receiptNum WHERE receipts.receiptNum=:id");
+    query.prepare("SELECT receipts.payedBy, reports.timestamp, reports.curfew, reports.timestampfrom FROM receipts JOIN reports ON receipts.receiptNum=reports.receiptNum WHERE receipts.receiptNum=:id");
 
     if (test)
-        query.prepare("SELECT receipts.payedBy, reports.timestamp FROM receipts JOIN reports ON receipts.receiptNum=reports.receiptNum WHERE receipts.receiptNum=(SELECT min(receiptNum) FROM reports)");
+        query.prepare("SELECT receipts.payedBy, reports.timestamp, reports.curfew FROM receipts JOIN reports ON receipts.receiptNum=reports.receiptNum WHERE receipts.receiptNum=(SELECT min(receiptNum) FROM reports)");
     else
         query.bindValue(":id", id);
 
@@ -1144,20 +1234,31 @@ QString Reports::getReport(int id, bool test)
     QString format = (type == PAYED_BY_REPORT_EOM)? "MMMM yyyy": "dd MMMM yyyy";
 
     QString header;
-    if (test)
+    QString header2 = "";
+    if (test) {
         header = QString("TESTDRUCK für SCHRIFTART");
-    else
-        header = QString("BON # %1, %2 - %3").arg(id).arg(Database::getActionType(type)).arg(query.value("timestamp").toDate().toString(format));
-
+    } else {
+        QDateTime to = query.value("timestamp").toDateTime();
+        qint64 diff = QTime(0,0,0).secsTo(query.value("curfew").toTime());
+        to = to.addSecs(-diff);
+        header = QString("BON # %1, %2 - %3").arg(id).arg(Database::getActionType(type)).arg(to.date().toString(format));
+        QDateTime from = query.value("timestampfrom").toDateTime();
+        if (from.isValid() && from.date().year() > 0)
+            header2 = QString("(%1 - %2)").arg(QLocale().toString(from, "dd.MM hh:mm")).arg(QLocale().toString(query.value("timestamp").toDateTime(), "dd.MM hh:mm"));
+    }
 
     int not_type = 0;
-    if (settings.value("report_by_productgroup", false).toBool()) {
+    bool reporttype = settings.value("report_by_productgroup", false).toBool();
+    if (report_by_productgroup)
+        reporttype = !reporttype;
+
+    if (reporttype) {
         not_type = 2;
     } else {
         not_type = 1;
     }
 
-    query.prepare("SELECT text FROM reports WHERE receiptNum=:id AND type != :not_type");
+    query.prepare("SELECT text, type FROM reports WHERE receiptNum=:id AND type != :not_type");
 
     if (test)
         query.prepare("SELECT text FROM reports WHERE receiptNum=(SELECT min(receiptNum) FROM reports) AND type != :not_type");
@@ -1181,14 +1282,14 @@ QString Reports::getReport(int id, bool test)
     int x = 0;
 
     int span = 4;
-    bool needOneMoreCol = false;
-
     text.append(QString("<tr><th colspan=\"%1\">%2</th></tr>").arg(span).arg(header) );
+    if (!header2.isEmpty())
+        text.append(QString("<tr><th colspan=\"%1\"><small>%2</small></th></tr>").arg(span).arg(header2));
+
     text.append(QString("<tr><th colspan=\"%1\"></th></tr>").arg(span));
 
-    while (query.next()){
-        needOneMoreCol = false;
-        span = 5;
+    while (query.next()) {
+        span = (query.value("type").toInt() == 2)?6 :5;
 
         QString t = query.value("text").toString();
         x++;
@@ -1203,15 +1304,13 @@ QString Reports::getReport(int id, bool test)
         QStringList list;
 
         if (t.indexOf('-') == 0 && t.size() == 1) {
-            span = 4;
+            span -= 1;
             t.replace('-',"<hr>");
             text.append(QString("<td colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(t));
-            needOneMoreCol = false;
         } else if (t.indexOf('=') == 0  && t.size() == 1) {
-            span = 4;
+            span -= 1;
             t.replace('=',"<hr size=\"5\">");
             text.append(QString("<td colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(t));
-            needOneMoreCol = false;
         } else if (t.indexOf(QRegularExpression("[0-9]{1,2}%:")) != -1){
             list = t.split(":");
             span = span - list.count();
@@ -1222,7 +1321,6 @@ QString Reports::getReport(int id, bool test)
                     text.append(QString("<td nowrap align=\"right\" colspan=\"%1\" %2>%3</td>").arg(span).arg(color).arg(str));
                 span = 1;
             }
-            needOneMoreCol = true;
         } else if (t.indexOf(QRegularExpression("^-*\\d+:|^-*\\d+\\.\\d+:|^-*\\d+,\\d+:")) != -1) {
             list = t.split(": ",QString::SkipEmptyParts);
             span = span - list.count();
@@ -1243,7 +1341,6 @@ QString Reports::getReport(int id, bool test)
                 count++;
                 span = 1;
             }
-            needOneMoreCol = false;
         } else {
             list = t.split(":",QString::SkipEmptyParts);
             span = span - list.count();
@@ -1260,14 +1357,9 @@ QString Reports::getReport(int id, bool test)
                 count++;
                 span = 1;
             }
-            needOneMoreCol = true;
         }
-
-//        if (!settings.value("report_by_productgroup", false).toBool() && needOneMoreCol)
-//            text.append(QString("<td colspan=\"%1\" %2></td>").arg(span).arg(color));
-//        if (needOneMoreCol)
-
         text.append("</tr>");
+        qApp->processEvents();
     }
     text.append("</table></body></html>\n");
 
@@ -1292,4 +1384,28 @@ void Reports::printDocument(int id, QString title)
 
     DocumentPrinter p;
     p.printDocument(&doc, DocumentTitle);
+}
+
+qint64 Reports::getDiffTime(QDateTime dateTime, bool old)
+{
+    QTime time;
+    if (old)
+        time = Database::getLastEOACurfewTime();
+    else
+        time = Database::getCurfewTime();
+
+    return getDiffTime(dateTime, time);
+}
+
+qint64 Reports::getDiffTime(QDateTime dateTime, QTime curfew)
+{
+    qint64 diff = 0;
+    if (dateTime.time() > curfew) {
+        diff = dateTime.time().secsTo(QTime(23,59,59));
+        diff = diff + QTime(0,0,0).secsTo(curfew);
+    } else {
+        diff = dateTime.time().secsTo(curfew);
+    }
+
+    return diff;
 }

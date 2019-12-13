@@ -28,8 +28,8 @@
  * @brief RKSmartCardInfo::RKSmartCardInfo
  * @param device_name
  */
-RKSmartCardInfo::RKSmartCardInfo(QString device_name)
-    : RKSignatureSmartCard(device_name)
+RKSmartCardInfo::RKSmartCardInfo(QString device_name, bool shared)
+    : RKSignatureSmartCard(device_name, shared)
 {
 }
 

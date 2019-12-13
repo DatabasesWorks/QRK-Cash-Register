@@ -25,6 +25,7 @@
 
 #include <QWidget>
 #include <QLineEdit>
+class QGroupBox;
 
 class BarcodesSettings : public QWidget
 {
@@ -40,6 +41,10 @@ private:
     void init();
     void printBarcodes();
     void save();
+    void actionGroupChanged(bool);
+
+    QGroupBox *m_actionGroup;
+    QGroupBox *m_amountGroup;
 
     QLineEdit *m_barcode_finishReceipt;
     QLineEdit *m_barcode_removeLastPosition;

@@ -28,6 +28,7 @@
 #include <QWizardPage>
 #include <QMap>
 #include <QStandardItemModel>
+#include <QSqlQuery>
 
 namespace Ui {
   class CsvImportWizardPage3;
@@ -52,7 +53,7 @@ signals:
 private slots:
     void importFinished();
     void save(bool);
-    void info(QString info);
+    void info(const QString &info);
 
   private:
     Ui::CsvImportWizardPage3 *ui;
@@ -71,7 +72,8 @@ private slots:
     bool m_visibleGroup;
     bool m_visibleProduct;
     bool m_autoitemnum;
-    int  m_autominitemnum;
+    qulonglong  m_autominitemnum;
+    QStringList m_infoList;
 
 };
 
@@ -80,7 +82,7 @@ class ImportData : public QObject
     Q_OBJECT
 
   public:
-    ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, QMap<QString, QJsonObject> *errormap, bool ignoreExistingProduct = false, bool guessGroup = false, bool autogroup = false,  bool visibleGroup = false, bool visibleProduct = false, bool updateExistingProduct = false, bool autoitemnum = true, int autominitemnum = Database::getNextProductNumber().toInt());
+    ImportData(QStandardItemModel *model, QMap<QString, QVariant> *map, QMap<QString, QJsonObject> *errormap, bool ignoreExistingProduct = false, bool guessGroup = false, bool autogroup = false,  bool visibleGroup = false, bool visibleProduct = false, bool updateExistingProduct = false, bool autoitemnum = true, qulonglong autominitemnum = Database::getNextProductNumber().toULongLong());
     ~ImportData();
 
     void run();
@@ -97,7 +99,7 @@ class ImportData : public QObject
     int createGroup(QString name);
     QString getGroupById(int id);
     int getGroupByName(QString name);
-    bool updateData(int id, QJsonObject data);
+    bool updateData(int id, QJsonObject data, QSqlQuery &query);
 
     QStandardItemModel *m_model;
     QMap<QString, QVariant> *m_map;
@@ -110,11 +112,12 @@ class ImportData : public QObject
     bool m_visibleGroup;
     bool m_visibleProduct;
     bool m_autoitemnum;
-    int m_autominitemnum;
+    qulonglong m_autominitemnum;
     int m_realVisible;
     double m_defaulttax;
     int m_version;
     int m_origin;
+    QSqlQuery m_updateOriginQuery;
 
 };
 

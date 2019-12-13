@@ -20,7 +20,10 @@ INSERT INTO `actionTypes` (`id`, `actionId`, `actionText`, `comment`) VALUES
 (7, 6, 'Kontrollbeleg','PayedByText'),
 (8, 7, 'Nullbeleg','PayedByText'),
 (9, 8, 'Monatsbeleg','PayedByText'),
-(10, 9, 'Schlussbeleg','PayedByText');
+(10, 9, 'Schlussbeleg','PayedByText'),
+(11, -1, 'Privat','PayedByText'),
+(12, -2, 'Werbung','PayedByText'),
+(13, -3, 'Personal','PayedByText');
 
 CREATE TABLE `customer` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -28,6 +31,14 @@ CREATE TABLE `customer` (
   `text` text,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
+CREATE TABLE `history` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `datetime` datetime NOT NULL,
+  `data` text,
+  `userId` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `journal` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -55,19 +66,87 @@ CREATE TABLE `globals` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE `rooms` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `name` text,
+    `color` text,
+    `isHotel` int(11) NOT NULL DEFAULT '0',
+    `sortorder` int(11) NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `tickets` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `open` tinyint(1) NOT NULL DEFAULT '1' COMMENT 'is this ticket being worked on (not payed yet)',
+  `timestamp` datetime NOT NULL,
+  `tableId` int(11) NOT NULL,
+  `payedBy` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='they group orders per table';
+
+CREATE TABLE  `ticketorders` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `ticketId` INTEGER NOT NULL REFERENCES `tickets` (`id`),
+  `product` INTEGER NOT NULL REFERENCES `products` (`id`),
+  `count` int(11) NOT NULL DEFAULT '1',
+  `gross` double NOT NULL,
+  `printed` int(11) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE INDEX `orders_ticketId_index` ON `ticketorders` (`ticketId`);
+
+CREATE TABLE `orderExtras` (
+  `orderId` INTEGER NOT NULL REFERENCES `ticketorders` (`id`),
+  `type` INTEGER,  /* "with" or "without" flag */
+  `product` INTEGER NOT NULL REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE INDEX `orderExtras_orderId_index` ON `orderExtras` (`orderId`);
+
+CREATE TABLE `orderDescs` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `type` INTEGER NOT NULL,
+  `orderId` INTEGER NOT NULL,
+  `description` TEXT
+);
+CREATE INDEX `orderDescs_orderId_index` ON `orderDescs` (`orderId`);
+
+CREATE TABLE `tables` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `roomId` int(11) NOT NULL,
+    `name` text,
+    `color` text,
+    `sortorder` int(11) NOT NULL DEFAULT '0',
+    PRIMARY KEY (`id`),
+    KEY `roomId` (`roomId`),
+    CONSTRAINT `roomId` FOREIGN KEY (`roomId`) REFERENCES `rooms` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` text NOT NULL,
+  `color` text,
+  `printerid` int(11) DEFAULT NULL,
+  `image` text,
+  `sortorder` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO `categories`(`id`, `name`, `color`) VALUES (1, 'Standard', '#008b8b');
+
 CREATE TABLE `groups` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` text NOT NULL,
   `color` text,
-  `button` text,
+  `printerid` int(11) DEFAULT NULL,
   `image` text,
   `visible` tinyint(1) NOT NULL DEFAULT '1',
-  PRIMARY KEY (`id`)
+  `categoryId` int(11) NOT NULL DEFAULT '1',
+  `sortorder` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  CONSTRAINT `categoryId` FOREIGN KEY (`categoryId`) REFERENCES `categories` (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
-INSERT INTO `groups` (`id`, `name`, `color`, `button`, `image`, `visible`) VALUES
-(1, 'auto', '', '', '', 0),
-(2, 'Standard', '#008b8b', '', '', 1);
+INSERT INTO `groups` (`id`, `name`, `color`, `printerid`, `image`, `visible`) VALUES
+(1, 'auto', '', 0, '', 0),
+(2, 'Standard', '#008b8b', 0, '', 1);
 
 CREATE TABLE `orders` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -104,6 +183,9 @@ CREATE TABLE `products` (
   `version` int(11) NOT NULL DEFAULT '0',
   `origin` int(11) NOT NULL DEFAULT '0',
   `lastchange` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  `description` text,
+  `sortorder` int(11) NOT NULL DEFAULT '0',
+  `printerid` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `groupid` (`groupid`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
@@ -115,7 +197,7 @@ CREATE TABLE `receipts` (
   `receiptNum` int(11) DEFAULT NULL,
   `payedBy` int(11) NOT NULL DEFAULT '0',
   `gross` double NOT NULL DEFAULT '0',
-  `net` double NOT NULL DEFAULT '0',
+  `r2b` int(11) NOT NULL DEFAULT '0',
   `storno` int(11) NOT NULL DEFAULT '0',
   `stornoId` int(11) NOT NULL DEFAULT '0',
   `userId` int(11) NOT NULL DEFAULT '0',
@@ -136,9 +218,27 @@ CREATE TABLE `reports` (
   `timestamp` datetime NOT NULL,
   `text` text,
   `type`	INTEGER NOT NULL DEFAULT 0,
+  `curfew`	varchar(5) NOT NULL DEFAULT '00:00',
+  `timestampfrom` datetime NOT NULL DEFAULT '0000-00-00T00:00:00',
   PRIMARY KEY (`id`),
   KEY `reports_receiptNum_index` (`receiptNum`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
+CREATE TABLE `printerdefs` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `definition` TEXT NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
+CREATE TABLE `printers` (
+ `id` INT NOT NULL AUTO_INCREMENT,
+ `name` VARCHAR(255) NOT NULL,
+ `printer` VARCHAR(255) NOT NULL,
+ `definition` INT NOT NULL DEFAULT '1',
+ PRIMARY KEY (`id`),
+ CONSTRAINT `definition` FOREIGN KEY (`definition`) REFERENCES `printerdefs` (`id`)
+ ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 CREATE TABLE `taxTypes` (
   `id` int(11) NOT NULL AUTO_INCREMENT,

@@ -35,7 +35,7 @@ class Chart : public IndependentInterface
     Q_INTERFACES(IndependentInterface)
 
 public:
-    Chart(QObject *parent = 0);
+    Chart(QObject *parent = Q_NULLPTR);
     ~Chart();
 
     bool process();

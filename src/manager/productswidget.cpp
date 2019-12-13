@@ -38,7 +38,7 @@
 //--------------------------------------------------------------------------------
 
 ProductsWidget::ProductsWidget(QWidget *parent)
-  : QWidget(parent), ui(new Ui::ProductsWidget), m_newProductDialog(0)
+  : QWidget(parent), ui(new Ui::ProductsWidget), m_newProductDialog(Q_NULLPTR)
 {
   ui->setupUi(this);
 
@@ -52,7 +52,8 @@ ProductsWidget::ProductsWidget(QWidget *parent)
 //  m_model = new QSqlRelationalTableModel(this, dbc);
   m_model = new QSqlRTModel(this, dbc);
   m_model->setTable("products");
-  m_model->setRelation(m_model->fieldIndex("groupid"), QSqlRelation("groups", "id", "name"));
+  int groupidFieldIndex = m_model->fieldIndex("groupid");
+  m_model->setRelation(groupidFieldIndex, QSqlRelation("groups", "id", "name"));
 
   m_model->setFilter("groupid > 1");
   m_model->setFrom("from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as products on p1.version=products.version and p1.origin=products.origin");
@@ -65,9 +66,8 @@ ProductsWidget::ProductsWidget(QWidget *parent)
   m_model->setHeaderData(m_model->fieldIndex("itemnum"), Qt::Horizontal, tr("Artikel #"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("name"), Qt::Horizontal, tr("Artikelname"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("gross"), Qt::Horizontal, tr("Preis"), Qt::DisplayRole);
-  m_model->setHeaderData(7, Qt::Horizontal, tr("Gruppe"), Qt::DisplayRole);
+  m_model->setHeaderData(groupidFieldIndex, Qt::Horizontal, tr("Gruppe"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("visible"), Qt::Horizontal, tr("sichtbar"), Qt::DisplayRole);
-  m_model->setHeaderData(m_model->fieldIndex("tax"), Qt::Horizontal, tr("MwSt"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("stock"), Qt::Horizontal, tr("Lagerbestand"), Qt::DisplayRole);
   m_model->setHeaderData(m_model->fieldIndex("minstock"), Qt::Horizontal, tr("Mindestbestand"), Qt::DisplayRole);
 
@@ -86,16 +86,25 @@ ProductsWidget::ProductsWidget(QWidget *parent)
   ui->tableView->setColumnHidden(m_model->fieldIndex("net"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("completer"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("color"), true);
-  ui->tableView->setColumnHidden(m_model->fieldIndex("button"), true);
+  ui->tableView->setColumnHidden(m_model->fieldIndex("printerid"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("image"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("tax"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("gross"), true);
   ui->tableView->setColumnHidden(m_model->fieldIndex("coupon"), true);
+  ui->tableView->setColumnHidden(m_model->fieldIndex("button"), true);
+  ui->tableView->setColumnHidden(m_model->fieldIndex("description"), true);
+
+  ui->tableView->setColumnHidden(m_model->fieldIndex("version"), true);
+  ui->tableView->setColumnHidden(m_model->fieldIndex("origin"), true);
+  ui->tableView->setColumnHidden(m_model->fieldIndex("lastchange"), true);
+  ui->tableView->setColumnHidden(m_model->fieldIndex("sortorder"), true);
+
 
   ui->tableView->setAlternatingRowColors(true);
   ui->tableView->resizeColumnsToContents();
   ui->tableView->horizontalHeader()->setStretchLastSection(true);
 
+  ui->tableView->verticalHeader()->setVisible(false);
 }
 
 ProductsWidget::~ProductsWidget()

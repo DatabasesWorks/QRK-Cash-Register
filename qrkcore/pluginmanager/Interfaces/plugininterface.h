@@ -38,6 +38,7 @@ class QRK_EXPORT PluginInterface : public QObject
         virtual QString getPluginName() = 0;
         virtual bool initialize() = 0;
         virtual bool deinitialize() = 0;
+        virtual bool isActivated() {return false;}
 };
 
 #define PluginInterface_iid "at.ckvsoft.PluginInterface"

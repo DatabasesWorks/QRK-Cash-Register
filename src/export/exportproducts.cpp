@@ -62,8 +62,19 @@ void ExportProducts::Export()
 
     QString selected = settings.value("lastUsedExport", "products.itemnum,products.name,products.gross,products.groupid,products.tax" ).toString();
 
+    QStringList headernamelist = Database::getDatabaseTableHeaderNames("products");
+    /* remove unused and not changeable entries */
+    headernamelist.removeOne("products.id");
+    headernamelist.removeOne("products.button");
+    headernamelist.removeOne("products.printerid");
+    headernamelist.removeOne("products.image");
+    headernamelist.removeOne("products.version");
+    headernamelist.removeOne("products.origin");
+    headernamelist.removeOne("products.lastchange");
+    headernamelist.removeOne("products.sortorder");
+
     CheckableListDialog cd;
-    cd.setModelData(Database::getDatabaseTableHeaderNames("products"), selected.split(','));
+    cd.setModelData(headernamelist, selected.split(','));
     if (cd.exec() != QDialog::Accepted)
         return;
 

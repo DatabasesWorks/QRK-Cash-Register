@@ -32,9 +32,11 @@
 #include "utils/utils.h"
 #include "backup.h"
 #include "reports.h"
-#include "3rdparty/ckvsoft/rbac/userlogin.h"
+#include "qrkuserlogin.h"
 #include "3rdparty/ckvsoft/rbac/acl.h"
 #include "3rdparty/ckvsoft/uniquemachinefingerprint.h"
+
+#include "qrkprinter.h"
 
 #include "defines.h"
 #include "database.h"
@@ -186,7 +188,12 @@ void sighandler(int /*sig*/)
 int main(int argc, char *argv[])
 {
 
+//    qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
+
     QApplication app(argc, argv);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
+    QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
+#endif
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     app.setProperty("debugMsg", false);
 
@@ -194,6 +201,7 @@ int main(int argc, char *argv[])
     QLocale l(QLocale().system().language());
     QLocale::setDefault(l);
 
+    qSetMessagePattern("%{file}(%{line}): %{message}");
 
     QSplashScreen *splash = new QSplashScreen;
     splash->setPixmap(QPixmap(":src/icons/splash.png"));
@@ -207,12 +215,12 @@ int main(int argc, char *argv[])
     qInstallMessageHandler(QRKMessageHandler);
 #endif
 
-    qSetMessagePattern("%{file}(%{line}): %{message}");
-
     QApplication::setOrganizationName("ckvsoft");
     QApplication::setOrganizationDomain("ckvsoft.at");
     QApplication::setApplicationName("QRK");
     QApplication::setApplicationVersion(QString("%1.%2").arg(QRK_VERSION_MAJOR).arg(QRK_VERSION_MINOR));
+
+    qInfo() << "Function Name: " << Q_FUNC_INFO << "starting QRK -------------------------------";
 
     splash->showMessage(QObject::tr("Datenverzeichnisse werden erstellt ..."),topRight, Qt::black);
     createAppDataLocation();
@@ -282,7 +290,7 @@ int main(int argc, char *argv[])
 
 #ifdef QT_DEBUG
     debugMsg = true;
-    noPrinter = true;
+    noPrinter = false;
 #endif
 
     QrkSettings settings;
@@ -298,6 +306,8 @@ int main(int argc, char *argv[])
                         "min-height: " + QString::number(buttonsize.height() * 0.85) + "px;}"
                         "QScrollBar:vertical {"
                         "width: 25px;}"
+                        "QScrollBar:horizontal {"
+                        "height: 25px;}"
                         );
 
     if (parser.isSet(styleSheetOption)) {
@@ -343,7 +353,7 @@ int main(int argc, char *argv[])
     }
 
     QRK mainWidget(servermode);
-    UserLogin *userLogin = new UserLogin(&mainWidget);
+    QrkUserLogin *userLogin = new QrkUserLogin(&mainWidget);
 
     splash->showMessage(QObject::tr("DEP-7 wird überprüft ..."),topRight, Qt::black);
 
@@ -422,14 +432,14 @@ int main(int argc, char *argv[])
     }
 
     /*Check for MasterData*/
-    QString cri = Database::getCashRegisterId();
+    QString cri = Database::getCashRegisterId().replace("DEMO-", "").trimmed();
     if ( cri.isEmpty() ) {
         splash->setHidden(true);
         QMessageBox::warning(Q_NULLPTR, QObject::tr("Kassenidentifikationsnummer"), QObject::tr("Stammdaten müssen vollständig ausgefüllt werden.."));
         RBAC::Instance()->setuserId(0);
         SettingsDialog tab;
         tab.exec();
-        if ( Database::getCashRegisterId().replace("DEMO-", "").isEmpty() ) {
+        if ( Database::getCashRegisterId().replace("DEMO-", "").trimmed().isEmpty() ) {
             QrkTimedMessageBox messageBox(5,
                                    QMessageBox::Warning,
                                    QObject::tr("Kassenidentifikationsnummer"),
@@ -456,7 +466,7 @@ int main(int argc, char *argv[])
 
 #if defined(_WIN32) || defined(__APPLE__)
     // Set feed URL before doing anything else
-    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.12/Appcast.xml");
+    FvUpdater::sharedUpdater()->SetFeedURL("http://service.ckvsoft.at/qrk/updates/v1.14/Appcast.xml");
     FvUpdater::sharedUpdater()->setRequiredSslFingerPrint("c3b038cb348c7d06328579fb950a48eb");	// Optional
     FvUpdater::sharedUpdater()->setHtAuthCredentials("username", "password");	// Optional
     FvUpdater::sharedUpdater()->setUserCredentials(Database::getShopName() + "/" + Database::getCashRegisterId() + "/" + QApplication::applicationVersion());
@@ -467,6 +477,7 @@ int main(int argc, char *argv[])
 
     // Check for updates automatically
     FvUpdater::sharedUpdater()->CheckForUpdatesSilent();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << "Check for updates automatically";
 #endif
 
     /*

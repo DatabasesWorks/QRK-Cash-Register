@@ -49,7 +49,9 @@
 #include "3rdparty/ckvsoft/rbac/acl.h"
 #include "3rdparty/ckvsoft/rbac/aclmanager.h"
 #include "3rdparty/ckvsoft/rbac/aclwizard.h"
-#include "3rdparty/ckvsoft/rbac/userlogin.h"
+#include "qrkuserlogin.h"
+#include "qrkgastro.h"
+#include "preferences/settingsdialog.h"
 #include <ui_qrk.h>
 
 #include <QStackedWidget>
@@ -154,6 +156,8 @@ QRK::QRK(bool servermode)
     connect(m_qrk_home, &QRKHome::logOnOff, this, &QRK::logOnOff);
 
     connect(m_qrk_home, &QRKHome::registerButton_clicked, this, &QRK::onRegisterButton_clicked);
+    connect(m_qrk_home, &QRKHome::gregisterButton_clicked, this, &QRK::onGRegisterButton_clicked);
+
     connect(m_qrk_home, &QRKHome::documentButton_clicked, this, &QRK::onDocumentButton_clicked);
     connect(m_qrk_home, &QRKHome::productmanagerButton_clicked, this, &QRK::onManagerButton_clicked);
     connect(m_qrk_home, &QRKHome::usermanagerButton_clicked, this, &QRK::actionAclManager);
@@ -163,6 +167,8 @@ QRK::QRK(bool servermode)
     connect(m_qrk_register, &QRKRegister::finishedReceipt, this, &QRK::finishedReceipt);
     connect(m_qrk_register, &QRKRegister::fullScreen, this, &QRK::setFullScreenMode);
     connect(m_qrk_register, &QRKRegister::sendDatagram, this, &QRK::sendDatagram);
+
+    connect(m_qrk_gastro, &QRKGastro::cancelGastroButton_clicked, this, &QRK::onCancelGastroButton_clicked);
 
     connect(m_qrk_document, &QRKDocument::cancelDocumentButton, this, &QRK::onCancelDocumentButton_clicked);
     connect(m_qrk_document, &QRKDocument::documentButton_clicked, this, &QRK::onDocumentButton_clicked);
@@ -187,19 +193,21 @@ QRK::QRK(bool servermode)
 QRK::~QRK()
 {
 
+    m_timer->stop();
     m_versionChecker->deleteLater();
-    DatabaseManager::removeCurrentThread("CN");
+//    DatabaseManager::removeCurrentThread("CN");
     DatabaseManager::clear();
 
     delete ui;
     PluginManager::instance()->uninitialize();
-    m_timer->stop();
+
 }
 
 //--------------------------------------------------------------------------------
 
 void QRK::iniStack()
 {
+
     m_qrk_home =  new QRKHome(m_servermode, m_stackedWidget);
     m_stackedWidget->addWidget(m_qrk_home);
 
@@ -208,6 +216,9 @@ void QRK::iniStack()
 
     m_qrk_document =  new QRKDocument(m_stackedWidget);
     m_stackedWidget->addWidget(m_qrk_document);
+
+    m_qrk_gastro =  new QRKGastro(m_stackedWidget);
+    m_stackedWidget->addWidget(m_qrk_gastro);
 
     m_stackedWidget->setCurrentWidget(m_qrk_home);
 
@@ -218,11 +229,13 @@ void QRK::iniStack()
 void QRK::initPlugins()
 {
     QStringList plugins = PluginManager::instance()->plugins();
+    qDebug() << "Function Name: " << Q_FUNC_INFO << "Plugins: " << plugins;
     QListIterator<QString> i(plugins);
     bool hasPlugins = false;
     while(i.hasNext()) {
         QString path = i.next();
         QString name = PluginManager::instance()->getNameByPath(path);
+        qInfo() << "Function Name: " << Q_FUNC_INFO << "Load plugins: " << name << " (" << path << ")";
         IndependentInterface *plugin = qobject_cast<IndependentInterface *>(PluginManager::instance()->getObjectByName(name));
         if (plugin) {
             QAction *action = ui->menuPlugins->addAction(plugin->getPluginName(), this, SLOT(runPlugin()));
@@ -247,6 +260,7 @@ void QRK::runPlugin()
     if (plugin) {
         plugin->process();
         delete plugin;
+        emit init();
     }
 }
 
@@ -255,6 +269,7 @@ void QRK::viewPlugins()
     PluginView view(this);
     view.setCloseButtonVisible(true);
     view.exec();
+    emit init();
 }
 
 void QRK::timerDone()
@@ -346,7 +361,6 @@ void QRK::setSafetyDevice(bool active)
 
 void QRK::init()
 {
-
     m_currentRegisterYearLabel->setText(QObject::tr(" KJ: %1 ").arg(getCurrentRegisterYear()));
     m_cashRegisterIdLabel->setText(QObject::tr(" KID: %1 ").arg(Database::getCashRegisterId()));
 
@@ -358,69 +372,66 @@ void QRK::init()
     setShopName();
     m_cashRegisterId = Database::getCashRegisterId();
 
-    m_qrk_home->init();
+    emit m_qrk_home->init();
 
     /**
    * @brief DEPaktive
    */
-    QPixmap pm1(32, 32);
-    QPixmap pm2(32, 32);
-
-    QString DEPtoolTip = tr("DEP-7 Inaktiv");
-    QString DEPaktive = tr("Inaktiv");
     m_dep->setText(tr("DEP-7"));
-
     if (Database::getTaxLocation() == "AT") {
         m_qrk_home->setExternalDepLabels(true);
         m_dep->setVisible(true);
         m_depPX->setVisible(true);
         m_safetyDevicePX->setVisible(true);
-
-        if (RKSignatureModule::isDEPactive()) {
-            RKSignatureModule *signaturinfo = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
-
-            DEPaktive = tr("Aktiviert");
-
-            QString serial = "0";
-            QString cardType = "keine";
-
-
-            if (signaturinfo->selectApplication()) {
-                m_previousSafetyDeviceState = true;
-                serial = signaturinfo->getCertificateSerial(true);
-                cardType = signaturinfo->getCardType();
-                DEPtoolTip = tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial);
-                pm2.fill(Qt::green);
-                m_safetyDevicePX->setToolTip(tr("SignaturErstellungsEinheit aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial));
-                m_qrk_register->safetyDevice(true);
-                m_qrk_home->safetyDevice(true);
-            } else {
-                m_previousSafetyDeviceState = false;
-                DEPtoolTip = tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv, SignaturErstellungsEinheit ausgefallen");
-                pm2.fill(Qt::red);
-                m_safetyDevicePX->setToolTip(tr("SignaturErstellungsEinheit ausgefallen"));
-                m_qrk_register->safetyDevice(false);
-                m_qrk_home->safetyDevice(false);
-            }
-
-            pm1.fill(Qt::green);
-            m_depPX->setPixmap(pm1);
-            m_depPX->setToolTip(tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv"));
-            m_safetyDevicePX->setPixmap(pm2);
-
-            delete signaturinfo;
-        } else {
-            pm1.fill(Qt::red);
-            m_depPX->setPixmap(pm1);
-            m_safetyDevicePX->setVisible(false);
-        }
-        m_dep->setToolTip(DEPtoolTip);
+        emit updateRKStatus();
+        qApp->processEvents();
     } else {
         m_qrk_home->setExternalDepLabels(false);
         m_dep->setVisible(false);
         m_depPX->setVisible(false);
         m_safetyDevicePX->setVisible(false);
     }
+}
+
+void QRK::updateRKStatus()
+{
+    QString DEPtoolTip = tr("DEP-7 Inaktiv");
+    QPixmap pm1(32, 32);
+    QPixmap pm2(32, 32);
+
+    if (RKSignatureModule::isDEPactive()) {
+        RKSignatureModule *signaturinfo = RKSignatureModuleFactory::createInstance("", DemoMode::isDemoMode());
+
+        if (signaturinfo->selectApplication()) {
+            m_previousSafetyDeviceState = true;
+            QString serial = signaturinfo->getCertificateSerial(true);
+            QString cardType = signaturinfo->getCardType();
+            DEPtoolTip = tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial);
+            pm2.fill(Qt::green);
+            m_safetyDevicePX->setToolTip(tr("SignaturErstellungsEinheit aktiv, Kartentype: %1 Seriennummer: %2").arg(cardType).arg(serial));
+            m_qrk_register->safetyDevice(true);
+            m_qrk_home->safetyDevice(true);
+        } else {
+            m_previousSafetyDeviceState = false;
+            DEPtoolTip = tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv, SignaturErstellungsEinheit ausgefallen");
+            pm2.fill(Qt::red);
+            m_safetyDevicePX->setToolTip(tr("SignaturErstellungsEinheit ausgefallen"));
+            m_qrk_register->safetyDevice(false);
+            m_qrk_home->safetyDevice(false);
+        }
+
+        pm1.fill(Qt::green);
+        m_depPX->setPixmap(pm1);
+        m_depPX->setToolTip(tr("DEP-7 (RKSV Daten Erfassungs Protokoll) aktiv"));
+        m_safetyDevicePX->setPixmap(pm2);
+
+        delete signaturinfo;
+    } else {
+        pm1.fill(Qt::red);
+        m_depPX->setPixmap(pm1);
+        m_safetyDevicePX->setVisible(false);
+    }
+    m_dep->setToolTip(DEPtoolTip);
 }
 
 void QRK::restore()
@@ -436,8 +447,8 @@ void QRK::logOnOff(bool)
         if (RBAC::Instance()->getUserId() > 0) {
             RBAC::Instance()->setuserId(-1);
             init();
-            UserLogin *login = new UserLogin(this);
-            connect(login, &UserLogin::accepted, this, &QRK::init);
+            QrkUserLogin *login = new QrkUserLogin(this);
+            connect(login, &QrkUserLogin::accepted, this, &QRK::init);
             login->exec();
         }
     } else {
@@ -471,6 +482,12 @@ void QRK::actionAclManager()
     AclManager am;
     am.exec();
     emit init();
+}
+
+void QRK::actionGastro()
+{
+    m_qrk_gastro->init();
+    m_stackedWidget->setCurrentWidget(m_qrk_gastro);
 }
 
 void QRK::actionAbout_QRK()
@@ -552,6 +569,7 @@ void QRK::onCancelDocumentButton_clicked()
 
 void QRK::onRegisterButton_clicked()
 {
+
     if(!RBAC::Instance()->hasPermission("register_access")) {
         QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("register_access"))));
         return;
@@ -560,6 +578,17 @@ void QRK::onRegisterButton_clicked()
     m_qrk_register->init();
     m_qrk_register->newOrder();
     m_stackedWidget->setCurrentWidget(m_qrk_register);
+}
+
+void QRK::onGRegisterButton_clicked()
+{
+    if(!RBAC::Instance()->hasPermission("gastro_register_access")) {
+        QMessageBox::warning(Q_NULLPTR, tr("Information!"), tr("Leider haben Sie keine Berechtigung.\nFehlende Berechtigung '%1'").arg(RBAC::Instance()->getPermNameFromID(RBAC::Instance()->getPermIDfromKey("register_access"))));
+        return;
+    }
+
+    m_qrk_gastro->init();
+    m_stackedWidget->setCurrentWidget(m_qrk_gastro);
 }
 
 void QRK::onManagerButton_clicked()
@@ -574,6 +603,12 @@ void QRK::onManagerButton_clicked()
 }
 
 //--------------------------------------------------------------------------------
+
+void QRK::onCancelGastroButton_clicked()
+{
+    m_stackedWidget->setCurrentWidget(m_qrk_home);
+    m_qrk_home->init();
+}
 
 void QRK::onCancelRegisterButton_clicked()
 {
@@ -652,7 +687,7 @@ void QRK::closeEvent (QCloseEvent *event)
                    QMessageBox::Question,
                    QMessageBox::Yes | QMessageBox::Default,
                    QMessageBox::No | QMessageBox::Escape,
-                   QMessageBox::NoButton);
+                   QMessageBox::NoButton, this);
     mb.setButtonText(QMessageBox::Yes, tr("Ja"));
     mb.setButtonText(QMessageBox::No, tr("Nein"));
     mb.setDefaultButton(QMessageBox::Yes);
@@ -665,7 +700,7 @@ void QRK::closeEvent (QCloseEvent *event)
             settings.save2Settings("mainWindowState", saveState(), false);
         }
         PluginManager::instance()->uninitialize();
-        DatabaseManager::removeCurrentThread("CN");
+//        DatabaseManager::removeCurrentThread("CN");
         QApplication::exit();
     } else {
         event->ignore();

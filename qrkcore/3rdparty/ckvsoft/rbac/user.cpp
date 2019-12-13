@@ -25,11 +25,10 @@
 
 #include <QFile>
 
-User::User(int userid, QObject *parent) : QObject(parent), m_userId(userid), m_changed(false)
+User::User(int userid, QObject *parent) : QObject(parent), m_userId(userid), m_username(RBAC::Instance()->getUsername(m_userId)),
+    m_displayname(RBAC::Instance()->getDisplayname(m_userId)), m_avatar(RBAC::Instance()->getAvatar(m_userId)), m_changed(false)
 {
-    m_username = RBAC::Instance()->getUsername(m_userId);
-    m_displayname = RBAC::Instance()->getDisplayname(m_userId);
-    m_avatar = RBAC::Instance()->getAvatar(m_userId);
+
     switch (RBAC::Instance()->getGender(m_userId))
     {
     case User::MALE:
@@ -112,12 +111,12 @@ void User::setRoleMap(QMap<QString, bool> roles)
     m_roles = roles;
 }
 
-void User::setUserName(QString username)
+void User::setUserName(const QString &username)
 {
     m_username = username;
 }
 
-void User::setDisplayName(QString displayname)
+void User::setDisplayName(const QString &displayname)
 {
     m_displayname = displayname;
 }
@@ -127,13 +126,13 @@ void User::setGender(GENDER gender)
     m_gender = gender;
 }
 
-void User::setAvatar(QString avatar)
+void User::setAvatar(const QString &avatar)
 {
     if (QFile::exists(avatar))
         m_avatar = avatar;
 }
 
-void User::setPassword(QString password)
+void User::setPassword(const QString &password)
 {
     m_password = password.toUtf8();
 }
@@ -144,7 +143,7 @@ void User::setPassword()
         m_password = m_password1;
 }
 
-void User::setNewPassword(QString password1, QString password2)
+void User::setNewPassword(const QString &password1, const QString &password2)
 {
     m_password1 = password1.toUtf8();
     m_password2 = password2.toUtf8();

@@ -42,16 +42,9 @@
 #include <QDebug>
 
 ReceiptItemModel::ReceiptItemModel(QObject* parent)
-    : QStandardItemModel(parent)
+    : QStandardItemModel(parent), m_currency(""), m_taxlocation(""), m_customerText(""),
+      m_isR2B(false), m_isReport(false), m_totallyup(false)
 {
-    m_currency = "";
-    m_taxlocation = "";
-    m_customerText = "";
-
-    m_isR2B = false;
-    m_isReport = false;
-    m_totallyup = false;
-
     connect(this, &ReceiptItemModel::dataChanged, this, &ReceiptItemModel::itemChangedSlot);
 }
 
@@ -107,7 +100,6 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
     }
 
     QBCMath sum = 0.0;
-    QBCMath net = 0.0;
 
     if (!isReport) {
 
@@ -129,7 +121,6 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
             count.round(settings.value("decimalDigits", 2).toInt());
             QBCMath singlePrice = orders.value("gross").toDouble();
             singlePrice.round(2);
-            double tax = QString::number(orders.value("tax").toDouble(),'f',2).toDouble();
             QBCMath discount = orders.value("discount").toDouble();
             discount.round(2);
 
@@ -137,20 +128,19 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
             gross = gross - ((gross / 100) * discount.toDouble());
             gross.round(2);
             sum += gross;
-            net += gross / (1.0 + tax / 100.0);
             qApp->processEvents();
         }
     }
 
     setReceiptTime(QDateTime::currentDateTime());
-    query.prepare(QString("UPDATE receipts SET timestamp=:timestamp, infodate=:infodate, receiptNum=:receiptNum, payedBy=:payedBy, gross=:gross, net=:net, userId=:userId WHERE id=:receiptNum"));
+    query.prepare(QString("UPDATE receipts SET timestamp=:timestamp, infodate=:infodate, receiptNum=:receiptNum, payedBy=:payedBy, gross=:gross, userId=:userId, r2b=:r2b WHERE id=:receiptNum"));
     query.bindValue(":timestamp", m_receiptTime.toString(Qt::ISODate));
     query.bindValue(":infodate", m_receiptTime.toString(Qt::ISODate));
     query.bindValue(":receiptNum", m_currentReceipt);
     query.bindValue(":payedBy", payedBy);
     query.bindValue(":gross", sum.toDouble());
-    query.bindValue(":net", net.toString());
     query.bindValue(":userId", RBAC::Instance()->getUserId());
+    query.bindValue(":r2b", (m_isR2B)?1:0);
 
     ok = query.exec();
     if (!ok) {
@@ -164,19 +154,21 @@ bool ReceiptItemModel::finishReceipts(int payedBy, int id, bool isReport)
     }
 
     if (payedBy == PAYED_BY_CASH && m_given.value(PAYED_BY_CASH, 0.0) > 0.0) {
-        QSqlDatabase dbc = Database::database();
-        QSqlQuery query(dbc) ;
         query.prepare(QString("INSERT INTO receiptspay (receiptNum, payedBy, gross) VALUES (:receiptNum, :payedBy, :gross)"));
         query.bindValue(":receiptNum", m_currentReceipt);
         query.bindValue(":payedBy", PAYED_BY_CASH);
         query.bindValue(":gross", m_given.value(PAYED_BY_CASH));
         query.exec();
         if (m_given.value(PAYED_BY_DEBITCARD, 0.0) > 0.0) {
+            data["secondPayText"] = tr("Bankomat");
+            data["secondPayVal"] = m_given.value(PAYED_BY_DEBITCARD);
             query.bindValue(":payedBy", PAYED_BY_DEBITCARD);
             query.bindValue(":gross", m_given.value(PAYED_BY_DEBITCARD));
             query.exec();
         }
         if (m_given.value(PAYED_BY_CREDITCARD, 0.0) > 0.0) {
+            data["secondPayText"] = tr("Kreditkarte");
+            data["secondPayVal"] = m_given.value(PAYED_BY_CREDITCARD);
             query.bindValue(":payedBy", PAYED_BY_CREDITCARD);
             query.bindValue(":gross", m_given.value(PAYED_BY_CREDITCARD));
             query.exec();
@@ -290,10 +282,13 @@ QJsonObject ReceiptItemModel::compileData(int id)
 
     // Orders
     QSqlQuery orders(dbc);
-    orders.prepare(QString("SELECT orders.count, products.name, orders.gross, orders.tax, products.coupon, orders.discount, products.itemnum FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=:id"));
+    orders.prepare(QString("SELECT orders.count, products.name, orders.gross, orders.tax, products.coupon, orders.discount, products.itemnum, orders.id, products.description FROM orders INNER JOIN products ON products.id=orders.product WHERE orders.receiptId=:id"));
     orders.bindValue(":id", m_currentReceipt);
 
     orders.exec();
+
+    QSqlQuery orderDescs(dbc);
+    orderDescs.prepare("SELECT description FROM orderDescs WHERE orderId=:id AND type=0");
 
     QrkSettings settings;
 
@@ -342,6 +337,12 @@ QJsonObject ReceiptItemModel::compileData(int id)
         else
             taxes[tax] = Utils::getTax(gross.toDouble(), tax);
 
+        orderDescs.bindValue(":id", orders.value("id").toInt());
+        orderDescs.exec();
+        QString description = orders.value("description").toString();
+        if (orderDescs.next())
+            description = orderDescs.value("description").toString();
+
         QJsonObject order;
         order["count"] = count.toDouble();
         order["itemNum"] = orders.value("itemNum").toString();
@@ -351,6 +352,7 @@ QJsonObject ReceiptItemModel::compileData(int id)
         order["singleprice"] = singlePrice.toDouble();
         order["tax"] = tax;
         order["coupon"] = orders.value(4).toString();
+        order["description"] = description;
         Orders.append(order);
 
         QString taxType = Database::getTaxType(tax);
@@ -386,7 +388,7 @@ void ReceiptItemModel::newOrder( bool  addRow )
 
     clear();
 
-    setColumnCount(9);
+    setColumnCount(10);
     setHeaderData(REGISTER_COL_COUNT, Qt::Horizontal, QObject::tr("Anzahl"));
     setHeaderData(REGISTER_COL_PRODUCTNUMBER, Qt::Horizontal, QObject::tr("Artikelnummer"));
     setHeaderData(REGISTER_COL_PRODUCT, Qt::Horizontal, QObject::tr("Artikel"));
@@ -395,7 +397,8 @@ void ReceiptItemModel::newOrder( bool  addRow )
     setHeaderData(REGISTER_COL_SINGLE, Qt::Horizontal, QObject::tr("E-Preis"));
     setHeaderData(REGISTER_COL_DISCOUNT, Qt::Horizontal, QObject::tr("Rabatt %"));
     setHeaderData(REGISTER_COL_TOTAL, Qt::Horizontal, QObject::tr("Preis"));
-    setHeaderData(REGISTER_COL_SAVE, Qt::Horizontal, QObject::tr(" "));
+    setHeaderData(REGISTER_COL_DESCBUTTON, Qt::Horizontal, " ");
+    setHeaderData(REGISTER_COL_SAVE, Qt::Horizontal, " ");
 
     if (addRow)
         plus();
@@ -403,6 +406,7 @@ void ReceiptItemModel::newOrder( bool  addRow )
 
 void ReceiptItemModel::plus()
 {
+
     int row = rowCount();
     m_manualProductsNumber = "";
 
@@ -411,7 +415,7 @@ void ReceiptItemModel::plus()
 
     QString defaultTax = Database::getDefaultTax();
 
-    setColumnCount(9);
+    setColumnCount(10);
     setItem(row, REGISTER_COL_COUNT, new QStandardItem(QString("1")));
     setItem(row, REGISTER_COL_PRODUCTNUMBER, new QStandardItem(QString("")));
     setItem(row, REGISTER_COL_PRODUCT, new QStandardItem(QString("")));
@@ -420,6 +424,7 @@ void ReceiptItemModel::plus()
     setItem(row, REGISTER_COL_SINGLE, new QStandardItem(QString("0")));
     setItem(row, REGISTER_COL_DISCOUNT, new QStandardItem("0"));
     setItem(row, REGISTER_COL_TOTAL, new QStandardItem(QString("0")));
+    setItem(row, REGISTER_COL_DESCBUTTON, new QStandardItem(QString("T")));
 
     QStandardItem* itemSave = new QStandardItem(false);
     itemSave->setCheckable(true);
@@ -437,7 +442,7 @@ void ReceiptItemModel::plus()
 
 }
 
-bool ReceiptItemModel::createNullReceipt(int type)
+bool ReceiptItemModel::createNullReceipt(int type, QString additional_text)
 {
 
     QString typeText = "";
@@ -455,7 +460,7 @@ bool ReceiptItemModel::createNullReceipt(int type)
         break;
     case YEAR_RECEIPT:
         typeText = "Jahresbeleg";
-        payType = PAYED_BY_MONTH_RECEIPT;
+        payType = PAYED_BY_YEAR_RECEIPT;
         mustSign = true;
         break;
     case COLLECTING_RECEIPT:
@@ -477,6 +482,9 @@ bool ReceiptItemModel::createNullReceipt(int type)
         return false;
     }
 
+    if (!additional_text.isEmpty())
+        typeText += " " + additional_text;
+
     bool ret = false;
     newOrder();
     int rc = rowCount();
@@ -494,7 +502,6 @@ bool ReceiptItemModel::createNullReceipt(int type)
     itemdata["gross"] = 0.0;
     itemdata["visible"] = 0;
     itemdata["group"] = 1;
-
 
     ret = Database::addProduct(itemdata);
     if (ret) {
@@ -563,9 +570,8 @@ int ReceiptItemModel::createReceipts()
     QSqlDatabase dbc = Database::database();
     QSqlQuery query(dbc);
 
-    bool processed = false;
     if (wsdlInterface) {
-        processed = wsdlInterface->process(m_currentReceipt);
+        bool processed = wsdlInterface->process(m_currentReceipt);
         if (!processed)
             qWarning() << "Function Name: " << Q_FUNC_INFO << " WSDL: " << processed;
     }
@@ -601,15 +607,24 @@ bool ReceiptItemModel::createOrder(bool storno)
 
     bool ret = false;
 
+    QDateTime lastReceiptDateTime = Database::getLastReceiptDateTime(true);
+    if (QDateTime::currentDateTime().secsTo(lastReceiptDateTime) > 0) {
+        emit futureTimeDedected(lastReceiptDateTime);
+        return false;
+    }
+
     QSqlDatabase dbc = Database::database();
-    QSqlQuery query(dbc) ;
-    query.prepare(QString("INSERT INTO orders (receiptId, product, count, net, discount, gross, tax) SELECT :receiptId, id, :count, :net, :discount, :egross, :tax FROM products WHERE name=:name LIMIT 1"));
+    QSqlQuery query(dbc);
+    QSqlQuery customquery(dbc);
+
+    query.prepare("INSERT INTO orders (receiptId, product, count, net, discount, gross, tax) SELECT :receiptId, p2.id, :count, :net, :discount, :egross, :tax from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin where name=:name LIMIT 1");
+    customquery.prepare("INSERT INTO orderDescs (type, orderId, description) VALUES(:type, (SELECT MAX(id) FROM orders LIMIT 1), :description)");
+    //    query.prepare(QString("INSERT INTO orders (receiptId, product, count, net, discount, gross, tax) SELECT :receiptId, id, :count, :net, :discount, :egross, :tax FROM products WHERE name=:name LIMIT 1"));
 
     QrkSettings settings;
 
     int row_count = rowCount();
-    for (int row = 0; row < row_count; row++)
-    {
+    for (int row = 0; row < row_count; row++) {
         QBCMath count(data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble());
         count.round(settings.value("decimalDigits", 2).toInt());
         if (storno)
@@ -629,6 +644,8 @@ bool ReceiptItemModel::createOrder(bool storno)
         QBCMath net(egross - Utils::getTax(egross.toDouble(), tax.toDouble()));
         net.round(2);
 
+        QString customData = data(index(row, REGISTER_COL_DESCBUTTON, QModelIndex()),CUSTOMDATAROLE::CUSTOMDATA).toString();
+
         query.bindValue(":receiptId", m_currentReceipt);
         query.bindValue(":count", count.toDouble());
         query.bindValue(":net", net.toDouble());
@@ -642,6 +659,15 @@ bool ReceiptItemModel::createOrder(bool storno)
         if (!ret) {
             qCritical() << "Function Name: " << Q_FUNC_INFO << " Error: " << query.lastError().text();
             qCritical() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(query);
+        } else {
+            if (!customData.trimmed().isEmpty()) {
+                customquery.bindValue(":type", 0);
+                customquery.bindValue(":description", customData);
+                if (!customquery.exec()) {
+                    qCritical() << "Function Name: " << Q_FUNC_INFO << " Error: " << customquery.lastError().text();
+                    qCritical() << "Function Name: " << Q_FUNC_INFO << " Query: " << Database::getLastExecutedQuery(customquery);
+                }
+            }
         }
     }
 
@@ -666,8 +692,17 @@ bool ReceiptItemModel::setR2BServerMode(QJsonObject obj)
     if (!obj.value("customerText").toString().isEmpty())
         ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
-    if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
-        ReceiptItemModel::setGiven(PAYED_BY_CASH, obj.value("given").toString().toDouble());
+    if (obj.value("payedBy").toString().toInt() == PAYED_BY_CASH) {
+        if (!obj.value("given").isUndefined() && !obj.value("secondPayedBy").isUndefined() && obj.value("secondPayedBy").toString().toInt() != PAYED_BY_CASH) {
+            QBCMath mixed(obj.value("gross").toString());
+            mixed -= obj.value("given").toString();
+            mixed.round(2);
+            int second = (obj.value("secondPayedBy").toString().toInt() == PAYED_BY_DEBITCARD)? PAYED_BY_DEBITCARD:PAYED_BY_CREDITCARD;
+            ReceiptItemModel::setGiven(second, mixed.toDouble());
+        }
+        if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
+            ReceiptItemModel::setGiven(PAYED_BY_CASH, obj.value("given").toString().toDouble());
+    }
 
     m_isR2B = true;
 
@@ -691,6 +726,7 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
     QJsonArray receiptItems = obj.value("items").toArray();
     bool ok = false;
     bool ret = false;
+    QBCMath total;
     foreach (const QJsonValue & value, receiptItems) {
         QJsonObject jsonItem = value.toObject();
         ok = jsonItem.contains("count") && jsonItem.contains("name") && jsonItem.contains("gross") && jsonItem.contains("tax");
@@ -737,6 +773,7 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
             item(rc -1, REGISTER_COL_DISCOUNT)->setText( discount );
             item(rc -1, REGISTER_COL_SINGLE)->setText( gross );
 
+            total += item(rc -1, REGISTER_COL_TOTAL)->text();
         } else {
             ret = false;
             break;
@@ -747,8 +784,17 @@ bool ReceiptItemModel::setReceiptServerMode(QJsonObject obj)
     if (! customerText.isEmpty())
         ReceiptItemModel::setCustomerText(obj.value("customerText").toString());
 
-    if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
-        ReceiptItemModel::setGiven(PAYED_BY_CASH,obj.value("given").toString().toDouble());
+    if (obj.value("payedBy").toString().toInt() == PAYED_BY_CASH) {
+        if (!obj.value("given").isUndefined() && !obj.value("secondPayedBy").isUndefined() && obj.value("secondPayedBy").toString().toInt() != PAYED_BY_CASH) {
+            QBCMath mixed(total);
+            mixed -= obj.value("given").toString();
+            mixed.round(2);
+            int second = (obj.value("secondPayedBy").toString().toInt() == PAYED_BY_DEBITCARD)? PAYED_BY_DEBITCARD:PAYED_BY_CREDITCARD;
+            ReceiptItemModel::setGiven(second, mixed.toDouble());
+        }
+        if (!obj.value("given").isUndefined() && Utils::isNumber(obj.value("given").toString().toDouble()))
+            ReceiptItemModel::setGiven(PAYED_BY_CASH,obj.value("given").toString().toDouble());
+    }
 
     return ret;
 }
@@ -836,7 +882,8 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     if (col == REGISTER_COL_PRODUCT) {
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare(QString("SELECT itemnum, gross, tax, lastchange FROM products WHERE name=:name"));
+        query.prepare("select p2.itemnum, p2.gross, p2.tax, p2.lastchange from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin where name=:name");
+
         query.bindValue(":name", s);
         query.exec();
 
@@ -879,7 +926,8 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         m_changeProductNumber = true;
         QSqlDatabase dbc = Database::database();
         QSqlQuery query(dbc);
-        query.prepare(QString("SELECT name, gross, tax, lastchange FROM products WHERE itemnum=:itemnum"));
+        query.prepare("select p2.name, p2.gross, p2.tax, p2.lastchange from (select max(version) as version, origin from products group by origin) p1 inner join (select * from products) as  p2 on p1.version=p2.version and p1.origin=p2.origin where itemnum=:itemnum");
+
         query.bindValue(":itemnum", s);
         query.exec();
         if (!m_changeProduct && query.next()) {
@@ -930,6 +978,9 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     case REGISTER_COL_NET:
         s.replace(",", ".");
         blockSignals(true);
+        // set again, so we are sure we have no , (comma) as input
+        item(row, REGISTER_COL_NET)->setText( s );
+
         tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
         net = (s.toDouble() * ((100 + tax.toDouble()) / 100));
         net.round(2);
@@ -945,7 +996,9 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
     case REGISTER_COL_SINGLE:
         s.replace(",", ".");
         blockSignals(true);
+        // set again, so we are sure we have no , (comma) as input
         item(row, REGISTER_COL_SINGLE)->setText( s );
+
         tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
         net = s.toDouble() / (1.0 + tax.toDouble() / 100.0);
         item(row, REGISTER_COL_NET)->setText( net.toString() );
@@ -961,6 +1014,9 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         blockSignals(true);
         s.replace(",", ".");
         s.replace("-", "");
+        // set again, so we are sure we have no , (comma) as input
+        item(row, REGISTER_COL_DISCOUNT)->setText( s );
+
         sum = data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toDouble();
         sum = sum * data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
         sum = sum - ((sum / 100) * s.toDouble());
@@ -975,16 +1031,38 @@ void ReceiptItemModel::itemChangedSlot( const QModelIndex& i, const QModelIndex&
         s.replace(",", ".");
         s = QString::number(s.toDouble(), 'f', 2);
         blockSignals(true);
+        // set again, so we are sure we have no , (comma) as input
         item(row, REGISTER_COL_TOTAL)->setText( s );
+
         sum = s.toDouble() / data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble();
         sum = (sum / (100 - data(index(row, REGISTER_COL_DISCOUNT, QModelIndex())).toDouble())) * 100;
         tax = data(index(row, REGISTER_COL_TAX, QModelIndex())).toDouble();
-        net = sum / (1.0 + tax.toDouble() / 100.0);
-        net.round(2);
         sum.round(2);
+        net = sum / (1.0 + tax.toDouble() / 100.0);
+        //net.round(2);
+
+        QBCMath t(sum * data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble());
+        t.round(2);
+/*
+        if (m_useDiscount) {
+            QBCMath r;
+            r = data(index(row, REGISTER_COL_COUNT, QModelIndex())).toDouble() * data(index(row, REGISTER_COL_SINGLE, QModelIndex())).toDouble();
+            r -= s.toDouble();
+            r *= 100;
+            r /= s.toDouble();
+            r.round(2);
+            item(row, REGISTER_COL_DISCOUNT)->setText( r.toString() );
+        } else {
+            item(row, REGISTER_COL_NET)->setText( net.toString() );
+            item(row, REGISTER_COL_SINGLE)->setText( sum.toString() );
+        }
+*/
         item(row, REGISTER_COL_NET)->setText( net.toString() );
         item(row, REGISTER_COL_SINGLE)->setText( sum.toString() );
+        item(row, REGISTER_COL_TOTAL)->setText( t.toString() );
         blockSignals(false);
+        if (QBCMath(s).toString().compare(t.toString()) != 0)
+            emit impossibleTotalPrice(s, t.toString());
         break;
     }
 
@@ -1044,4 +1122,14 @@ void ReceiptItemModel::setGiven(int payed, double given)
 void ReceiptItemModel::setGiven(QMap<int, double> given)
 {
     m_given = given;
+}
+
+void ReceiptItemModel::setR2B(bool enabled)
+{
+    m_isR2B = enabled;
+}
+
+void ReceiptItemModel::setUseDiscount(bool use)
+{
+    m_useDiscount = use;
 }

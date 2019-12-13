@@ -66,13 +66,16 @@ GroupsWidget::GroupsWidget(QWidget *parent)
     ui->tableView->setColumnHidden(m_model->fieldIndex("id"), true);
     ui->tableView->setColumnWidth(m_model->fieldIndex("name"), 250);
     ui->tableView->setColumnHidden(m_model->fieldIndex("color"), true);
-    ui->tableView->setColumnHidden(m_model->fieldIndex("button"), true);
+    ui->tableView->setColumnHidden(m_model->fieldIndex("printerid"), true);
+    ui->tableView->setColumnHidden(m_model->fieldIndex("categoryId"), true);
     ui->tableView->setColumnHidden(m_model->fieldIndex("image"), true);
+    ui->tableView->setColumnHidden(m_model->fieldIndex("sortorder"), true);
 
     ui->tableView->setAlternatingRowColors(true);
     ui->tableView->resizeColumnsToContents();
     //  ui->tableView->horizontalHeader()->setSectionResizeMode(model->fieldIndex("name"), QHeaderView::Stretch);
     ui->tableView->horizontalHeader()->setStretchLastSection(true);
+    ui->tableView->verticalHeader()->setVisible(false);
 
 }
 

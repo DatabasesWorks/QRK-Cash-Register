@@ -31,6 +31,7 @@
 #include "preferences/qrksettings.h"
 #include "3rdparty/qbcmath/bcmath.h"
 #include "3rdparty/ckvsoft/ckvtemplate.h"
+#include "qrkprinter.h"
 
 #include <QApplication>
 #include <QJsonObject>
@@ -56,7 +57,7 @@ DocumentPrinter::DocumentPrinter(QObject *parent)
 
     m_noPrinter = settings.value("noPrinter", false).toBool();
 
-    if (settings.value("receiptPrinter", "").toString().isEmpty() || QPrinterInfo::defaultPrinterName().isEmpty())
+    if (settings.value("Printer/receiptPrinter").toInt() == 0)
         m_noPrinter = true;
 
     m_pdfPrinterPath = settings.value("pdfDirectory", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).toString();
@@ -70,7 +71,7 @@ DocumentPrinter::DocumentPrinter(QObject *parent)
     m_printerFont.setStretch(printerFontList.at(2).toInt());
     m_printCollectionsReceipt = settings.value("printCollectionReceipt", false).toBool();
     m_collectionsReceiptText  = settings.value("collectionReceiptText", tr("Abholbon für")).toString();
-    m_collectionsReceiptCopies = settings.value("collectionReceiptCopies", 1).toInt();
+//    m_collectionsReceiptCopies = settings.value("collectionReceiptCopies", 1).toInt();
 
     m_defaultPaperWidth = settings.value("paperWidth", 80).toInt();
     m_receiptPrinterFont = QFont(receiptPrinterFontList.at(0));
@@ -91,7 +92,6 @@ DocumentPrinter::DocumentPrinter(QObject *parent)
     m_numberCopies = settings.value("numberCopies", 1).toInt();
     m_paperFormat = settings.value("paperFormat", "A4").toString();
     m_currency = Database::getCurrency();
-    m_smallPrinter = (settings.value("paperWidth", 80).toInt() <= 60)?true :false;
 
     m_feedProdukt = settings.value("feedProdukt", 5).toInt();
     m_feedCompanyHeader = settings.value("feedCompanyHeader", 5).toInt();
@@ -129,7 +129,7 @@ DocumentPrinter::~DocumentPrinter()
 void DocumentPrinter::printTestDocument(QFont font)
 {
     QTextDocument testDoc;
-    testDoc.setHtml(Reports::getReport(2, true));
+    testDoc.setHtml(Reports::getReport(2, false, true));
     testDoc.setDefaultFont(font);
     printDocument(&testDoc, "TEST DRUCK");
 }
@@ -139,74 +139,55 @@ void DocumentPrinter::printDocument(QTextDocument *document, QString title)
 
     Spread::Instance()->setProgressBarWait(true);
 
-    QPrinter printer;
     QrkSettings settings;
-    bool usePDF = settings.value("reportPrinterPDF", false).toBool();
-    if (usePDF) {
-        printer.setOutputFormat(QPrinter::PdfFormat);
-        QDir dir(m_pdfPrinterPath);
-        if (!dir.exists()) {
-            dir.mkpath(".");
+    QRKPrinter printer(settings.value("Printer/reportPrinter").toInt());
+    QList<QPrinter*> *printerList = printer.getPrinterList();
+    int counter = 0;
+    while (!printerList->isEmpty()) {
+        QPrinter *printer = printerList->takeFirst();
+        if ( m_noPrinter || printer->outputFormat() == QPrinter::PdfFormat) {
+            printer->setOutputFormat(QPrinter::PdfFormat);
+            QDir dir(m_pdfPrinterPath);
+            if (!dir.exists()) {
+                dir.mkpath(".");
+            }
+            QString confname = qApp->property("configuration").toString();
+            if (!confname.isEmpty())
+                confname = "_" + confname;
+            if (counter == 0)
+                printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-REPORT_%2.pdf").arg(confname).arg( title ));
+            else
+                printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-REPORT_%2 (%3).pdf").arg(confname).arg( title ).arg(counter));
+
+            ++counter;
         }
-    }
 
-    document->setDefaultFont(m_printerFont);
+        m_smallPrinter = (printer->paperSize(QPrinter::Millimeter).width() <= 60)?true :false;
 
-    if ( m_noPrinter || printer.outputFormat() == QPrinter::PdfFormat) {
-        initAlternatePrinter(printer);
-        QString confname = qApp->property("configuration").toString();
-        if (!confname.isEmpty())
-            confname = "_" + confname;
-        printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-REPORT_%2.pdf").arg(confname).arg( title ));
-        printer.setOutputFormat(QPrinter::PdfFormat);
+        document->setDefaultFont(m_printerFont);
         document->adjustSize();
 
-    } else {
-        initAlternatePrinter(printer);
-        printer.setPrinterName(settings.value("reportPrinter").toString());
-        document->adjustSize();
-    }
+        if (printer->pageSize() == QPagedPaintDevice::Custom) {
+            document->setPageSize(printer->paperSize(QPrinter::Millimeter));
+            const QRect pageRect = QRect(0,0,printer->width(), printer->height() ); // printer.pageRect();
 
-    if (settings.value("paperFormat").toString() == "POS") {
-        printer.setFullPage(true);
+            // Give the document the correct left-to-right width for word wrapping etc
+            document->setPageSize(pageRect.size());
 
-//        int height = document->size().height();
-        int paperHeight = settings.value("paperHeight", 297).toInt();
-        int paperWidth = settings.value("paperWidth", 80).toInt();
+            // The total extent of the content (there are no page margin in this)
+            QRect contentRect = QRect(QPoint(0, 0), document->size().toSize());
 
-        printer.setPaperSize(QSizeF(paperWidth, paperHeight), QPrinter::Millimeter);
+            // This is the part of the content we will drop on a page.  It's a sliding window on the content.
+            QRect currentRect(0, 0, pageRect.width(), pageRect.height());
 
-        printer.setFullPage(false);
+            QPainter painter(printer);
+            QFont font(m_receiptPrinterFont);
+            font.setPointSize(8);
 
-//        if (height > paperHeight)
-//            printer.setPaperSize(QSizeF(paperHeight,
-//                                        height), QPrinter::Millimeter);
+            document->setDefaultFont(font);
+            document->documentLayout()->setPaintDevice(painter.device());
 
-        QSizeF size(paperWidth, paperHeight);
-        document->setPageSize(size);
-//        QPainter painter(&printer);
-//        document->documentLayout()->setPaintDevice(painter.device());
-//        document->drawContents(&painter);
-
-        const QRect pageRect = QRect(0,0,printer.width(), printer.height() ); // printer.pageRect();
-
-        // Give the document the correct left-to-right width for word wrapping etc
-        document->setPageSize(pageRect.size());
-
-        // The total extent of the content (there are no page margin in this)
-        QRect contentRect = QRect(QPoint(0, 0), document->size().toSize());
-
-        // This is the part of the content we will drop on a page.  It's a sliding window on the content.
-        QRect currentRect(0, 0, pageRect.width(), pageRect.height());
-
-        QPainter painter(&printer);
-        QFont font(m_receiptPrinterFont);
-        font.setPointSize(8);
-
-        document->setDefaultFont(font);
-        document->documentLayout()->setPaintDevice(painter.device());
-
-        while (currentRect.intersects(contentRect)) {
+            while (currentRect.intersects(contentRect)) {
                 painter.save();
                 painter.translate(0, -currentRect.y());
                 document->drawContents(&painter, currentRect);  // draws part of the document
@@ -217,226 +198,253 @@ void DocumentPrinter::printDocument(QTextDocument *document, QString title)
 
                 //Inserting a new page if there is still area left to be printed
                 if (currentRect.intersects(contentRect))
-                    printer.newPage();
+                    printer->newPage();
+            }
+            painter.end();
+        } else {
+            document->print(printer);
         }
-        painter.end();
-
-    } else {
-        document->print(&printer);
+        delete printer;
+        printer = Q_NULLPTR;
     }
-
     Spread::Instance()->setProgressBarWait(false);
 }
 
 void DocumentPrinter::printReceipt(QJsonObject data)
 {
-    // print receipt
-    QPrinter printer;
-    //    printer.setResolution(600);
 
-    if (data.value("isCopy").toBool())
-        m_numberCopies = 1;
+    QrkSettings settings;
 
     m_receiptNum = data.value("receiptNum").toInt();
     Spread::Instance()->setProgressBarValue(1);
 
+    bool onlyOneCopy = false;
+
+    int printerId = settings.value("Printer/receiptPrinter").toInt();
     if (data.value("isInvoiceCompany").toBool()) {
-        if ( initInvoiceCompanyPrinter(printer) )
-            printI(data, printer );
+        onlyOneCopy = true;
+        printerId = settings.value("Printer/invoiceCompanyPrinter").toInt();
+    }
 
-    } else {
+    QRKPrinter printer(printerId);
+    QList<QPrinter*> *printerList = printer.getPrinterList();
+    int counter = 0;
+    while (!printerList->isEmpty()) {
+        QPrinter *printer = printerList->takeFirst();
 
-        if ( initPrinter(printer) )
-            printI(data, printer );
+        if ( m_noPrinter || printer->outputFormat() == QPrinter::PdfFormat) {
+            printer->setOutputFormat(QPrinter::PdfFormat);
+            QDir dir(m_pdfPrinterPath);
+            if (!dir.exists()) {
+                dir.mkpath(".");
+            }
+            QString confname = qApp->property("configuration").toString();
+            if (!confname.isEmpty())
+                confname = "_" + confname;
+            if (counter == 0)
+                printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2.pdf").arg(confname).arg( m_receiptNum ));
+            else
+                printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2 (%3).pdf").arg(confname).arg( m_receiptNum ).arg(counter));
 
-        /* Some Printdriver do not accept more than 1 print.
-     * so we send a second printjob
-     */
-        if (m_numberCopies > 1) {
-            m_printCollectionsReceipt = false; //we finish this by first print
-            if (m_useReportPrinter)
-                initAlternatePrinter(printer);
-
-            printI(data, printer );
+            ++counter;
         }
+
+        m_smallPrinter = (printer->paperSize(QPrinter::Millimeter).width() <= 60)?true :false;
+
+        printI(data, printer);
+
+        delete printer;
+        printer = Q_NULLPTR;
+
+        if (onlyOneCopy || data.value("isCopy").toBool())
+            break;
     }
 }
 
 void DocumentPrinter::printTagged(QJsonObject data)
 {
-    QPrinter printer;
-    QrkSettings settings;
 
     QString description = data.value("customerText").toString();
     if (description.isEmpty())
         return;
 
-    int printerid = data.value("printer").toInt();
-    QString format = "POS";
+    QrkSettings settings;
+    data.remove("customerText");
+    foreach (const QString& key, data.keys()) {
+        int printerid = key.toInt();
+        if (printerid == -1)
+            continue;
 
-    switch (printerid) {
-    case 0:
-        printer.setPrinterName(settings.value("collectionPrinter").toString());
-        format = settings.value("collectionPrinterPaperFormat", "POS").toString();
-        break;
-    default:
-        if ( m_noPrinter || printer.outputFormat() == QPrinter::PdfFormat) {
+        QRKPrinter printer(printerid);
+        QList<QPrinter*> *printerList = printer.getPrinterList();
+        int counter = 0;
+        while (!printerList->isEmpty()) {
+            QPrinter *printer = printerList->takeFirst();
+            if ( m_noPrinter || printer->outputFormat() == QPrinter::PdfFormat) {
+                printer->setOutputFormat(QPrinter::PdfFormat);
+                QDir dir(m_pdfPrinterPath);
+                if (!dir.exists()) {
+                    dir.mkpath(".");
+                }
+                QString confname = qApp->property("configuration").toString();
+                if (!confname.isEmpty())
+                    confname = "_" + confname;
+                if (counter == 0)
+                    printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-%2P%3.pdf").arg(confname).arg( description ).arg(printerid));
+                else
+                    printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-%2P%3 (%4).pdf").arg(confname).arg( description ).arg(printerid).arg(counter));
+
+                ++counter;
+            }
+            m_smallPrinter = (printer->paperSize(QPrinter::Millimeter).width() <= 60)?true :false;
+
+            QFont font(m_receiptPrinterFont);
+            QFont boldFont(m_receiptPrinterFont);
+            boldFont.setBold(true);
+
+            QFontMetrics boldMetr(boldFont);
+
+            QFont numFont(m_receiptPrinterFont);
+            numFont.setBold(true);
+            numFont.setPointSize(numFont.pointSize() * 3);
+
+            QFontMetrics sumMetr(numFont);
+
+            const int WIDTH = printer->pageRect().width();
+            int y = 0;
+
+            QPainter painter(printer);
+            painter.setFont(font);
+            QPen pen(Qt::black);
+            painter.setPen(pen);
+            QFontMetrics fontMetr = painter.fontMetrics();
+
+            /*
+            if ( printer->outputFormat() != QPrinter::PdfFormat ) {
+              painter.translate(WIDTH, printer->pageRect().height());
+              painter.rotate(180);
+            }
+            */
+
+            y = 0;
+
+            painter.save();
+            painter.setFont(numFont);
+            // CustomerText
+            QString headerText = description;
+            headerText = Utils::wordWrap(headerText, WIDTH, numFont);
+            int headerTextHeight = headerText.split(QRegExp("\n|\r\n|\r")).count() * sumMetr.height();
+            painter.drawText(0, y, WIDTH, headerTextHeight + 4, Qt::AlignCenter, headerText);
+            y += 10 + headerTextHeight;
+            painter.restore();
+
+            painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignCenter, tr("Datum: %1 Uhrzeit: %2")
+                             .arg(QDateTime::currentDateTime().toString("dd.MM.yyyy"))
+                             .arg(QDateTime::currentDateTime().toString("hh:mm:ss")));
+            y += 10 + fontMetr.height();
+
+            painter.setFont(boldFont);
+
+            QJsonArray orders = data.value(key).toArray();
+            foreach (const QJsonValue &order, orders){
+                QString product = order.toObject().value("product").toString();
+                painter.drawText(5,  y, 40, fontMetr.height(), Qt::AlignLeft, QString::number(order.toObject().value("count").toInt()));
+
+                product = Utils::wordWrap(product, WIDTH -40, boldFont);
+                int productHeight = product.split(QRegExp("\n|\r\n|\r")).count() * boldMetr.height();
+                painter.drawText(40,y, WIDTH -40, productHeight, Qt::AlignLeft, product);
+                y += 5 + productHeight;
+                if ( (y + fontMetr.height()) > printer->pageRect().height() ) {
+                    printer->newPage();
+                    y = 0;
+                }
+
+                painter.save();
+                painter.setFont(font);
+
+                QString orderDescription = order.toObject().value("description").toString();
+                if (!orderDescription.isEmpty()){
+                    orderDescription = Utils::wordWrap("*) " +  orderDescription, WIDTH -40, boldFont);
+                    int orderDescriptionHeight = orderDescription.split(QRegExp("\n|\r\n|\r")).count() * boldMetr.height();
+                    painter.drawText(40,y, WIDTH -40, orderDescriptionHeight, Qt::AlignLeft, orderDescription);
+                    y += 5 + orderDescriptionHeight;
+                    if ( (y + fontMetr.height()) > printer->pageRect().height() ) {
+                        printer->newPage();
+                        y = 0;
+                    }
+                }
+                foreach (const QJsonValue &extra, order.toObject().value("extra").toArray()){
+                    QString extratext = extra.toString();
+                    extratext = Utils::wordWrap(extratext, WIDTH, boldFont);
+                    int productHeight = extratext.split(QRegExp("\n|\r\n|\r")).count() * boldMetr.height();
+                    painter.drawText(40,  y, WIDTH -40,  productHeight, Qt::AlignLeft, extratext);
+                    y += 5 + productHeight;
+                    if ( (y + fontMetr.height()) > printer->pageRect().height() ) {
+                        printer->newPage();
+                        y = 0;
+                    }
+                }
+                painter.restore();
+            }
+            painter.end();
+            delete printer;
+            printer = Q_NULLPTR;
+        }
+    }
+}
+
+void DocumentPrinter::printCollectionReceipt(QJsonObject data)
+{
+    QrkSettings settings;
+
+    QRKPrinter printer(settings.value("Printer/collectionPrinter").toInt());
+    QList<QPrinter*> *printerList = printer.getPrinterList();
+    int counter = 0;
+    while (!printerList->isEmpty()) {
+        QPrinter *printer = printerList->takeFirst();
+        if ( m_noPrinter || printer->outputFormat() == QPrinter::PdfFormat) {
             QString confname = qApp->property("configuration").toString();
             if (!confname.isEmpty())
                 confname = "_" + confname;
-            printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2.pdf").arg(confname).arg( description ));
-            printer.setOutputFormat(QPrinter::PdfFormat);
-        } else {
-            printer.setPrinterName(settings.value("receiptPrinter").toString());
+            if (counter == 0)
+                printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2-ABHOLBON.pdf").arg(confname).arg( m_receiptNum ));
+            else
+                printer->setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2-ABHOLBON (%3).pdf").arg(confname).arg( m_receiptNum ).arg(counter));
+
+            ++counter;
+            printer->setOutputFormat(QPrinter::PdfFormat);
         }
-        break;
-    }
+        m_smallPrinter = (printer->paperSize(QPrinter::Millimeter).width() <= 60)?true :false;
+        QFont font(m_receiptPrinterFont);
 
-    if (format == "A4")
-        printer.setPaperSize(printer.A4);
-    if (format == "A5")
-        printer.setPaperSize(printer.A5);
-    if (format == "POS") {
-        printer.setFullPage(true);
-        printer.setPaperSize(QSizeF(settings.value("paperWidth", 80).toInt(),
-                                    settings.value("paperHeight", 210).toInt()), QPrinter::Millimeter);
+        QFont boldFont(m_receiptPrinterFont);
+        boldFont.setBold(true);
 
-        const QMarginsF marginsF(settings.value("marginLeft", 0).toDouble(),
-                                 settings.value("marginTop", 17).toDouble(),
-                                 settings.value("marginRight", 5).toDouble(),
-                                 settings.value("marginBottom", 0).toDouble());
+        QFontMetrics boldMetr(boldFont);
 
-        printer.setPageMargins(marginsF,QPageLayout::Millimeter);
-        printer.setFullPage(false);
-        qInfo() << "Function Name: " << Q_FUNC_INFO << " margins:" << printer.pageLayout().margins();
-    }
+        QFont numFont(m_receiptPrinterFont);
+        numFont.setBold(true);
+        numFont.setPointSize(numFont.pointSize() * 3);
 
-    QFont font(m_receiptPrinterFont);
+        QFontMetrics sumMetr(numFont);
 
-    QFont boldFont(m_receiptPrinterFont);
-    boldFont.setBold(true);
+        const int WIDTH = printer->pageRect().width();
+        int y = 0;
 
-    QFontMetrics boldMetr(boldFont);
+        QString shopName = data.value("shopName").toString();
+        QString shopMasterData = data.value("shopMasterData").toString();
+        QString receiptNumber = QString::number(data.value("receiptNum").toInt());
+        QJsonArray Orders = data["Orders"].toArray();
+        foreach (const QJsonValue & item, Orders) {
+            const QJsonObject& order = item.toObject();
+            QBCMath count = order.value("count").toDouble();
+            count.round(m_countDigits);
 
-    QFont numFont(m_receiptPrinterFont);
-    numFont.setBold(true);
-    numFont.setPointSize(numFont.pointSize() * 3);
+            bool coupon = order.value("coupon").toString() == "1";
+            if (!coupon)
+                continue;
 
-    QFontMetrics sumMetr(numFont);
-
-    const int WIDTH = printer.pageRect().width();
-    int y = 0;
-
-
-    QPainter painter(&printer);
-    painter.setFont(font);
-    QPen pen(Qt::black);
-    painter.setPen(pen);
-    QFontMetrics fontMetr = painter.fontMetrics();
-
-    y = 0;
-
-    painter.save();
-    painter.setFont(numFont);
-    // CustomerText
-    QString headerText = data.value("customerText").toString();
-    headerText = Utils::wordWrap(headerText, WIDTH, numFont);
-    int headerTextHeight = headerText.split(QRegExp("\n|\r\n|\r")).count() * sumMetr.height();
-    painter.drawText(0, y, WIDTH, headerTextHeight + 4, Qt::AlignCenter, headerText);
-    y += 5 + headerTextHeight;
-    painter.restore();
-
-    painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignCenter, tr("Datum: %1 Uhrzeit: %2")
-                     .arg(QDateTime::currentDateTime().toString("dd.MM.yyyy"))
-                     .arg(QDateTime::currentDateTime().toString("hh:mm:ss")));
-    y += 5 + fontMetr.height();
-
-    painter.save();
-    painter.setFont(boldFont);
-
-    QJsonArray Orders = data["items"].toArray();
-    foreach (const QJsonValue & item, Orders)
-    {
-        const QJsonObject& order = item.toObject();
-        QString product = QString("%1 x %2").arg(order.value("count").toString()).arg(order.value("name").toString());
-        product = Utils::wordWrap(product, WIDTH, boldFont);
-        int productHeight = product.split(QRegExp("\n|\r\n|\r")).count() * boldMetr.height();
-        painter.drawText(0,  y + 10, WIDTH,  productHeight, Qt::AlignLeft, product);
-        y += 5 + productHeight;
-    }
-    painter.end();
-}
-
-void DocumentPrinter::printCollectionReceipt(QJsonObject data, QPrinter &printer)
-{
-
-    QrkSettings settings;
-    QString collectionPrinter = settings.value("collectionPrinter").toString();
-    if ( m_noPrinter || printer.outputFormat() == QPrinter::PdfFormat || collectionPrinter.isEmpty()) {
-        QString confname = qApp->property("configuration").toString();
-        if (!confname.isEmpty())
-            confname = "_" + confname;
-        printer.setOutputFileName(QString(m_pdfPrinterPath + "/QRK%1-BON%2-ABHOLBON.pdf").arg(confname).arg( m_receiptNum ));
-        printer.setOutputFormat(QPrinter::PdfFormat);
-    } else {
-        printer.setPrinterName(collectionPrinter);
-    }
-
-    QString f = settings.value("collectionPrinterPaperFormat", "POS").toString();
-    if (f == "A4")
-        printer.setPaperSize(printer.A4);
-    if (f == "A5")
-        printer.setPaperSize(printer.A5);
-    if (f == "POS") {
-        printer.setFullPage(true);
-        printer.setPaperSize(QSizeF(settings.value("paperWidth", 80).toInt(),
-                                    settings.value("paperHeight", 210).toInt()), QPrinter::Millimeter);
-
-        const QMarginsF marginsF(settings.value("marginLeft", 0).toDouble(),
-                                 settings.value("marginTop", 17).toDouble(),
-                                 settings.value("marginRight", 5).toDouble(),
-                                 settings.value("marginBottom", 0).toDouble());
-
-        printer.setPageMargins(marginsF,QPageLayout::Millimeter);
-        printer.setFullPage(false);
-        qInfo() << "Function Name: " << Q_FUNC_INFO << " margins:" << printer.pageLayout().margins();
-    }
-
-    QFont font(m_receiptPrinterFont);
-
-    QFont boldFont(m_receiptPrinterFont);
-    boldFont.setBold(true);
-
-    QFontMetrics boldMetr(boldFont);
-
-    QFont numFont(m_receiptPrinterFont);
-    numFont.setBold(true);
-    numFont.setPointSize(numFont.pointSize() * 3);
-
-    QFontMetrics sumMetr(numFont);
-
-    const int WIDTH = printer.pageRect().width();
-    int y = 0;
-
-    QString shopName = data.value("shopName").toString();
-    QString shopMasterData = data.value("shopMasterData").toString();
-    QString receiptNumber = QString::number(data.value("receiptNum").toInt());
-
-    QJsonArray Orders = data["Orders"].toArray();
-    foreach (const QJsonValue & item, Orders)
-    {
-
-        const QJsonObject& order = item.toObject();
-
-        QBCMath count = order.value("count").toDouble();
-        count.round(m_countDigits);
-
-        bool coupon = order.value("coupon").toString() == "1";
-        if (!coupon)
-            continue;
-
-        for (int i = 0; i< m_collectionsReceiptCopies; i++) {
-            QPainter painter(&printer);
+            QPainter painter(printer);
             painter.setFont(font);
             QPen pen(Qt::black);
             painter.setPen(pen);
@@ -495,15 +503,17 @@ void DocumentPrinter::printCollectionReceipt(QJsonObject data, QPrinter &printer
             painter.drawText(0,  y + 10, WIDTH,  productHeight, Qt::AlignCenter, product);
             painter.end();
         }
+        delete printer;
+        printer = Q_NULLPTR;
     }
 }
 
-void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
+void DocumentPrinter::printI(QJsonObject data, QPrinter *printer)
 {
 
     int fontsize = m_receiptPrinterFont.pointSize();
 
-    QPainter painter(&printer);
+    QPainter painter(printer);
     QFont font(m_receiptPrinterFont);
     ckvTemplate Template;
     Template.set("DATUM", QDate::currentDate().toString());
@@ -525,14 +535,14 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
 
     QFont grossFont(font);
     // grossFont.setFixedPitch(true);
-    QFontMetrics grossMetrics(grossFont, &printer);
+    QFontMetrics grossMetrics(grossFont, printer);
 
     // QFont boldFont("Courier-New", boldsize, QFont::Bold);  // for sum
     QFont boldFont(m_receiptPrinterFont);
     boldFont.setBold(true);
     boldFont.setPointSize(m_receiptPrinterFont.pointSize() + 2);
 
-    QFontMetrics boldMetr(boldFont, &printer);
+    QFontMetrics boldMetr(boldFont, printer);
 
     QPen pen(Qt::black);
     painter.setPen(pen);
@@ -540,8 +550,11 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     QJsonArray Orders = data["Orders"].toArray();
     int oc = Orders.count() + 100;
 
-    const int WIDTH = printer.pageRect().width();
+    const int WIDTH = printer->pageRect().width();
     const double FACTOR = getFactor(WIDTH, printer);
+
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " WIDTH: " << WIDTH;
+    qDebug() << "Function Name: " << Q_FUNC_INFO << " FACTOR: " << FACTOR;
 
     int y = 0;
 
@@ -559,7 +572,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         advertising = true;
     }
 
-    Spread::Instance()->setProgressBarValue(((float)15 / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(15) / float(oc)) * 100));
 
     bool isInvoiceCompany = data.value("isInvoiceCompany").toBool();
 
@@ -577,7 +590,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
 
             if (m_logoRight) {
                 if (logoPixmap.width() > WIDTH / 2.50)
-                    logoPixmap =  logoPixmap.scaled(WIDTH / 2.50, printer.pageRect().height(), Qt::KeepAspectRatio);
+                    logoPixmap =  logoPixmap.scaled(WIDTH / 2.50, printer->pageRect().height(), Qt::KeepAspectRatio);
 
                 painter.drawPixmap(WIDTH - logoPixmap.width() - 1, y, logoPixmap);
 
@@ -604,7 +617,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
             } else {
 
                 if (logoPixmap.width() > WIDTH)
-                    logoPixmap =  logoPixmap.scaled(WIDTH, printer.pageRect().height(), Qt::KeepAspectRatio);
+                    logoPixmap =  logoPixmap.scaled(WIDTH, printer->pageRect().height(), Qt::KeepAspectRatio);
                 painter.drawPixmap((WIDTH / 2) - (logoPixmap.width()/2) - 1, y, logoPixmap);
                 y += 5 + logoPixmap.height() + 4;
 
@@ -665,7 +678,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         y += 5;
     }
 
-    Spread::Instance()->setProgressBarValue(((float)20 / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(20) / float(oc)) * 100));
 
     painter.save();
     painter.setFont(boldFont);
@@ -707,7 +720,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
                          .arg(data.value("positions").toInt()));
         y += m_feedCashRegisterid + fontMetr.height();
 
-        Spread::Instance()->setProgressBarValue(((float)30 / (float)oc) * 100);
+        Spread::Instance()->setProgressBarValue(int((float(30) / float(oc)) * 100));
 
         painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignLeft, tr("Datum: %1")
                          .arg(QDateTime::fromString(data.value("receiptTime").toString(), Qt::ISODate).toString("dd.MM.yyyy")));
@@ -739,7 +752,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
 
     }
 
-    Spread::Instance()->setProgressBarValue(((float)50 / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(50) / float(oc)) * 100));
 
     painter.drawLine(0, y, WIDTH, y);
     y += 5;
@@ -773,14 +786,14 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, tr("Preis  M%"));
     y += 5 + fontMetr.height();
 
-    Spread::Instance()->setProgressBarValue(((float)60 / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(60) / float(oc)) * 100));
 
     int progress = 60;
 
     foreach (const QJsonValue & item, Orders)
     {
 
-        Spread::Instance()->setProgressBarValue(((float)progress++ / (float)oc) * 100);
+        Spread::Instance()->setProgressBarValue(int((float(progress++) / float(oc)) * 100));
 
         const QJsonObject& order = item.toObject();
 
@@ -829,9 +842,9 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         int productHeight = product.split(QRegExp("\n|\r\n|\r")).count() * fontMetr.height();
 
         // check if new drawText is heigher than page height
-        if ( (y + productHeight + 20) > printer.pageRect().height() )
+        if ( (y + productHeight + 20) > printer->pageRect().height() )
         {
-            printer.newPage();
+            printer->newPage();
             y = 0;
         }
 
@@ -859,22 +872,31 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         painter.drawText(0, y, WIDTH, fontMetr.height(), Qt::AlignRight, grossText + "   " + taxPercent);
         painter.setFont(font);
 
+        QString productDescription = order.value("description").toString();
+        if (!productDescription.isEmpty()) {
+            y += fontMetr.height();
+            productDescription = Utils::wordWrap(productDescription, WIDTH - grossWidth - X_NAME, font);
+            int productDescriptionHeight = productDescription.split(QRegExp("\n|\r\n|\r")).count() * fontMetr.height();
+            painter.drawText(X_NAME,  y, WIDTH,  productDescriptionHeight, Qt::AlignLeft, productDescription, &usedRect);
+            y += usedRect.height() - fontMetr.height();
+        }
+
         y += m_feedProdukt + fontMetr.height();
     }
 
-    Spread::Instance()->setProgressBarValue(((float)progress +10 / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(progress +10) / float(oc)) * 100));
 
     painter.drawLine(0, y, WIDTH, y);
     y += fontMetr.height() / 2;
 
     // if there is not enough space for sum+tax lines, start new page
-    if ( (y + (data.value("taxesCount").toInt() * (5 + fontMetr.height())) + boldMetr.height() + 10) > printer.pageRect().height() )
+    if ( (y + (data.value("taxesCount").toInt() * (5 + fontMetr.height())) + boldMetr.height() + 10) > printer->pageRect().height() )
     {
-        printer.newPage();
+        printer->newPage();
         y = 0;
     }
 
-    Spread::Instance()->setProgressBarValue(((float)(progress += 10) / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(progress += 10) / float(oc)) * 100));
 
     int ySave = y; // save y when QR-Code was printing left
     QString sumText = tr("Gesamt: %1").arg(sum);
@@ -919,7 +941,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     {
         const QJsonObject& tax = item.toObject();
 
-//        QString taxSum = QString::number(tax.value("t2").toString().toDouble(), 'f', 2).replace(".",",");
+        //        QString taxSum = QString::number(tax.value("t2").toString().toDouble(), 'f', 2).replace(".",",");
         QBCMath taxSum = tax.value("t2").toString();
         taxSum.round(2);
         if (data.value("isTestPrint").toBool()) {
@@ -949,7 +971,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
 
     y += 5 + fontMetr.height();
 
-    Spread::Instance()->setProgressBarValue(((float)(progress += 10) / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(progress += 10) / float(oc)) * 100));
 
     QString qr_code_rep = shopName + " - " + shopMasterData;
     QString ocr_code_rep = shopName + " - " + shopMasterData;
@@ -978,7 +1000,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         int sumWidth = boldMetr.boundingRect(sumText).width();
 
         if (QR.width() > (WIDTH - sumWidth))
-            QR =  QR.scaled(WIDTH - sumWidth - 4, printer.pageRect().height(), Qt::KeepAspectRatio);
+            QR =  QR.scaled(WIDTH - sumWidth - 4, printer->pageRect().height(), Qt::KeepAspectRatio);
 
         painter.drawPixmap( 1, ySave, QR);
 
@@ -1014,7 +1036,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         y += 5 + headerTextHeight + 4;
     }
 
-    Spread::Instance()->setProgressBarValue(((float)(progress += 10) / (float)oc) * 100);
+    Spread::Instance()->setProgressBarValue(int((float(progress += 10) / float(oc)) * 100));
 
     if (m_printQRCode && !m_printQrCodeLeft) {
         QRCode qr;
@@ -1022,7 +1044,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         QR = QR.scaled(QR.size() * FACTOR, Qt::KeepAspectRatio);
 
         if (QR.width() > WIDTH) {
-            QR =  QR.scaled(WIDTH, printer.pageRect().height(), Qt::KeepAspectRatio);
+            QR =  QR.scaled(WIDTH, printer->pageRect().height(), Qt::KeepAspectRatio);
         }
 
         y += 5;
@@ -1030,9 +1052,9 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         y += 5;
 
         // check if new drawText is heigher than page height
-        if ( (y + QR.height() + 20) > printer.pageRect().height() )
+        if ( (y + QR.height() + 20) > printer->pageRect().height() )
         {
-            printer.newPage();
+            printer->newPage();
             y = 0;
         }
         painter.drawPixmap((WIDTH / 2) - (QR.width()/2) - 1, y, QR);
@@ -1056,9 +1078,9 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         int ocrHeight = ocr_code_rep.split(QRegExp("\n|\r\n|\r")).count() * ocrMetr.height();
 
         // check if new drawText is heigher than page height
-        if ( (y + ocrHeight + m_feedQRCode) > printer.pageRect().height() )
+        if ( (y + ocrHeight + m_feedQRCode) > printer->pageRect().height() )
         {
-            printer.newPage();
+            printer->newPage();
             y = 0;
         }
 
@@ -1078,9 +1100,9 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
 
     if (advertising) {
         y += 5;
-        if ( (y + advertisingPixmap.height() + 20) > printer.pageRect().height() )
+        if ( (y + advertisingPixmap.height() + 20) > printer->pageRect().height() )
         {
-            printer.newPage();
+            printer->newPage();
             y = 0;
         }
 
@@ -1088,7 +1110,7 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
         advertisingPixmap = advertisingPixmap.scaled(advertisingPixmap.size() * FACTOR, Qt::KeepAspectRatio);
 
         if (advertisingPixmap.width() > WIDTH)
-            advertisingPixmap = advertisingPixmap.scaled(WIDTH, printer.pageRect().height(), Qt::KeepAspectRatio);
+            advertisingPixmap = advertisingPixmap.scaled(WIDTH, printer->pageRect().height(), Qt::KeepAspectRatio);
         painter.drawPixmap((WIDTH / 2) - (advertisingPixmap.width()/2) - 1, y, advertisingPixmap);
         y += 5 + advertisingPixmap.height() + 4;
     }
@@ -1102,10 +1124,10 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     }
 
     // workaround marginBottom
-    int marginBottom = printer.margins().bottom;
+    int marginBottom = int(printer->margins().bottom);
     if (marginBottom > 0) {
         y += marginBottom;
-        painter.drawPoint(0,y);
+        painter.drawPoint(0, y);
     }
 
     painter.end();
@@ -1113,12 +1135,13 @@ void DocumentPrinter::printI(QJsonObject data, QPrinter &printer)
     Spread::Instance()->setProgressBarValue(100);
 
     if (m_printCollectionsReceipt)
-        printCollectionReceipt(data, printer);
+        printCollectionReceipt(data);
 
 }
 
 //--------------------------------------------------------------------------------
 
+/*
 bool DocumentPrinter::initPrinter(QPrinter &printer)
 {
     QrkSettings settings;
@@ -1202,11 +1225,12 @@ bool DocumentPrinter::initInvoiceCompanyPrinter(QPrinter &printer)
 
     return true;
 }
+*/
 
-double DocumentPrinter::getFactor(int pixel, QPrinter &printer)
+double DocumentPrinter::getFactor(int pixel, QPrinter *printer)
 {
     const double p = 3.779527559055;
-    int rect = printer.pageRect(QPrinter::Millimeter).width();
-    int ratio = pixel / p;
-    return (double) ratio / rect;
+    int rect = int(printer->pageRect(QPrinter::Millimeter).width());
+    int ratio = int(pixel / p);
+    return static_cast<double>(ratio)/rect;
 }

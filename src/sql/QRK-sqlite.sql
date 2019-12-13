@@ -15,6 +15,9 @@ INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,6
 INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,7,'Sammelbeleg','PayedByText');
 INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,8,'Monatsbeleg','PayedByText');
 INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,9,'Schlussbeleg','PayedByText');
+INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,-1,'Private','payedByText');
+INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,-2,'Werbung','payedByText');
+INSERT INTO `actionTypes`(`id`,`actionId`,`actionText`,`comment`) VALUES (NULL,-3,'Personal','payedByText');
 
 CREATE TABLE `taxTypes` (
         `id`        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,16 +49,80 @@ CREATE TABLE `globals` (
 );
 INSERT INTO `globals`(`name`,`value`) VALUES ('demomode',1);
 
+CREATE TABLE  `rooms` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `name` text NOT NULL,
+  `color`      	text DEFAULT '',
+  `isHotel` INTEGER NOT NULL DEFAULT 0,
+  `sortorder` INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE  `tables` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `roomId` INTEGER NOT NULL,
+  `name` text NOT NULL,
+  `color`      	text DEFAULT '',
+  `sortorder` INTEGER NOT NULL DEFAULT 0,
+  CONSTRAINT `room_Id` FOREIGN KEY (`roomId`) REFERENCES `rooms` (`id`)
+);
+
+CREATE TABLE  `tickets` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `open` tinyint(1) NOT NULL DEFAULT '1',
+  `timestamp` datetime NOT NULL,
+  `tableId` int(11) NOT NULL,
+  `payedBy` int(11) NOT NULL DEFAULT '0'
+);
+
+CREATE TABLE  `ticketorders` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `ticketId` INTEGER NOT NULL REFERENCES `tickets` (`id`),
+  `product` INTEGER NOT NULL REFERENCES `products` (`id`),
+  `count` int(11) NOT NULL DEFAULT '1',
+  `gross` double NOT NULL,
+  `printed` int(11) NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX `orders_ticketId_index` ON `ticketorders` (`ticketId`);
+
+CREATE TABLE `orderExtras` (
+  `orderId` INTEGER NOT NULL REFERENCES `ticketorders` (`id`),
+  `type` INTEGER,  /* "with" or "without" flag */
+  `product` INTEGER NOT NULL REFERENCES `products` (`id`)
+);
+CREATE INDEX `orderExtras_orderId_index` ON `orderExtras` (`orderId`);
+
+CREATE TABLE `orderDescs` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `type` INTEGER NOT NULL,
+  `orderId` INTEGER NOT NULL,
+  `description` TEXT
+);
+CREATE INDEX `orderDescs_orderId_index` ON `orderDescs` (`orderId`);
+
+CREATE TABLE  `categories` (
+  `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  `name` text NOT NULL,
+  `color`      	text DEFAULT '',
+  `printerid` INTEGER DEFAULT NULL,
+  `image`     	text DEFAULT '',
+  `sortorder` INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO `categories`(`id`, `name`, `color`) VALUES (1, 'Standard', '#008b8b');
+
 CREATE TABLE  `groups` (
     `id`        	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     `name`      	text NOT NULL,
     `color`      	text DEFAULT '',
-    `button`     	text DEFAULT '',
+    `printerid`         INTEGER DEFAULT NULL,
     `image`     	text DEFAULT '',
-    `visible`   	tinyint(1) NOT NULL DEFAULT 1
+    `visible`   	tinyint(1) NOT NULL DEFAULT 1,
+    `categoryId` INTEGER NOT NULL DEFAULT 1,
+    `sortorder` INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT `categoryId` FOREIGN KEY (`categoryId`) REFERENCES `categories` (`id`)
 );
-INSERT INTO `groups`(`name`,`visible`) VALUES ('auto', 0);
-INSERT INTO `groups`(`name`,`visible`) VALUES ('Default', 0);
+INSERT INTO `groups`(`id`, `name`,`color`,`visible`) VALUES (1, 'auto', '', 0);
+INSERT INTO `groups`(`id`, `name`,`color`,`visible`) VALUES (2, 'Standard', '#008b8b', 1);
 
 CREATE TABLE `products` (
     `id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -78,6 +145,9 @@ CREATE TABLE `products` (
     `version`	INTEGER NOT NULL DEFAULT 0,
     `origin`	INTEGER NOT NULL DEFAULT 0,
     `lastchange` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    `description`	text,
+    `sortorder` INTEGER NOT NULL DEFAULT 0,
+    `printerid` INTEGER DEFAULT NULL,
     CONSTRAINT `groupid` FOREIGN KEY (`groupid`) REFERENCES `groups` (`id`)
 );
 
@@ -102,7 +172,7 @@ CREATE TABLE `receipts` (
     `receiptNum`	INTEGER DEFAULT NULL,
     `payedBy`	INTEGER NOT NULL DEFAULT '0',
     `gross`	double NOT NULL DEFAULT '0',
-    `net`	double NOT NULL DEFAULT '0',
+    `r2b`	INTEGER NOT NULL DEFAULT '0',
     `storno`	INTEGER NOT NULL DEFAULT '0',
     `stornoId`	INTEGER NOT NULL DEFAULT '0',
     `userId`	INTEGER NOT NULL DEFAULT '0'
@@ -122,6 +192,13 @@ CREATE TABLE `customer` (
     `id`                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     `receiptNum`	INTEGER DEFAULT NULL,
     `text`              text
+);
+
+CREATE TABLE `history` (
+    `id`                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    `datetime`          datetime NOT NULL,
+    `data`              text,
+    `userId`            INTEGER NOT NULL DEFAULT '0'
 );
 
 CREATE TABLE `journal` (
@@ -145,10 +222,25 @@ CREATE TABLE `reports` (
         `receiptNum`	INTEGER,
         `timestamp`	datetime NOT NULL,
         `text`          text,
-        `type`	INTEGER NOT NULL DEFAULT 0
+        `type`	INTEGER NOT NULL DEFAULT 0,
+        `curfew`	text NOT NULL DEFAULT '00:00',
+        `timestampfrom`	datetime NOT NULL DEFAULT '0000-00-00T00:00:00'
+);
+CREATE INDEX `reports_receiptNum_index` ON `reports` (`receiptNum`);
+
+CREATE TABLE `printerdefs` (
+        `id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        `name`	TEXT NOT NULL UNIQUE,
+        `definition`	TEXT NOT NULL
 );
 
-CREATE INDEX `reports_receiptNum_index` ON `reports` (`receiptNum`);
+CREATE TABLE `printers` (
+        `id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        `name`	TEXT NOT NULL UNIQUE,
+        `printer`	TEXT NOT NULL,
+        `definition`	INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY(`definition`) REFERENCES `printerdefs`(`id`)
+);
 
 CREATE TABLE `permissions` (
         `ID`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

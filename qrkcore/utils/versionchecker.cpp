@@ -31,7 +31,7 @@
 #include <QDebug>
 
 VersionChecker::VersionChecker(QObject *parent) :
-    QObject(parent)
+    QObject(parent), m_manager(Q_NULLPTR), timer(Q_NULLPTR)
 {
 }
 
@@ -124,12 +124,10 @@ bool VersionChecker::doRequest(QNetworkRequest req, QJsonObject &obj)
         obj = QJsonDocument::fromJson(reply->readAll()).object();
         delete reply;
         return true;
-    }
-    else {
+    } else {
         //failure
         obj["errorstring"] = reply->errorString();
         delete reply;
         return false;
     }
-    return false;
 }

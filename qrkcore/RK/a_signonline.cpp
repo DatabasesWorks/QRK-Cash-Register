@@ -273,7 +273,6 @@ bool ASignOnline::doRequest(QNetworkRequest req, QJsonObject &obj)
         //failure
         obj["errorstring"] = reply->errorString();
         delete reply;
-        return false;
     }
     return false;
 }

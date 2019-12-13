@@ -39,7 +39,8 @@
 RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool demomode) {
 
     QrkSettings settings;
-    bool onlinetestmode = false;;
+    bool onlinetestmode = false;
+    bool sharedmode = settings.value("scard_sharedmode", false).toBool();
 
     if (reader.isNull() || reader.isEmpty())
         reader = settings.value("currentCardReader", "").toString();
@@ -51,10 +52,10 @@ RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool
         reader = settings.value("atrust_connection", "").toString();
     }
 
-    RKSignatureModule *signatureModule = 0;
+    RKSignatureModule *signatureModule = Q_NULLPTR;
 
     if (reader.isEmpty())
-        return new RKSmartCardInfo(reader);
+        return new RKSmartCardInfo(reader, sharedmode);
 
     if (reader.split("@").size() == 3) {
         (onlinetestmode)?qDebug("A-Trust Online (Testserver)"): qDebug("A-Trust Online (Liveserver)");
@@ -63,7 +64,7 @@ RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool
 
     QString ATR;
     for (int i = 0; i < 3; i++) {
-        ATR = getATR(reader);
+        ATR = getATR(reader, sharedmode);
         if (!ATR.isEmpty())
             break;
 
@@ -73,14 +74,14 @@ RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool
 
     if (ATR == "3BBF11008131FE45455041000000000000000000000000F1" || ATR == "3BBF13008131FE45455041" || ATR == "3BBF11008131FE45455041000000000000000000000000F1") {
         // cardInstance = new SmardCard_ACOS(reader);
-        signatureModule = new ASignACOS_04(reader);
+        signatureModule = new ASignACOS_04(reader, sharedmode);
         qDebug("Card: ACOS04");
     } else if (ATR == "3BDF18008131FE588031905241016405C903AC73B7B1D444") {
         // cardInstance = new SmartCard_CardOS_5_3(reader);
-        signatureModule = new ASignCARDOS_53(reader);
+        signatureModule = new ASignCARDOS_53(reader, sharedmode);
         qDebug("Card: CARDOS 5.3");
     } else {
-        signatureModule = new RKSmartCardInfo(reader);
+        signatureModule = new RKSmartCardInfo(reader, sharedmode);
         qWarning() << "Keine oder falsche Karte! ATR:" << ATR;
     }
 
@@ -93,9 +94,9 @@ RKSignatureModule *RKSignatureModuleFactory::createInstance(QString reader, bool
  * @param reader
  * @return
  */
-QString RKSignatureModuleFactory::getATR(QString reader)
+QString RKSignatureModuleFactory::getATR(QString reader, bool sharedmode)
 {
-    RKSmartCardInfo sc(reader);
+    RKSmartCardInfo sc(reader, sharedmode);
     QString ATR = sc.getATR();
     return ATR;
 }

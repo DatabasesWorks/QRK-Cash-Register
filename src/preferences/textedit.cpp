@@ -61,7 +61,7 @@
 #include <QAbstractItemModel>
 
 TextEdit::TextEdit(QWidget *parent)
-    : QTextEdit(parent), c(0)
+    : QTextEdit(parent), c(Q_NULLPTR)
 {
     setToolTip(tr("Dieser Editor bietet eine Autovervollständigung für vordefinierte Template Variablen."
                   "Sie können die Autovervollständigung mit") + " " +
@@ -71,7 +71,7 @@ TextEdit::TextEdit(QWidget *parent)
 void TextEdit::setCompleter(QCompleter *completer)
 {
     if (c)
-        QObject::disconnect(c, 0, this, 0);
+        QObject::disconnect(c, Q_NULLPTR, this, Q_NULLPTR);
 
     c = completer;
 
@@ -81,8 +81,7 @@ void TextEdit::setCompleter(QCompleter *completer)
     c->setWidget(this);
     c->setCompletionMode(QCompleter::PopupCompletion);
     c->setCaseSensitivity(Qt::CaseInsensitive);
-    QObject::connect(c, SIGNAL(activated(QString)),
-                     this, SLOT(insertCompletion(QString)));
+    connect(c, static_cast<void (QCompleter::*)(const QString &)>(&QCompleter::activated), this, &TextEdit::insertCompletion);
 }
 
 QCompleter *TextEdit::completer() const

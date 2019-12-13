@@ -44,24 +44,27 @@ class QRK_EXPORT Database : public QObject
     static QString getShopName();
     static QString getShopMasterData();
     static QStringList getLastReceipt();
+    static void setCurfewTime(QTime time);
+    static QTime getCurfewTime();
+    static QTime getLastEOACurfewTime();
     static QDate getFirstReceiptDate();
     static QDateTime getFirstReceiptDateTime();
     static QDate getLastReceiptDate();
-    static QDateTime getLastReceiptDateTime();
-    static bool addCustomerText(int id, QString text);
+    static QDateTime getLastReceiptDateTime(bool realtime = false);
+    static bool addCustomerText(int id, const QString &text);
     static QString getCustomerText(int id);
-    static int getProductIdByName(QString name);
-    static int getProductIdByNumber(QString number);
-    static int getProductIdByBarcode(QString code);
+    static int getProductIdByName(const QString &name);
+    static int getProductIdByNumber(const QString &number);
+    static int getProductIdByBarcode(const QString &code);
     static QString getProductNameById(int id);
 
     static bool addProduct(const QJsonObject &data);
-    static QJsonObject getProductByName(QString name, int visible = 1);
+    static QJsonObject getProductByName(const QString &name, int visible = 1);
     static QJsonObject getProductById(int id, int visible = 1);
 
     static bool exists(const QString &name);
-    static bool exists(const QString type, const int &id, const QString fieldname = "id");
-    static bool exists(const QString type, const QString &name, const QString fieldname)
+    static bool exists(const QString &type, const int &id, const QString &fieldname = "id");
+    static bool exists(const QString &type, const QString &name, const QString &fieldname)
 ;
     static int getPayedBy(int);
     static QMap<int, double> getGiven(int id);
@@ -79,18 +82,28 @@ class QRK_EXPORT Database : public QObject
     static QString getAdvertisingText();
     static QString getHeaderText();
     static QString getFooterText();
+    static QJsonArray getPrinters();
+    static QString getPrinterName(int id);
+    static int getPrinterIdFromProduct(int id);
+    static QJsonArray getDefinitions();
+    static int getDefinitionId(const QString &name);
+    static QString getDefinitionName(int id);
 
     static int getLastReceiptNum(bool realReceipt = false);
     static QString getDayCounter();
     static QString getMonthCounter();
     static QString getYearCounter();
+    static QMap<QString, QMap<QString, double> > getSalesPerUser(const QString &from, const QString &to, int &size);
     static QString getSalesPerPaymentSQLQueryString();
-    static void updateProductSold(double, QString);
-    static void updateProductPrice(double, QString);
+    static void updateSortorder(const QString &which, QList<int> indexList);
+    static void updateProductSold(double, const QString &);
+    static void updateProductPrice(double, const QString &);
+    static void updateProductTax(double tax, const QString&);
     static bool moveProductsToDefaultGroup(int oldgroupid);
-    static void insertProductItemnumToExistingProduct(QString itemnum, QString product);
-    static QString getNextProductNumber();
-
+    static bool moveGroupsToDefaultCategory(int oldcategoryid);
+    static void insertProductItemnumToExistingProduct(const QString &itemnum, const QString &product);
+    static qulonglong getFirstProductNumber();
+    static QString getNextProductNumber(bool update = true);
 
     static QStringList getStockInfoList();
     static QStringList getMaximumItemSold();
@@ -99,15 +112,17 @@ class QRK_EXPORT Database : public QObject
     static void resetAllData();
     static QString getLastVersionInfo();
     static void cleanup();
-    static QString updateGlobals(QString name, QString defaultvalue, QString defaultStrValue);
+    static QString updateGlobals(const QString &name, QString defaultvalue, QString defaultStrValue);
     static QSqlDatabase database(const QString &connectionname = "CN");
     static bool isAnyValueFunctionAvailable();
     static QString getDatabaseVersion();
-    static QStringList getDatabaseTableHeaderNames(QString tablename);
+    static QStringList getDatabaseTableHeaderNames(const QString &tablename);
+    static void fixDoubleProductNames();
 
   private:
     static QString getDatabaseType();
-    static void setStorno(int,int = 1);
+    static void setStorno(int,int = 1);    
+    static void updatePrinters();
 
 };
 

@@ -37,7 +37,7 @@ class QRK_EXPORT DatabaseManager
     public:
         static QSqlDatabase database(const QString& connectionName = QLatin1String(QSqlDatabase::defaultConnection));
         static void clear();
-        static void removeCurrentThread(QString);
+        static void removeCurrentThread(const QString connectionName);
 
     private:
         static QMutex s_databaseMutex;

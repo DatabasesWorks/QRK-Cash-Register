@@ -23,8 +23,8 @@
 #ifndef DEFINES
 #define DEFINES
 
-#define QRK_VERSION_MAJOR "1.12"
-#define QRK_VERSION_MINOR "Build-190619"
+#define QRK_VERSION_MAJOR "1.14.4"
+#define QRK_VERSION_MINOR "Build-191213"
 
 enum REGISTER_COL
 {
@@ -36,6 +36,7 @@ enum REGISTER_COL
     REGISTER_COL_SINGLE,
     REGISTER_COL_DISCOUNT,
     REGISTER_COL_TOTAL,
+    REGISTER_COL_DESCBUTTON,
     REGISTER_COL_SAVE,
     REGISTER_COL_COUNT_STR,
     REGISTER_COL_COUNT_TYPE_STR
@@ -53,6 +54,10 @@ enum DOCUMENT_COL
 // values for the receipt.payedBy field
 enum PAYED_BY
 {
+    FIRST_VALUE = -4,
+    PAYED_BY_EMPLOYEE = -3,     // employee consumation
+    PAYED_BY_ADVERTISING = -2,  // does not have invoiceNum; was a gift
+    PAYED_BY_PRIVATE = -1,      // private consumation
     PAYED_BY_CASH,
     PAYED_BY_DEBITCARD,
     PAYED_BY_CREDITCARD,
@@ -79,4 +84,3 @@ enum JOURNAL_ACTION
 };
 
 #endif // DEFINES
-

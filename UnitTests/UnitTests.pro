@@ -25,7 +25,7 @@ TARGET = QRK-UnitTests
 
 TEMPLATE = app qt
 
-QT += core testlib sql widgets
+QT += core testlib sql widgets printsupport
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked as deprecated (the exact warnings

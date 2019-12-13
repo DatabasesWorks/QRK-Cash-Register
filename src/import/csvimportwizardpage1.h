@@ -49,8 +49,8 @@ class CsvImportWizardPage1 : public QWizardPage
     void setModel(QStandardItemModel *model);
 
  public:
-    void csvPathTextChanged(QString text);
-    void textDelimiterChanged(QString text);
+    void csvPathTextChanged(const QString &text);
+    void textDelimiterChanged(const QString &text);
     void otherDelimiterChanged();
     void fileLoadClicked(bool);
     void fileLoadFinished();
@@ -62,13 +62,13 @@ class CsvImportWizardPage1 : public QWizardPage
     void toValueChanged(int);
     void loadCsvFile();
     void setLoadAll(bool);
-    void codecChanged(QString code);
+    void codecChanged(const QString &code);
 
   private:
     Ui::CsvImportWizardPage1 *ui;
     void loadSettings();
     void saveSettings() const;
-    void loadCsvFile(QString text);
+    void loadCsvFile(const QString &text);
     void updateAssignmentTable();
     void initializePage();
 
@@ -92,7 +92,7 @@ class LoadCsvFile : public QObject
     Q_OBJECT
 
   public:
-    LoadCsvFile(QString filename, QString delimiter, QString textDelimiter, bool firstRowIsHeader, int fromLine, int toLine, const QString codec);
+    LoadCsvFile(const QString &filename, const QString &delimiter, const QString &textDelimiter, bool firstRowIsHeader, int fromLine, int toLine, const QString &codec);
     ~LoadCsvFile();
 
   public slots:

@@ -158,17 +158,16 @@ bool ImportTest::test()
         QThread::msleep(200);
     }
 
-    Reports rep(0, true);
-    bool check = rep.checkEOAnyServerMode();
+    Reports rep(Q_NULLPTR, true);
+    bool check = rep.checkEOAny();
     if (check) {
-        ReceiptItemModel rec;
+        if (!rep.endOfDay())
+            return false;
+        if (!rep.endOfMonth())
+            return false;
         if (rec.createNullReceipt(CONCLUSION_RECEIPT)) {
             Database::setCashRegisterInAktive();
             RKSignatureModule::setDEPactive(false);
-            if (!rep.endOfDay())
-                return false;
-            if (!rep.endOfMonth())
-                return false;
         } else {
             return false;
         }

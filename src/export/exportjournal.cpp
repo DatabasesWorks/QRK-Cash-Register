@@ -104,7 +104,8 @@ bool ExportJournal::journalExport(QString outputFilename, QString from, QString 
     while (query.next())
     {
         i++;
-        Spread::Instance()->setProgressBarValue(((float)i / (float)numberOfRows) * 100);
+        Spread::Instance()->setProgressBarValue(int((float(i) / float(numberOfRows)) * 100));
+
         QString data = query.value("data").toString();
         data = Crypto::decrypt(data, SecureByteArray("Journal"));
         QStringList datalist = data.split('\t');
