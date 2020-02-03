@@ -9,6 +9,10 @@ QRK is ideal for all service companies that have been working with fee notes / i
 
 Interface for accounting and accounting programs available. (E.g. billing document)
 
+QRK cash register web site: http://www.ckvsoft.at/
+
+GNU Library or Lesser General Public License version 3.0 (LGPLv3)
+
 ## features
 * Cash register
 * Suitable for Austrian law RKV (Austrian Law)
